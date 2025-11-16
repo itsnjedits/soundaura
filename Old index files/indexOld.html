@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>SoundAura - The only Ad-free music player</title>
+    <meta name="Listen songs without ads" content="This is a music player which is totally Ad-free.">
+
+    <link rel="icon" href="favicon.ico" sizes="64x64" type="image/x-icon">
+
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6HNPX9LKNJ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-6HNPX9LKNJ');
+    </script>
+
+    <!-- Poppins font link -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN link -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Boxicons link -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+
+</head>
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        font-family: "Poppins";
+    }
+
+    body {
+        height: 100%;
+        width: 100%;
+    }
+
+    .song-description {
+        display: none;
+        /* Hide initially */
+    }
+
+    .playback-speed select {
+        background-color: rgb(75, 85, 99);
+        /* Adjust as needed */
+        color: #ffffff;
+        border: 1px solid #444;
+        cursor: pointer;
+        /* width: 77px; */
+    }
+
+    .singer select,
+    .genre select,
+    .mood select {
+        background-color: rgb(56, 60, 67);
+        /* Adjust as needed */
+        color: #ffffff;
+        cursor: pointer;
+    }
+
+
+    .playback-speed select:focus {
+        outline: none;
+    }
+
+
+    .visualizer {
+        display: flex;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 3px;
+    }
+
+    /* Base styles for bars */
+    .bar {
+        width: 3px;
+        height: 30px;
+        background-color: #29ecfe;
+        animation: riseAndFall 1.5s infinite ease-in-out;
+    }
+
+    /* Specific styles for individual bars */
+    .bar1 {
+        animation-delay: 0s;
+        animation-duration: 1.2s;
+    }
+
+    .bar2 {
+        animation-delay: 0.2s;
+        animation-duration: 1.5s;
+    }
+
+    .bar3 {
+        animation-delay: 0.4s;
+        animation-duration: 1.8s;
+    }
+
+    .bar4 {
+        animation-delay: 0.6s;
+        animation-duration: 1.3s;
+    }
+
+    .bar5 {
+        animation-delay: 0.8s;
+        animation-duration: 1.6s;
+    }
+
+    /* Default keyframes for larger screens */
+    @keyframes riseAndFall {
+        0% {
+            height: 15px;
+        }
+
+        50% {
+            height: 35px;
+        }
+
+        100% {
+            height: 15px;
+        }
+    }
+
+    /* Override keyframes for screens 768px or smaller */
+    @media (max-width: 768px) {
+        .visualizer {
+            gap: 1.5px;
+        }
+
+        .bar {
+            height: 15px;
+        }
+
+        @keyframes riseAndFall {
+            0% {
+                height: 8px;
+            }
+
+            50% {
+                height: 16px;
+            }
+
+            100% {
+                height: 8px;
+            }
+        }
+    }
+
+    .musicplayer {
+        background: linear-gradient(to right, rgb(0, 98, 126), rgb(0, 45, 59), rgb(0, 45, 80), rgb(0, 92, 117));
+        background-size: 400% 400%;
+        animation: gradientShift 20s ease infinite;
+        /* Increased duration to 20 seconds */
+    }
+
+    @keyframes gradientShift {
+        0% {
+            background-position: 0% 0%;
+        }
+
+        50% {
+            background-position: 100% 100%;
+        }
+
+        100% {
+            background-position: 0% 0%;
+        }
+    }
+
+    select option {
+        background-color: rgb(75, 85, 99);
+        color: white;
+    }
+
+    .volume-container {
+        position: relative;
+        display: inline-block;
+    }
+
+    .volume-icon {
+        font-size: 24px;
+        /* Adjust size as needed */
+        cursor: pointer;
+    }
+
+    .volume-slider {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-90%);
+        transform: translateY(-55%);
+        width: 100px;
+        /* Adjust width as needed */
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+
+    .volume-container:hover .volume-slider {
+        opacity: 1;
+    }
+
+    .heading,
+    .heading2 {
+        transition: color 300ms ease;
+    }
+
+    /* styles.css */
+    ::-webkit-scrollbar {
+        width: 15px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: #272727;
+        /* Dark background for the scroll track */
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #555;
+        /* Dark color for the scroll thumb */
+        border-radius: 6px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: #777;
+        /* Lighter color for hover effect */
+    }
+
+    header {
+        box-shadow: rgba(0, 0, 0, 0.582) 0px 8px 20px;
+    }
+
+    /* Add some basic styling to the search box and results container */
+    #search-input {
+        width: 200px;
+        padding: 10px;
+        font-size: 16px;
+    }
+
+    #search-btn {
+        padding: 10px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+
+    #search-results {
+        padding: 20px;
+        background-color: #f0f0f0;
+        border: 1px solid #ddd;
+        display: none;
+        /* hide the results container by default */
+    }
+
+    .rolling {
+        transform: rotate(360deg);
+        transition: transform 0.3s ease;
+    }
+</style>
+
+<body class="bg-black ">
+
+    <header class="bg-gray-900 flex justify-center sticky top-0">
+        <nav
+            class="flex justify-between items-center w-[90%] max-sm:w-[98%] max-sm:px-2 max-w-6xl px-4 py-4 max-md:flex-col gap-y-4">
+            <div class="flex items-center gap-x-4">
+                <div class="flex justify-between items-center gap-x-2">
+
+                    <div class="flex items-center gap-x-2">
+                        <div class="title flex flex-col items-center cursor-pointer" onmouseover="logohover()"
+                            onmouseout="resetHover()">
+                            <h1
+                                class="my font-semibold text-4xl text-[#2b8bff] heading tracking-normal max-md:text-2xl">
+                                SoundAura</h1>
+                            <h3
+                                class="text-[#29ecfe] text-sm font-semibold tracking-widest heading2 max-md:text-[10px]">
+                                AD-FREE MUSIC PLAYER</h3>
+                        </div>
+                        <button
+                            class="flex items-center justify-center randomSong ml-1 p-2 text-xl bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe]  rounded "><i
+                                class='bx bxs-dice-6'></i></button>
+                        <button
+                            class="flex items-center justify-center loop ml-1 p-2 text-xl bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe]  rounded "><i
+                                class='bx bx-repeat'></i></button>
+
+                    </div>
+
+                </div>
+            </div>
+            <!-- 1 -->
+
+            <div class="flex gap-x-2">
+                <div
+                    class="flex flex-col gap-y-3 max-md:flex-row max-md:justify-between gap-x-4 max-sm:flex-col max-sm:items-center">
+                    <div class="flex">
+                        <div
+                            class="w-full flex items-center space-x-2 p-2 max-md:p-0 max-md:bg-gray-900 bg-gray-800 rounded-lg">
+                            <!-- Search box -->
+                            <input id="search-input" type="search" placeholder="Search..."
+                                class="flex-grow text-sm bg-gray-700 max-sm:h-8 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 max-md:py-2 max-md:px-3 ">
+
+                            <!-- Search button -->
+                            <button id="search-next-btn"
+                                class="max-sm:h-8 p-[10px] max-md:py-2 max-md:px-3 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center ">
+                                Find Next
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-col items-center justify-center flex gap-y-2">
+                        <div class="flex gap-x-2 max-sm:gap-x-2 justify-center">
+
+                            <button id="genre-before"
+                                class="max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded min-md:hover:bg-gray-600 min-md:hover:border-gray-900 min-md:hover:text-[#29ecfe] duration-150 ">Genre</button>
+                            <div class="genre flex-col items-center justify-center hidden">
+                                <select id="genre"
+                                    class="text-white rounded p-1 py-2 max-md:text-[11px] max-md:w-24 max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap ">
+                                    <option class="bg-gray-700" value="Slowed & Reverb">Slowed & Reverb</option>
+                                    <option class="bg-gray-700" value="Gym">Gym</option>
+                                    <option class="bg-gray-700" value="Hindi-New">Hindi-New</option>
+                                    <option class="bg-gray-700" value="Hindi-Old">Hindi-Old</option>
+                                    <option class="bg-gray-700" value="Punjabi">Punjabi</option>
+                                    <option class="bg-gray-700" value="Meditation">Meditation</option>
+                                </select>
+                            </div>
+                            <button id="mood-before"
+                                class="max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded min-md:hover:bg-gray-600 min-md:hover:border-gray-900 min-md:hover:text-[#29ecfe] duration-150 ">Mood</button>
+                            <div class="mood flex-col items-center justify-center hidden">
+                                <select id="mood"
+                                    class="text-white rounded p-1 py-2 max-md:text-[11px] max-md:w-24 max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap ">
+                                    <option class="bg-gray-700" value="Ghazal">Ghazal</option>
+                                    <!-- <option class="bg-gray-700" value="Happy">Happy</option> -->
+                                    <option class="bg-gray-700" value="Inspirational">Inspirational</option>
+                                    <option class="bg-gray-700" value="Instrumental">Instrumental</option>
+                                    <option class="bg-gray-700" value="Mashup">Mashup</option>
+                                    <option class="bg-gray-700" value="Motivational">Motivational</option>
+                                    <option class="bg-gray-700" value="Nostalgic">Nostalgic</option>
+                                    <option class="bg-gray-700" value="Party">Party</option>
+                                    <option class="bg-gray-700" value="Patriotic">Patriotic</option>
+                                    <option class="bg-gray-700" value="Punjabi">Punjabi</option>
+                                    <option class="bg-gray-700" value="Rap">Rap</option>
+                                    <option class="bg-gray-700" value="Romantic">Romantic</option>
+                                    <option class="bg-gray-700" value="Sad">Sad</option>
+                                    <option class="bg-gray-700" value="Spiritual">Spiritual</option>
+                                </select>
+
+
+                            </div>
+                            <button id="singer-before"
+                                class="max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded min-md:hover:bg-gray-600 min-md:hover:border-gray-900 min-md:hover:text-[#29ecfe] duration-150 ">Singer</button>
+                            <div class="singer flex-col items-center justify-center hidden">
+                                <select id="singer"
+                                    class="text-white rounded p-1 py-2 max-md:text-[11px] max-md:w-24 max-md:overflow-hidden max-md:text-ellipsis max-md:whitespace-nowrap ">
+                                    <option class="bg-gray-700" value="Jagjit Singh">Jagjit Singh</option>
+                                    <option class="bg-gray-700" value="Akhil Sachdeva">Akhil Sachdeva</option>
+                                    <option class="bg-gray-700" value="Alka Yagnik">Alka Yagnik</option>
+                                    <option class="bg-gray-700" value="Amit Trivedi">Amit Trivedi</option>
+                                    <option class="bg-gray-700" value="Ankit Tiwari">Ankit Tiwari</option>
+                                    <option class="bg-gray-700" value="AP Dhillon">AP Dhillon</option>
+                                    <option class="bg-gray-700" value="AR Rahman">AR Rahman</option>
+                                    <option class="bg-gray-700" value="Arijit Singh">Arijit Singh</option>
+                                    <option class="bg-gray-700" value="Arko">Arko</option>
+                                    <option class="bg-gray-700" value="Armaan Malik">Armaan Malik</option>
+                                    <option class="bg-gray-700" value="Asha Bhosle">Asha Bhosle</option>
+                                    <option class="bg-gray-700" value="Atif Aslam">Atif Aslam</option>
+                                    <option class="bg-gray-700" value="Ayushmann Khurrana">Ayushmann Khurrana</option>
+                                    <option class="bg-gray-700" value="B Praak">B Praak</option>
+                                    <option class="bg-gray-700" value="Bhupinder Singh">Bhupinder Singh</option>
+                                    <option class="bg-gray-700" value="Chandan Daas">Chandan Daas</option>
+                                    <option class="bg-gray-700" value="Faheem Abdullah, Rauhan Malik, Amir Ameer">Faheem
+                                        Abdullah, Rauhan Malik, Amir Ameer</option>
+                                    <option class="bg-gray-700" value="Ghulam Ali">Ghulam Ali</option>
+                                    <option class="bg-gray-700" value="Himesh Reshammiya">Himesh Reshammiya</option>
+                                    <option class="bg-gray-700" value="Javed Ali">Javed Ali</option>
+                                    <option class="bg-gray-700" value="Javed Bashir">Javed Bashir</option>
+                                    <option class="bg-gray-700" value="Jubin Nautiyal">Jubin Nautiyal</option>
+                                    <option class="bg-gray-700" value="Kailash Kher">Kailash Kher</option>
+                                    <option class="bg-gray-700" value="Kishore Kumar">Kishore Kumar</option>
+                                    <option class="bg-gray-700" value="KK">KK</option>
+                                    <option class="bg-gray-700" value="Kumar Sanu">Kumar Sanu</option>
+                                    <option class="bg-gray-700" value="Lata Mangeshkar">Lata Mangeshkar</option>
+                                    <option class="bg-gray-700" value="Mehndi Hasan">Mehndi Hasan</option>
+                                    <option class="bg-gray-700" value="Mohammed Irfan">Mohammed Irfan</option>
+                                    <option class="bg-gray-700" value="Mohammed Rafi">Mohammed Rafi</option>
+                                    <option class="bg-gray-700" value="Mohit Chauhan">Mohit Chauhan</option>
+                                    <option class="bg-gray-700" value="Monali Thakur">Monali Thakur</option>
+                                    <option class="bg-gray-700" value="Mukesh">Mukesh</option>
+                                    <option class="bg-gray-700" value="Palak Muchhal">Palak Muchhal</option>
+                                    <option class="bg-gray-700" value="Papon">Papon</option>
+                                    <option class="bg-gray-700" value="Rahat Fateh Ali Khan">Rahat Fateh Ali Khan
+                                    </option>
+                                    <option class="bg-gray-700" value="Raj Barman">Raj Barman</option>
+                                    <option class="bg-gray-700" value="Roopkumar Rathod">Roopkumar Rathod</option>
+                                    <option class="bg-gray-700" value="Shaan">Shaan</option>
+                                    <option class="bg-gray-700" value="Shabbir Kumar">Shabbir Kumar</option>
+                                    <option class="bg-gray-700" value="Shafaqat Amanat Ali">Shafaqat Amanat Ali</option>
+                                    <option class="bg-gray-700" value="Shankar Mahadevan">Shankar Mahadevan</option>
+                                    <option class="bg-gray-700" value="Shreya Ghoshal">Shreya Ghoshal</option>
+                                    <option class="bg-gray-700" value="Sonu Nigam">Sonu Nigam</option>
+                                    <option class="bg-gray-700" value="Sukhwinder Singh">Sukhwinder Singh</option>
+                                    <option class="bg-gray-700" value="Udit Narayan">Udit Narayan</option>
+                                    <option class="bg-gray-700" value="Vishal Dadlani">Vishal Dadlani</option>
+                                </select>
+
+                            </div>
+
+                        </div>
+                        <div class="flex gap-x-2 max-sm:gap-x-2 justify-center">
+                            <button
+                                class="yourPlaylist flex items-center max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded min-md:hover:bg-gray-600 min-md:hover:border-gray-900 min-md:hover:text-[#29ecfe] duration-150 gap-x-1">
+                                <p>My Playlist</p>
+                            </button>
+
+                            <button
+                                class="reqSong flex items-center max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded min-md:hover:bg-gray-600 min-md:hover:border-gray-900 min-md:hover:text-[#29ecfe] duration-150 gap-x-1">
+                                <p>Req Song</p>
+                            </button>
+
+                        </div>
+                    </div>
+                    <!-- wrap -->
+                </div>
+            </div>
+            <!-- 3 -->
+        </nav>
+    </header>
+
+    <main class="flex flex-col items-center mt-5 mb-28 max-md:mb-20">
+        <h1
+            class="text-gray-200 text-3xl max-md:text-2xl max-sm:text-xl max-sm:w-[90%] font-semibold text-center without-ads">
+            Non-Stop 400+ Songs - No Ads 🔥
+        </h1>
+        <div
+            class="array flex flex-col max-w-6xl bg-gray-800 my-5 w-[90%] max-md:w-[100%] max-md:rounded-none rounded-xl py-4 max-md:py-2 gap-y-2">
+            <!-- Song items will be dynamically added here -->
+        </div>
+    </main>
+
+    <div class="player flex justify-center fixed bottom-0 w-full">
+        <div
+            class="musicplayer bg-gray-900 text-white rounded-lg shadow-lg p-4 flex flex-col max-w-6xl w-[90%] max-md:w-[100%] max-md:rounded-none max-md:p-2">
+            <!-- Song Description -->
+            <div class="song-description mb-4 max-md:mb-2 items-center gap-x-4 max-md:gap-x-2">
+                <img id="song-image" src="" alt="Song Image"
+                    class="h-20 w-36 max-md:w-20 max-md:h-12 object-cover rounded-lg">
+                <div>
+                    <h2 class="max-md:text-base song-title font-semibold text-xl max-[500px]:text-[13.5px]">Song Title
+                    </h2>
+                    <p class="song-artist max-md:text-sm text-gray-300 max-[500px]:text-[12px]">Artist Name</p>
+                </div>
+            </div>
+            <!-- Slider and Time -->
+            <div class="div1 flex items-center space-x-4 max-md:space-x-2 mb-4">
+                <span id="timecompleted" class="text-sm max-md:text-[10px]">00:00</span>
+                <input type="range" id="progress" class="flex-1 h-2 bg-gray-600 rounded-lg" min="0" max="100" value="0">
+                <span id="timetotal" class="text-sm max-md:text-[10px]">00:00</span>
+            </div>
+            <!-- Controls -->
+            <div class="div2 flex items-center justify-center gap-x-4 max-md:gap-x-2">
+                <button id="rewind"
+                    class="max-md:text-2xl max-md:py-1 max-md:px-2 text-3xl bg-gray-600 flex justify-center items-center text-white px-4 py-2 rounded"><i
+                        class='bx bx-rewind'></i></button>
+                <button id="prev"
+                    class="max-md:text-2xl max-md:py-1 max-md:px-2 text-3xl bg-gray-600 flex justify-center items-center text-white px-4 py-2 rounded"><i
+                        class='bx bx-skip-previous'></i></button>
+                <button id="play-pause"
+                    class="max-md:text-2xl max-md:py-1 max-md:px-2 text-3xl bg-blue-500 text-white px-4 py-2 rounded flex justify-center items-center"><i
+                        class='bx bx-play'></i></button>
+                <button id="next"
+                    class="max-md:text-2xl max-md:py-1 max-md:px-2 text-3xl bg-gray-600 flex justify-center items-center text-white px-4 py-2 rounded"><i
+                        class='bx bx-skip-next'></i></button>
+                <button id="forward"
+                    class="max-md:text-2xl max-md:py-1 max-md:px-2 text-3xl bg-gray-600 flex justify-center items-center text-white px-4 py-2 rounded"><i
+                        class='bx bx-fast-forward'></i></button>
+
+                <div class="playback-speed bg-gray-800 flex justify-center items-center">
+
+                    <select id="speed" class=" text-white rounded p-2 max-md:p-1 bg-gray-800 max-md:text-sm">
+                        <option class="bg-gray-700" value="0.9">0.9x</option>
+                        <option class="bg-gray-700" value="0.95">0.95x</option>
+                        <option class="bg-gray-700" value="1" selected>1x</option>
+                        <option class="bg-gray-700" value="1.05">1.05x</option>
+                        <option class="bg-gray-700" value="1.1">1.1x</option>
+                        <option class="bg-gray-700" value="1.15">1.15x</option>
+                        <option class="bg-gray-700" value="1.2">1.2x</option>
+                        <option class="bg-gray-700" value="1.25">1.25x</option>
+                    </select>
+                </div>
+                <div class="volume-container w-16 max-sm:hidden">
+                    <i class='bx bxs-volume-full volume-icon'></i>
+                    <input type="range" class="volume-slider" min="0" max="100" value="100" />
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <!-- jagjit bot 3.0 song req and suggestion -->
+    <!-- Removed -->
+
+    <script>
+        function logohover() {
+            document.querySelector(".heading").style.color = "#29ecfe";
+            document.querySelector(".heading2").style.color = "#2b8bff";
+        }
+
+        function resetHover() {
+            document.querySelector(".heading").style.color = "#2b8bff"; // Original color
+            document.querySelector(".heading2").style.color = "#29ecfe"; // Original color
+        }
+    </script>
+    <script src="script.js"></script>
+
+</body>
+
+</html>

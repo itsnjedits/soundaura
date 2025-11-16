@@ -1,0 +1,25 @@
+{
+  "name": "SoundAura - Ad Free Music Player",
+  "short_name": "SoundAura",
+  "description": "Ad-free music player with background & lockscreen controls.",
+  "start_url": "https://itsnjedits.github.io/soundaura/",
+  "scope": "https://itsnjedits.github.io/soundaura/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#111827",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

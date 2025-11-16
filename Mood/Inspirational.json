@@ -1,0 +1,23 @@
+[
+    {
+        "title": "Teri Mitti",
+        "artist": "B Praak",
+        "file": "Audio/Teri Mitti -Lyrics- - Kesari B Praak Manoj Muntashir Arko.mp3",
+        "image": "Thumbnails/Teri Mitti -Lyrics- - Kesari B Praak Manoj Muntashir Arko_thumbnail.jpg",
+        "ext": ""
+    },
+    {
+        "title": "Vande Mataram",
+        "artist": "A.R. Rahman",
+        "file": "Audio/Vande Mataram - A.R. Rahman Maa Tujhe Salaam Independence Day Song.mp3",
+        "image": "Thumbnails/Vande Mataram - A.R. Rahman Maa Tujhe Salaam Independence Day Song_thumbnail.jpg",
+        "ext": ""
+    },
+    {
+        "title": "Yeh Honsla Kaise Jhuke",
+        "artist": "Shafaqat Amanat Ali",
+        "file": "Audio/yeh hosla kaise jhuke.mp3",
+        "image": "Thumbnails/yeh hosla kaise jhuke_thumbnail.jpg",
+        "ext": ""
+    }
+]

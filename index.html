@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>SoundAura - The only Ad-free music player</title>
+    <meta name="Listen songs without ads" content="This is a music player which is totally Ad-free.">
+
+    <link rel="icon" href="favicon.ico" sizes="64x64" type="image/x-icon">
+
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-6HNPX9LKNJ"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+
+        gtag('config', 'G-6HNPX9LKNJ');
+    </script>
+
+    <!-- Poppins font link -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS CDN link -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Boxicons link -->
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono&display=swap" rel="stylesheet">
+
+    <!-- 🌟 PWA Setup -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#111827">
+    <meta name="background-color" content="#000000">
+
+    <!-- 📱 iOS PWA support -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SoundAura">
+    <link rel="apple-touch-icon" href="./icons/icon-512.png">
+
+
+</head>
+
+<body class="bg-black ">
+
+    <header class="fixed z-50 bg-gray-900 flex justify-center sticky top-0">
+        <nav
+            class="flex justify-between items-center w-[90%] max-sm:w-[98%] max-sm:px-2 max-w-6xl px-4 py-4 max-md:flex-col gap-y-4">
+            <div class="flex items-center gap-x-4">
+                <div class="flex justify-between items-center gap-x-2">
+                    <div class="flex items-center gap-x-2">
+                        <div class="title flex flex-col items-center cursor-pointer" onmouseover="logohover()"
+                            onmouseout="resetHover()">
+                            <h1
+                                class="my font-semibold text-4xl text-[#2b8bff] heading tracking-normal max-md:text-2xl">
+                                SoundAura</h1>
+                            <h3
+                                class="text-[#29ecfe] text-sm font-semibold tracking-widest heading2 max-md:text-[10px]">
+                                AD-FREE MUSIC PLAYER</h3>
+                        </div>
+                        <button
+                            class="flex items-center justify-center randomSong ml-1 p-2 text-xl bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] rounded sm:hover:bg-gray-600 sm:hover:border-gray-900 sm:hover:text-[#29ecfe] duration-150 active:scale-95 active:brightness-90">
+                            <i class='bx bxs-dice-6'></i>
+                        </button>
+
+                        <button id="loop-btn-playlist"
+                            class="flex items-center justify-center loop ml-1 p-2 text-xl bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] rounded sm:hover:bg-gray-600 sm:hover:border-gray-900 sm:hover:text-[#29ecfe] duration-150 active:scale-95 active:brightness-90">
+                            <i class='bx bx-repeat'></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- 1 -->
+
+            <div class="flex gap-x-2">
+                <div
+                    class="flex flex-col gap-y-3 max-md:flex-row max-md:justify-between gap-x-4 max-sm:flex-col max-sm:items-center">
+                    <div class="flex justify-center">
+                        <div
+                            class="w-full flex items-center space-x-2 p-2 max-md:p-0 max-md:bg-gray-900 bg-gray-800 rounded-lg relative">
+                            <!-- Search box -->
+                            <input id="search-input" type="search" placeholder="Search..."
+                                class="flex-grow text-sm bg-gray-700 max-sm:h-8 text-white border border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 max-md:py-2 max-md:px-3">
+
+                            <!-- Search button -->
+                            <button id="search-next-btn"
+                                class="max-sm:h-8 p-[10px] max-md:py-2 max-md:px-3 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center">
+                                <i class='bx bx-search'></i>
+                            </button>
+
+                            <!-- Dropdown toggle button -->
+                            <button id="dropdown-toggle"
+                                class="max-sm:h-8 p-2 max-md:py-2 max-md:px-3 bg-gray-700 text-white rounded-md hover:bg-gray-600 focus:outline-none flex items-center justify-center md:hidden">
+                                <svg id="dropdown-arrow" class="w-4 h-4 transition-transform duration-300" fill="none"
+                                    stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+
+                        </div>
+                    </div>
+                    <div id="toggleDiv"
+                        class="flex-col items-center justify-center flex gap-y-2 mt-2 transition-all duration-500 ease-in-out overflow-hidden max-h-[1000px]">
+                        <div class="flex gap-x-2 max-sm:gap-x-2 justify-center">
+                            <button
+                                class="yourPlaylist flex items-center max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded sm:hover:bg-gray-600 sm:hover:border-gray-900 sm:hover:text-[#29ecfe] active:scale-95 active:brightness-90 duration-150 gap-x-1">
+                                <p>My Playlist</p>
+                            </button>
+
+                            <button
+                                class="reqSong flex items-center max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border-[1px] text-[#2b8bff] border-[#29ecfe] font-semibold px-4 py-2 rounded sm:hover:bg-gray-600 sm:hover:border-gray-900 sm:hover:text-[#29ecfe] active:scale-95 active:brightness-90 duration-150 gap-x-1">
+                                <p>Req Song</p>
+                            </button>
+
+                        </div>
+
+                        <div class="flex gap-x-2 max-sm:gap-x-2 justify-center">
+                            <!-- 🎵 Mood Button (unchanged transition, added hover) -->
+                            <button id="feature-button"
+                                class="max-md:text-sm max-md:py-0 max-sm:py-1 max-sm:px-2 max-md:px-2 text-lg bg-gray-800 border border-[#29ecfe] text-[#2b8bff] font-semibold px-4 py-2 rounded sm:hover:bg-gray-600 sm:hover:border-gray-900 sm:hover:text-[#29ecfe] active:scale-95 active:brightness-90 duration-150">
+                                <span id="feature-text"
+                                    class="block transition-all duration-500 ease-in-out">Mood</span>
+                            </button>
+
+
+                            <!-- 🖼️ Fullscreen Modal -->
+                            <div id="selectionModal"
+                                class="fixed z-[1000] p-3 shadow-lg border-2 border-[#29ecfe] rounded-[9px] bg-gray-900/90 hidden flex-col overflow-auto text-white top-[48.5%] left-[50%]"
+                                style="transform: translate(-50%, -50%); width: 90%; max-width: 774px; height: 70vh;">
+
+                                <!-- ❌ Sticky Close Button -->
+                                <div
+                                    style="position: sticky; top: 0; z-index: 50; display: flex; justify-content: flex-end;">
+                                    <button id="closeModalBtn"
+                                        class="text-white text-[27px] font-semibold px-[11px] py-[1px] bg-red-700 rounded-[8px] hover:bg-red-800 cursor-pointer">
+                                        X
+                                    </button>
+                                </div>
+
+                                <!-- 🧾 Modal Content Scrollable -->
+                                <div>
+
+                                    <div class="flex flex-col items-center w-full max-w-4xl my-6">
+                                        <h2 class="text-2xl font-bold text-[#29ecfe] mb-6"></h2>
+
+                                        <video id="allSongsImage"
+                                            class="w-52 rounded-2xl cursor-pointer transition hover:scale-105"
+                                            style="box-shadow: 0px 5px 15px rgba(41, 236, 254, 0.45);"
+                                            src="Khazana/allSongs.mp4" autoplay loop muted playsinline>
+                                        </video>
+                                        <p class="mt-2 text-sm font-medium text-white text-center">All Songs</p>
+                                    </div>
+                                    <div class="flex flex-col items-center w-full max-w-4xl my-6">
+                                        <h2 class="text-2xl font-bold text-[#29ecfe] mb-6">Mood</h2>
+                                        <div id="mood-options" class="flex flex-wrap justify-center gap-6"></div>
+                                    </div>
+
+                                    <div class="flex flex-col items-center w-full max-w-4xl my-6">
+                                        <h2 class="text-2xl font-bold text-[#29ecfe] mb-6">Genre</h2>
+                                        <div id="genre-options" class="flex flex-wrap justify-center gap-6"></div>
+                                    </div>
+
+                                    <div class="flex flex-col items-center w-full max-w-4xl my-6">
+                                        <h2 class="text-2xl font-bold text-[#29ecfe] mb-6">Singer</h2>
+                                        <div id="singer-options" class="flex flex-wrap justify-center gap-6"></div>
+                                    </div>
+                                </div>
+
+                            </div>
+
+
+                        </div>
+                    </div>
+                    <!-- wrap -->
+                </div>
+            </div>
+            <!-- 3 -->
+        </nav>
+    </header>
+
+    <script>
+        const toggleBtn = document.getElementById('dropdown-toggle');
+        const toggleDiv = document.getElementById('toggleDiv');
+        const arrow = document.getElementById('dropdown-arrow');
+
+        let isOpen = true; // initially visible
+
+        toggleBtn.addEventListener('click', () => {
+            if (isOpen) {
+                // collapse
+                toggleDiv.style.maxHeight = '0px';
+                toggleDiv.style.opacity = '0';
+                arrow.classList.add('rotate-180');
+            } else {
+                // expand
+                toggleDiv.style.maxHeight = '1000px';
+                toggleDiv.style.opacity = '1';
+                arrow.classList.remove('rotate-180');
+            }
+            isOpen = !isOpen;
+        });
+    </script>
+
+    <main class="flex flex-col items-center mt-5 mb-28 max-md:mb-20">
+        <h1
+            class="without-ads text-gray-200 text-3xl max-md:text-2xl max-sm:text-xl max-sm:w-[90%] font-semibold text-center flex justify-center items-center gap-2">
+            <span id="loading-spinner"
+                class="relative z-20 hidden w-4 h-4 border-4 border-white border-t-transparent rounded-full animate-spin"></span>
+            <span id="heading-text"></span>
+        </h1>
+
+        <div
+            class="array flex flex-col max-w-6xl bg-gray-800 my-5 w-[90%] max-md:w-[100%] max-md:rounded-none rounded-xl py-4 max-md:py-2 gap-y-2 mb-28">
+            <!-- Song items will be dynamically added here -->
+        </div>
+    </main>
+
+    <div class="player flex justify-center fixed bottom-0 w-full">
+        <div
+            class="musicplayer bg-gray-900 text-white rounded-lg shadow-lg p-4 flex flex-col max-w-6xl w-[90%] max-md:w-[100%] max-md:rounded-none max-md:p-2">
+            <!-- Song Description -->
+            <div class="song-description mb-4 max-md:mb-2 items-center gap-x-4 max-md:gap-x-2">
+                <img id="song-image" src="" alt="Song Image"
+                    class="h-20 w-36 max-md:h-12 max-md:w-20 object-cover rounded-lg transition-transform duration-200 hover:scale-105">
+                <div>
+                    <h2 class="max-md:text-base song-title font-semibold text-xl max-[500px]:text-[13.5px]">Song Title
+                    </h2>
+                    <p class="song-artist max-md:text-sm text-gray-300 max-[500px]:text-[12px]">Artist Name</p>
+                </div>
+            </div>
+            <!-- Slider and Time -->
+            <div class="div1 flex items-center space-x-4 max-md:space-x-2 mb-2">
+                <span style="font-family: 'Roboto Mono', monospace;" id="timecompleted"
+                    class="text-sm max-md:text-[10px]">00:00</span>
+                <input type="range" id="progress" class="flex-1 h-2 bg-gray-600 rounded-lg" min="0" max="100" value="0">
+                <span style="font-family: 'Roboto Mono', monospace;" id="timetotal"
+                    class="text-sm max-md:text-[10px]">00:00</span>
+            </div>
+            <!-- Controls -->
+            <div class="div2 flex items-center justify-center gap-x-4 max-md:gap-x-2">
+
+                <!-- 🎵 Button Group Box -->
+                <div class="flex items-center justify-center gap-x-2 max-md:gap-x-[4px] bg-gray-700/80 border border-gray-600 
+              rounded-xl p-2 max-md:p-[4px] shadow-inner backdrop-blur-sm">
+
+                    <!-- Buttons -->
+                    <button id="rewind"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-white px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-rewind transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <button id="prev"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-white px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-skip-previous transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <button id="play-pause"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-[#29ecfe] px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-play transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <button id="next"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-white px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-skip-next transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <button id="forward"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-white px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-fast-forward transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <button id="loop-btn-single"
+                        class="btn-control max-md:text-2xl text-3xl bg-gray-600 md:hover:bg-gray-700 text-white px-2 py-1 rounded-lg transition duration-150 ease-in-out active:scale-95 touch-effect shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5">
+                        <i class='bx bx-repeat transition duration-150 group-hover:scale-110'></i>
+                    </button>
+
+                    <!-- Playback Speed -->
+                    <div class="playback-speed flex justify-center items-center">
+                        <select id="speed" style="font-family: 'Roboto Mono', monospace;"
+                            class="text-white bg-gray-800 rounded-lg p-2 md:p-3 tracking-normal font-semibold appearance-none text-center shadow-[0_4px_8px_rgba(0,0,0,0.5)] hover:shadow-[0_6px_10px_rgba(0,0,0,0.65)] hover:-translate-y-0.5 transition duration-150">
+                            <option class="bg-gray-700" value="0.9">0.9x</option>
+                            <option class="bg-gray-700" value="0.95">0.95x</option>
+                            <option class="bg-gray-700" value="1" selected>1x</option>
+                            <option class="bg-gray-700" value="1.05">1.05x</option>
+                            <option class="bg-gray-700" value="1.1">1.1x</option>
+                            <option class="bg-gray-700" value="1.15">1.15x</option>
+                            <option class="bg-gray-700" value="1.2">1.2x</option>
+                            <option class="bg-gray-700" value="1.25">1.25x</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 🎵 End Button Group -->
+
+                <div class="volume-container w-16 max-sm:hidden">
+                    <i class='text-2xl bx bxs-volume-full volume-icon'></i>
+                    <input type="range" class="volume-slider" min="0" max="100" value="100" />
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+    </div>
+    <script>
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+
+if (isTouchDevice) {
+    const buttons = document.querySelectorAll('.btn-control');
+    buttons.forEach(btn => {
+        btn.addEventListener('touchstart', () => btn.classList.add('bg-gray-700','text-[#29ecfe]'));
+        btn.addEventListener('touchend', () => btn.classList.remove('bg-gray-700','text-[#29ecfe]'));
+        btn.addEventListener('touchcancel', () => btn.classList.remove('bg-gray-700','text-[#29ecfe]'));
+    });
+}
+
+function logohover() {
+    document.querySelector(".heading").style.color = "#29ecfe";
+    document.querySelector(".heading2").style.color = "#2b8bff";
+}
+function resetHover() {
+    document.querySelector(".heading").style.color = "#2b8bff";
+    document.querySelector(".heading2").style.color = "#29ecfe";
+}
+
+const categories = {
+    "Mood": [
+        "Sad","Ghazal","Party","Inspirational","Instrumental","Mashup",
+        "Motivational","Nostalgic","Patriotic","Punjabi","Rap","Romantic","Spiritual","Mix"
+    ],
+    "Genre": [
+        "Hindi-Old","Hindi-New","Slowed-Reverb","Meditation","Rain"
+    ],
+    "Singer": [
+        'Akhil Sachdeva','Alka Yagnik','Amit Trivedi','Ankit Tiwari','AP Dhillon','AR Rahman','Arijit Singh','Arko','Armaan Malik',
+        'Asha Bhosle','Atif Aslam','Ayushmann Khurrana','B Praak','Bhupinder Singh','Chandan Daas','Gajendra Verma','Ghulam Ali',
+        'Himesh Reshammiya','Jagjit Singh','Javed Ali','Javed Bashir','Jubin Nautiyal','Kailash Kher','Kishore Kumar','KK',
+        'Kumar Sanu','Lata Mangeshkar','Mehndi Hasan','Mohammed Irfan','Mohammed Rafi','Mohit Chauhan','Monali Thakur','Mukesh','Nusrat Fateh Ali Khan',
+        'Palak Muchhal','Papon','Rahat Fateh Ali Khan','Raj Barman','Roopkumar Rathod','Shaan','Shabbir Kumar',
+        'Shafaqat Amanat Ali','Shankar Mahadevan','Shreya Ghoshal','Sonu Nigam','Sukhwinder Singh','Udit Narayan','Vishal Dadlani'
+    ]
+};
+
+function renderOptions(containerId, items, category) {
+    const container = document.getElementById(containerId);
+    let html = '';
+    items.forEach(item => {
+        html += `
+        <div class="option-item flex flex-col items-center cursor-pointer transition hover:scale-105"
+             data-category="${category}" data-value="${item}">
+            <img src="Khazana/${item}.jpg"
+                 onerror="this.onerror=null; this.src='Khazana/default.jpg';"
+                 class="w-24 h-24 object-cover rounded-full" style="box-shadow:0px 5px 15px rgba(41, 236, 254, 0.55);" />
+            <p class="mt-2 text-sm font-medium text-white text-center">${item}</p>
+        </div>`;
+    });
+    container.innerHTML = html; // single DOM write ✅
+}
+
+// init render
+for (const [category, items] of Object.entries(categories)) {
+    renderOptions(category.toLowerCase()+"-options", items, category);
+}
+
+// throttle random click
+window.addEventListener('load', () => {
+  setTimeout(() => {
+     const btn = document.querySelector('.randomSong');
+     btn && btn.click();
+  }, 400);
+});
+</script>
+
+    <script src="script.js"></script>
+    <!-- 💫 PWA Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js')
+                .then(() => console.log("✅ Service Worker registered"))
+                .catch((err) => console.log("❌ Service Worker failed:", err));
+        }
+    </script>
+</body>
+
+</html>
