@@ -28,12 +28,12 @@
 
 const GITHUB_USER = 'itsnjedits';
 /**
- * Build audio URL — guards against double Audio/ prefix.
- * songs.json `file` field may be just "Song.mp3" OR "Audio/Song.mp3".
- * We normalise to always produce: .../main/Audio/Song.mp3
+ * Build audio URL — guards against double audio/ prefix.
+ * songs.json `file` field may be just "Song.mp3" OR "audio/Song.mp3".
+ * We normalise to always produce: .../main/audio/Song.mp3
  */
 const AUDIO_URL = (store, file) => {
-  const cleanFile = file.startsWith('Audio/') ? file : `Audio/${file}`;
+  const cleanFile = file.startsWith('audio/') ? file : `audio/${file}`;
   return encodeURI(`https://raw.githubusercontent.com/${GITHUB_USER}/${store}/main/${cleanFile}`);
 };
 

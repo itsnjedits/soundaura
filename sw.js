@@ -4,7 +4,7 @@
  */
 
 const CACHE_NAME = 'soundaura-v2';
-const AUDIO_CACHE = 'soundaura-audio-v1';
+const AUDIO_CACHE = 'soundaura-audio-v2';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
