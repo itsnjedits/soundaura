@@ -109,6 +109,8 @@ const state = {
 
   currentFilter: null,       // { type: 'mood'|'singer', value: string }
   isDarkMode: true,
+  volume: 1.0,               // 0.0 – 1.0
+  isMuted: false,            // mute toggle
 
   // "Add Songs" selection mode
   addSongsMode: false,       // true when Explore is opened from a playlist's "Add Songs"
@@ -149,25 +151,89 @@ const Storage = {
     Storage.save('playlists', state.userPlaylists);
     Storage.save('playbackMode', state.playbackMode);
     Storage.save('darkMode', state.isDarkMode);
+    Storage.save('volume', state.volume);
+    Storage.save('muted', state.isMuted);
     if (state.eqFilters.length) {
       Storage.save('eqSettings', state.eqFilters.map(f => f.gain.value));
     }
     if (state.currentSongIndex >= 0) {
       const song = state.currentPlaylist[state.currentSongIndex];
       if (song) {
+        // Persist last song + seek position + context (mood/singer/playlist)
         Storage.save('lastSong', {
-          audioUrl: AUDIO_URL(song.store, song.file),
+          file: song.file,
+          store: song.store,
           timestamp: audioEl.currentTime,
-          filter: state.currentFilter
+        });
+        Storage.save('lastContext', {
+          type: state.activePlaylistName
+            ? 'playlist'
+            : state.currentFilter
+              ? state.currentFilter.type
+              : 'all',
+          value: state.activePlaylistName || state.currentFilter?.value || null,
         });
       }
     }
   },
 
   loadAll() {
-    state.userPlaylists = Storage.load('playlists', {});
-    state.playbackMode = Storage.load('playbackMode', 'repeat');
-    state.isDarkMode = Storage.load('darkMode', true);
+    state.userPlaylists  = Storage.load('playlists', {});
+    state.playbackMode   = Storage.load('playbackMode', 'repeat');
+    state.isDarkMode     = Storage.load('darkMode', true);
+    state.volume         = Storage.load('volume', 1.0);
+    state.isMuted        = Storage.load('muted', false);
+  },
+
+  /**
+   * Restore the user's last context (mood / singer / playlist / all songs)
+   * and then seek to the last played position.
+   * Called after songs are loaded.
+   */
+  restoreContext() {
+    const ctx  = Storage.load('lastContext', null);
+    const last = Storage.load('lastSong', null);
+
+    // ── Restore playlist context ──────────────────────────
+    if (ctx) {
+      if (ctx.type === 'playlist' && ctx.value && state.userPlaylists[ctx.value]) {
+        state.activePlaylistName = ctx.value;
+        Playlist.set(state.userPlaylists[ctx.value], null);
+      } else if (ctx.type === 'mood' && ctx.value) {
+        const songs = DataLoader.filterByMood(
+          MOODS.find(m => m.label === ctx.value || m.id === ctx.value)?.id || ctx.value
+        );
+        Playlist.set(songs, { type: 'mood', value: ctx.value });
+      } else if (ctx.type === 'singer' && ctx.value) {
+        const songs = DataLoader.filterByArtist(ctx.value);
+        Playlist.set(songs, { type: 'singer', value: ctx.value });
+      } else {
+        Playlist.loadAll();
+      }
+    } else {
+      Playlist.loadAll(); // first-time visitor
+    }
+
+    // ── Restore last song position (do NOT auto-play) ────
+    if (last?.file && last?.store) {
+      const idx = state.currentPlaylist.findIndex(
+        s => s.file === last.file && s.store === last.store
+      );
+      if (idx !== -1) {
+        state.currentSongIndex = idx;
+        const song = state.currentPlaylist[idx];
+        const url  = DataLoader.getAudioUrl(song);
+        audioEl.src = url;
+        audioEl.load();
+        // Seek once metadata is ready — don't auto-play
+        audioEl.addEventListener('loadedmetadata', () => {
+          if (last.timestamp > 0) audioEl.currentTime = last.timestamp;
+        }, { once: true });
+        UI.updatePlayerUI(song);
+        UI.highlightCurrentSong();
+        console.log('[Resume] Restored:', song.title, 'at', formatTime(last.timestamp ?? 0));
+      }
+    }
   },
 
   /** Save/load/delete custom EQ presets */
@@ -385,12 +451,22 @@ const Playlist = {
     state.shufflePlayed = [];
     UI.renderSongList();
     UI.updatePlaylistMeta();
+    // Persist context so reload restores the same view
+    if (filterInfo) {
+      Storage.save('lastContext', { type: filterInfo.type, value: filterInfo.value });
+    } else if (state.activePlaylistName) {
+      Storage.save('lastContext', { type: 'playlist', value: state.activePlaylistName });
+    } else {
+      Storage.save('lastContext', { type: 'all', value: null });
+    }
   },
 
   /** Load all songs as default */
   loadAll() {
     const sorted = [...state.allSongs].sort((a, b) => a.title.localeCompare(b.title));
+    state.activePlaylistName = null;
     Playlist.set(sorted, null);
+    Storage.save('lastContext', { type: 'all', value: null });
   },
 
   /** Play by index in current playlist */
@@ -479,6 +555,9 @@ const Player = {
           if (!state.audioContext) AudioEngine.init();
           AudioEngine.startVisualizer();
           Player.preloadNext();
+          MediaSession.update(song);
+          // Auto-scroll song list to active item
+          setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
         })
         .catch(e => {
           console.warn('[Player] Playback blocked:', e);
@@ -491,8 +570,10 @@ const Player = {
   /** Toggle play / pause */
   togglePlay() {
     if (!state.currentPlaylist.length) return;
+    // First-time play: no song loaded yet → start from a random song for engagement
     if (state.currentSongIndex < 0) {
-      Playlist.playAt(0);
+      const idx = Math.floor(Math.random() * state.currentPlaylist.length);
+      Playlist.playAt(idx);
       return;
     }
     if (audioEl.paused) {
@@ -565,21 +646,121 @@ const Player = {
   }
 };
 
+// ═══════════════════════════════════════════════════════════
+// 7b. VOLUME CONTROL
+// ═══════════════════════════════════════════════════════════
+
+const Volume = {
+  /** Set volume 0–1, update slider + icon, persist */
+  set(val) {
+    state.volume = Math.max(0, Math.min(1, val));
+    state.isMuted = state.volume === 0;
+    audioEl.volume = state.volume;
+    Volume.updateUI();
+    Storage.save('volume', state.volume);
+    Storage.save('muted', state.isMuted);
+  },
+
+  /** Toggle mute / unmute */
+  toggleMute() {
+    if (state.isMuted) {
+      state.isMuted = false;
+      audioEl.volume = state.volume || 0.7;
+      if (state.volume === 0) state.volume = 0.7;
+    } else {
+      state.isMuted = true;
+      audioEl.volume = 0;
+    }
+    Volume.updateUI();
+    Storage.save('muted', state.isMuted);
+  },
+
+  /** Sync slider + icon to current state */
+  updateUI() {
+    const slider = document.getElementById('volume-slider');
+    const icon   = document.getElementById('volume-icon');
+    const vol    = state.isMuted ? 0 : state.volume;
+    if (slider) slider.value = vol;
+    if (icon)   icon.innerHTML = Volume.iconSVG(vol);
+  },
+
+  iconSVG(vol) {
+    if (vol === 0) return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+    if (vol < 0.5) return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+  },
+
+  /** Restore volume from state on page load */
+  restore() {
+    audioEl.volume = state.isMuted ? 0 : state.volume;
+    Volume.updateUI();
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 7c. MEDIA SESSION API (lock-screen / notification controls)
+// ═══════════════════════════════════════════════════════════
+
+const MediaSession = {
+  update(song) {
+    if (!('mediaSession' in navigator)) return;
+    const artists = Array.isArray(song.artist) ? song.artist.join(', ') : song.artist;
+    navigator.mediaSession.metadata = new window.MediaMetadata({
+      title:  song.title,
+      artist: artists,
+      album:  'SoundAura',
+      artwork: [{ src: DataLoader.getThumbnailUrl(song), sizes: '512x512', type: 'image/jpeg' }]
+    });
+    navigator.mediaSession.setActionHandler('play',          () => Player.togglePlay());
+    navigator.mediaSession.setActionHandler('pause',         () => Player.togglePlay());
+    navigator.mediaSession.setActionHandler('nexttrack',     () => Player.next());
+    navigator.mediaSession.setActionHandler('previoustrack', () => Player.prev());
+    navigator.mediaSession.setActionHandler('seekbackward',  () => Player.skip(-10));
+    navigator.mediaSession.setActionHandler('seekforward',   () => Player.skip(10));
+    console.log('[MediaSession] Updated:', song.title);
+  }
+};
+
 // ─── Audio Event Listeners ───────────────────────────────
+let _savePositionTimer = null;
+
 audioEl.addEventListener('timeupdate', () => {
   const { currentTime, duration } = audioEl;
   if (!duration) return;
   const pct = (currentTime / duration) * 100;
-  const bar = document.getElementById('progress-bar');
   const filled = document.getElementById('progress-filled');
-  const thumb = document.getElementById('progress-thumb');
-  if (bar && filled) filled.style.width = `${pct}%`;
-  if (thumb) thumb.style.left = `${pct}%`;
-  document.getElementById('time-current') && (document.getElementById('time-current').textContent = formatTime(currentTime));
-  document.getElementById('time-total') && (document.getElementById('time-total').textContent = formatTime(duration));
+  const thumb  = document.getElementById('progress-thumb');
+  if (filled) filled.style.width = `${pct}%`;
+  if (thumb)  thumb.style.left  = `${pct}%`;
+  const cur = document.getElementById('time-current');
+  const tot = document.getElementById('time-total');
+  if (cur) cur.textContent = formatTime(currentTime);
+  if (tot) tot.textContent = formatTime(duration);
+
+  // Throttle-save position every 5 s so resume is always fresh
+  if (!_savePositionTimer) {
+    _savePositionTimer = setTimeout(() => {
+      _savePositionTimer = null;
+      if (state.currentSongIndex >= 0) {
+        const song = state.currentPlaylist[state.currentSongIndex];
+        if (song) {
+          Storage.save('lastSong', {
+            file: song.file,
+            store: song.store,
+            timestamp: audioEl.currentTime,
+          });
+        }
+      }
+    }, 5000);
+  }
 });
 
 audioEl.addEventListener('ended', () => {
+  // In "Play Once" mode, stop completely — do NOT advance to next song
+  if (state.playbackMode === 'none') {
+    Player.stop();
+    return;
+  }
   Player.next();
 });
 
@@ -737,10 +918,18 @@ const UI = {
 
     el('player-title') && (el('player-title').textContent = song.title);
     el('player-artist') && (el('player-artist').textContent = artists);
-    el('player-thumb') && (el('player-thumb').src = DataLoader.getThumbnailUrl(song));
+
+    // Thumbnail with fallback + spin animation
+    const thumb = el('player-thumb');
+    if (thumb) {
+      thumb.src = DataLoader.getThumbnailUrl(song);
+      thumb.onerror = () => {
+        thumb.src = `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><rect width='44' height='44' fill='%23374151' rx='22'/><text x='22' y='28' text-anchor='middle' font-size='18'>🎵</text></svg>`;
+      };
+    }
 
     // Page title
-    document.title = `${song.title} – SoundAura`;
+    document.title = `♪ ${song.title} – SoundAura`;
   },
 
   /** Update playlist header meta */
@@ -762,13 +951,16 @@ const UI = {
     }
   },
 
-  /** Set play/pause icon */
+  /** Set play/pause icon + toggle disc spin on thumbnail */
   setPlayPauseIcon(playing) {
     const btn = document.getElementById('play-btn');
     if (!btn) return;
     btn.innerHTML = playing
       ? `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`
       : `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+    // Spin the disc thumbnail while playing
+    const thumb = document.getElementById('player-thumb');
+    if (thumb) thumb.classList.toggle('disc-spin', playing);
   },
 
   /** Toggle dark / light theme */
@@ -779,6 +971,7 @@ const UI = {
     const btn = document.getElementById('theme-btn');
     if (btn) btn.textContent = state.isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
     Storage.save('darkMode', state.isDarkMode);
+    console.log('[Theme] Switched to', state.isDarkMode ? 'dark' : 'light');
   },
 
   /** Initialize drag & drop for user playlist reordering */
@@ -940,7 +1133,9 @@ const Explore = {
         if (state.addSongsMode) {
           Explore.showSelectionList(songs, btn.querySelector('span:last-child').textContent);
         } else {
+          state.activePlaylistName = null; // clear stale playlist context
           Playlist.set(songs, { type: 'mood', value: btn.querySelector('span:last-child').textContent });
+          UI.renderUserPlaylists();
           Explore.close();
           Toast.show(`Loaded ${songs.length} songs for ${mood}`, 'success');
           document.getElementById('song-list-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -978,7 +1173,9 @@ const Explore = {
         if (state.addSongsMode) {
           Explore.showSelectionList(songs, singer);
         } else {
+          state.activePlaylistName = null; // clear stale playlist context
           Playlist.set(songs, { type: 'singer', value: singer });
+          UI.renderUserPlaylists();
           Explore.close();
           Toast.show(`Loaded ${songs.length} songs by ${singer}`, 'success');
           document.getElementById('song-list-section')?.scrollIntoView({ behavior: 'smooth' });
@@ -1316,6 +1513,32 @@ function formatTime(seconds) {
 // ═══════════════════════════════════════════════════════════
 
 function bindEvents() {
+  // ── Save exact position on tab/window close ──
+  window.addEventListener('beforeunload', () => {
+    if (state.currentSongIndex >= 0) {
+      const song = state.currentPlaylist[state.currentSongIndex];
+      if (song) {
+        Storage.save('lastSong', {
+          file: song.file,
+          store: song.store,
+          timestamp: audioEl.currentTime,
+        });
+      }
+    }
+    Storage.save('playbackMode', state.playbackMode);
+    Storage.save('volume', state.volume);
+    Storage.save('muted', state.isMuted);
+  });
+
+  // ── Volume Slider ──
+  const volSlider = document.getElementById('volume-slider');
+  volSlider?.addEventListener('input', () => {
+    Volume.set(parseFloat(volSlider.value));
+  });
+
+  // ── Volume Mute Toggle ──
+  document.getElementById('volume-icon')?.addEventListener('click', Volume.toggleMute);
+
   // ── Player Controls ──
   document.getElementById('play-btn')?.addEventListener('click', () => {
     AudioEngine.init();
@@ -1327,31 +1550,54 @@ function bindEvents() {
   document.getElementById('skip-back-btn')?.addEventListener('click', () => Player.skip(-10));
   document.getElementById('mode-btn')?.addEventListener('click', PlaybackMode.cycle);
 
-  // ── Progress Bar ──
+  // ── Progress Bar (mouse + touch) ──
   const progressBar = document.getElementById('progress-bar');
   if (progressBar) {
-    progressBar.addEventListener('click', (e) => {
+    const scrubTo = (clientX) => {
       const rect = progressBar.getBoundingClientRect();
-      const pct = (e.clientX - rect.left) / rect.width;
+      const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
       if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
-    });
+    };
 
-    let isDragging = false;
-    progressBar.addEventListener('mousedown', () => isDragging = true);
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-      const rect = progressBar.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
-    });
-    document.addEventListener('mouseup', () => isDragging = false);
+    // Mouse
+    progressBar.addEventListener('click', (e) => scrubTo(e.clientX));
+    let mouseScrubbing = false;
+    progressBar.addEventListener('mousedown', (e) => { mouseScrubbing = true; scrubTo(e.clientX); });
+    document.addEventListener('mousemove',  (e) => { if (mouseScrubbing) scrubTo(e.clientX); });
+    document.addEventListener('mouseup',    ()  => { mouseScrubbing = false; });
+
+    // Touch
+    progressBar.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      scrubTo(e.touches[0].clientX);
+    }, { passive: false });
+    progressBar.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      scrubTo(e.touches[0].clientX);
+    }, { passive: false });
   }
 
-  // ── Speed Control ──
-  const speedSelect = document.getElementById('speed-select');
-  if (speedSelect) {
-    speedSelect.addEventListener('change', () => Player.setSpeed(speedSelect.value));
-  }
+  // ── Custom Speed Dropdown ──
+  const speedBtn  = document.getElementById('speed-btn');
+  const speedMenu = document.getElementById('speed-menu');
+  speedBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    speedMenu?.classList.toggle('hidden');
+  });
+  // Close on outside click
+  document.addEventListener('click', () => speedMenu?.classList.add('hidden'));
+  speedMenu?.querySelectorAll('[data-speed]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rate = parseFloat(btn.dataset.speed);
+      audioEl.playbackRate = rate;
+      // Update label
+      if (speedBtn) speedBtn.textContent = `${rate === Math.floor(rate) ? rate : rate}×`;
+      // Update active highlight
+      speedMenu.querySelectorAll('[data-speed]').forEach(b => b.classList.remove('active-speed'));
+      btn.classList.add('active-speed');
+      speedMenu.classList.add('hidden');
+    });
+  });
 
   // ── Dice (Random) Button ──
   document.getElementById('dice-btn')?.addEventListener('click', Playlist.playRandom);
@@ -1466,12 +1712,13 @@ function bindEvents() {
   document.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
     switch (e.code) {
-      case 'Space': e.preventDefault(); Player.togglePlay(); break;
+      case 'Space':    e.preventDefault(); Player.togglePlay(); break;
       case 'ArrowRight': Player.skip(10); break;
-      case 'ArrowLeft': Player.skip(-10); break;
-      case 'KeyN': Player.next(); break;
-      case 'KeyP': Player.prev(); break;
-      case 'KeyM': PlaybackMode.cycle(); break;
+      case 'ArrowLeft':  Player.skip(-10); break;
+      case 'KeyN':     Player.next(); break;
+      case 'KeyP':     Player.prev(); break;
+      case 'KeyM':     PlaybackMode.cycle(); break;
+      case 'KeyR':     Playlist.playRandom(); break;  // R → random song
     }
   });
 
@@ -1517,11 +1764,13 @@ async function init() {
   // Load songs
   await DataLoader.loadSongs();
 
-  // Set default playlist
-  Playlist.loadAll();
+  // Restore last context (mood/singer/playlist/all) + last song position
+  // Falls back to "All Songs" for first-time visitors
+  Storage.restoreContext();
 
   // Render user playlists sidebar
   UI.renderUserPlaylists();
+  UI.updatePlaylistMeta();
 
   // Update mode button
   PlaybackMode.updateUI();
@@ -1534,6 +1783,9 @@ async function init() {
   if (eqSettings && state.audioContext) {
     eqSettings.forEach((val, i) => AudioEngine.setEQBand(i, val));
   }
+
+  // Restore volume from persisted state
+  Volume.restore();
 
   // Register service worker
   registerServiceWorker();

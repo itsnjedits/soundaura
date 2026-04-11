@@ -52,17 +52,117 @@
       color: var(--text-primary);
     }
 
+    /* ── Light mode: component-level overrides ── */
     body.light-mode .song-item { color: #0f172a; }
-    body.light-mode .song-item:hover { background: rgba(6,182,212,0.08); }
-    body.light-mode #sidebar { background: var(--bg-secondary); border-right-color: var(--border); }
-    body.light-mode #player-bar { background: var(--bg-secondary); border-top-color: var(--border); }
-    body.light-mode .navbar { background: var(--bg-secondary); border-bottom-color: var(--border); }
-    body.light-mode .text-gray-400 { color: var(--text-muted); }
-    body.light-mode .text-gray-300 { color: #334155; }
-    body.light-mode .text-gray-500 { color: #64748b; }
-    body.light-mode .bg-gray-900 { background: var(--bg-secondary); }
-    body.light-mode .bg-white\/5 { background: rgba(0,0,0,0.05); }
-    body.light-mode #eq-panel { background: var(--bg-secondary); }
+    body.light-mode .song-item .song-title { color: #0f172a !important; }
+    body.light-mode .song-item.active-song .song-title { color: #0891b2 !important; }
+    body.light-mode .song-item:hover { background: rgba(6,182,212,0.07); }
+
+    body.light-mode #sidebar {
+      background: rgba(226,235,255,0.9);
+      border-right-color: var(--border);
+    }
+    body.light-mode #player-bar {
+      background: rgba(226,235,255,0.97);
+      border-top-color: var(--border);
+    }
+    body.light-mode .navbar {
+      background: rgba(226,235,255,0.85);
+      border-bottom-color: var(--border);
+    }
+
+    /* Fix text colours globally in light mode */
+    body.light-mode .text-gray-400 { color: #475569 !important; }
+    body.light-mode .text-gray-300 { color: #334155 !important; }
+    body.light-mode .text-gray-500 { color: #64748b !important; }
+    body.light-mode .text-gray-600 { color: #475569 !important; }
+    body.light-mode .text-white    { color: #0f172a !important; }
+
+    /* Inputs & controls */
+    body.light-mode input[type="text"],
+    body.light-mode input[type="search"] {
+      background: rgba(0,0,0,0.05);
+      color: #0f172a;
+      border-color: rgba(0,0,0,0.15);
+    }
+    body.light-mode input::placeholder { color: #94a3b8; }
+    body.light-mode select {
+      background: rgba(0,0,0,0.06);
+      color: #0f172a;
+      border-color: rgba(0,0,0,0.15);
+    }
+
+    /* Cards / panels */
+    body.light-mode .bg-gray-900,
+    body.light-mode .bg-gray-950 { background: #e8eeff !important; }
+    body.light-mode .bg-gray-800  { background: #d6e4ff !important; }
+    body.light-mode .bg-white\/5  { background: rgba(0,0,0,0.04) !important; }
+    body.light-mode .bg-white\/10 { background: rgba(0,0,0,0.07) !important; }
+    body.light-mode .border-white\/10 { border-color: rgba(0,0,0,0.1) !important; }
+    body.light-mode .border-white\/5  { border-color: rgba(0,0,0,0.07) !important; }
+
+    /* EQ panel */
+    body.light-mode #eq-panel { background: #e8eeff; }
+    body.light-mode .eq-slider { accent-color: #0891b2; }
+    body.light-mode .eq-value  { color: #475569 !important; }
+
+    /* ── Explore modal — MUST be light in light mode ── */
+    body.light-mode #explore-modal > div {
+      background: #eef3ff !important;
+      border-color: rgba(0,0,0,0.1) !important;
+    }
+    body.light-mode #explore-modal .mood-card,
+    body.light-mode #explore-modal .singer-card {
+      background: rgba(0,0,0,0.04) !important;
+      border-color: rgba(0,0,0,0.1) !important;
+      color: #0f172a !important;
+    }
+    body.light-mode #explore-modal .mood-card:hover,
+    body.light-mode #explore-modal .singer-card:hover {
+      background: rgba(6,182,212,0.1) !important;
+      border-color: rgba(6,182,212,0.4) !important;
+    }
+    body.light-mode #explore-modal .text-gray-300 { color: #334155 !important; }
+    body.light-mode #explore-modal .text-gray-400 { color: #475569 !important; }
+    body.light-mode #explore-modal .border-b { border-color: rgba(0,0,0,0.08) !important; }
+
+    /* Selection list in explore (Add Songs mode) */
+    body.light-mode #selection-list-section .sel-song-item {
+      color: #0f172a;
+    }
+    body.light-mode #selection-list-section .sel-song-item:hover {
+      background: rgba(0,0,0,0.04);
+    }
+
+    /* Help modal */
+    body.light-mode #help-modal > div { background: #eef3ff; }
+    body.light-mode #help-modal kbd {
+      background: rgba(0,0,0,0.08);
+      color: #334155;
+    }
+
+    /* Mobile drawer */
+    body.light-mode #mobile-sidebar-drawer {
+      background: #eef3ff;
+      border-left-color: rgba(0,0,0,0.1);
+    }
+
+    /* User playlist items */
+    body.light-mode .playlist-item { color: #334155; }
+    body.light-mode .playlist-item:hover { background: rgba(0,0,0,0.05); }
+
+    /* Progress bar */
+    body.light-mode #progress-bar { background: rgba(0,0,0,0.1); }
+
+    /* Speed select */
+    body.light-mode #speed-select {
+      background: rgba(0,0,0,0.06);
+      color: #334155;
+      border-color: rgba(0,0,0,0.15);
+    }
+
+    /* Add-songs button stays readable */
+    body.light-mode #add-songs-btn { color: #059669; }
 
     /* ── Typography ── */
     .font-display { font-family: 'Syne', sans-serif; }
@@ -204,10 +304,96 @@
     }
     .logo-dot { animation: logoPulse 2s ease-in-out infinite; }
 
-    /* ── Responsive tweaks ── */
+    /* ── Custom Speed Dropdown ── */
+    .speed-dropdown-menu {
+      position: absolute;
+      right: 0;
+      bottom: calc(100% + 6px); /* opens UPWARD — safe on mobile */
+      min-width: 80px;
+      background: #0d1a2d;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px;
+      overflow: hidden;
+      z-index: 60;
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+    }
+    body.light-mode .speed-dropdown-menu {
+      background: #eef3ff;
+      border-color: rgba(0,0,0,0.12);
+      box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+    }
+    .speed-dropdown-menu button {
+      display: block;
+      width: 100%;
+      padding: 7px 14px;
+      font-size: 12px;
+      text-align: center;
+      color: #94a3b8;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    body.light-mode .speed-dropdown-menu button { color: #475569; }
+    .speed-dropdown-menu button:hover {
+      background: rgba(6,182,212,0.15);
+      color: #06b6d4;
+    }
+    .speed-dropdown-menu button.active-speed {
+      color: #06b6d4;
+      font-weight: 600;
+    }
+    body.light-mode .speed-dropdown-menu button.active-speed { color: #0891b2; }
+
+    /* ── Disc spin (player thumbnail rotates while playing) ── */
+    @keyframes discSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    #player-thumb { transition: border-radius 0.4s ease; }
+    #player-thumb.disc-spin {
+      animation: discSpin 8s linear infinite;
+      border-radius: 50% !important;
+      box-shadow: 0 0 16px rgba(6,182,212,0.35);
+    }
+
+    /* ── Volume slider ── */
+    #volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 70px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.15);
+      cursor: pointer;
+      outline: none;
+      accent-color: #06b6d4;
+    }
+    body.light-mode #volume-slider { background: rgba(0,0,0,0.12); }
+    #volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #06b6d4;
+      cursor: pointer;
+    }
+    #volume-slider::-moz-range-thumb {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: #06b6d4;
+      border: none;
+      cursor: pointer;
+    }
+    #volume-icon { cursor: pointer; color: #6b7fa0; transition: color 0.15s; }
+    #volume-icon:hover { color: #06b6d4; }
+    body.light-mode #volume-icon { color: #64748b; }
+
+    /* ── Progress bar — taller touch target on mobile ── */
     @media (max-width: 768px) {
       #sidebar { display: none; }
       #main-content { width: 100%; }
+      #progress-bar { height: 6px !important; }
+      #progress-thumb { opacity: 1 !important; width: 14px !important; height: 14px !important; }
     }
   </style>
 </head>
@@ -452,19 +638,31 @@
       </button>
     </div>
 
-    <!-- Right: Speed -->
+    <!-- Right: Volume + Speed -->
     <div class="flex items-center gap-2 flex-1 justify-end">
-      <select
-        id="speed-select"
-        class="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-gray-400 focus:outline-none focus:border-cyan-500/50 cursor-pointer"
-      >
-        <option value="0.5">0.5x</option>
-        <option value="0.75">0.75x</option>
-        <option value="1" selected>1x</option>
-        <option value="1.25">1.25x</option>
-        <option value="1.5">1.5x</option>
-        <option value="2">2x</option>
-      </select>
+      <!-- Volume (hidden on very small screens, shown md+) -->
+      <div class="hidden sm:flex items-center gap-1.5">
+        <button id="volume-icon" title="Mute / Unmute">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+        </button>
+        <input id="volume-slider" type="range" min="0" max="1" step="0.02" value="1" title="Volume" />
+      </div>
+
+      <!-- Custom speed dropdown — themed, opens upward (safe on mobile) -->
+      <div class="relative" id="speed-wrapper">
+        <button id="speed-btn"
+          class="text-xs px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all font-mono"
+          title="Playback speed"
+        >1×</button>
+        <div id="speed-menu" class="speed-dropdown-menu hidden">
+          <button data-speed="0.5">0.5×</button>
+          <button data-speed="0.75">0.75×</button>
+          <button data-speed="1" class="active-speed">1×</button>
+          <button data-speed="1.25">1.25×</button>
+          <button data-speed="1.5">1.5×</button>
+          <button data-speed="2">2×</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -655,6 +853,7 @@
       <div class="flex justify-between"><span class="text-gray-400">Next Song</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">N</kbd></div>
       <div class="flex justify-between"><span class="text-gray-400">Previous Song</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">P</kbd></div>
       <div class="flex justify-between"><span class="text-gray-400">Cycle Mode</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">M</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Random Song</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">R</kbd></div>
     </div>
     <div class="mt-5 pt-4 border-t border-white/5 text-xs text-gray-500">
       <p>Songs are streamed from GitHub repos via the SoundAura network. Click <strong class="text-gray-400">Explore</strong> to browse by mood or artist.</p>

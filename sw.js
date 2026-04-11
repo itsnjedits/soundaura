@@ -3,7 +3,7 @@
  * Provides offline support and caches static assets
  */
 
-const CACHE_NAME = 'soundaura-v1';
+const CACHE_NAME = 'soundaura-v2';
 const AUDIO_CACHE = 'soundaura-audio-v1';
 
 // Static assets to cache on install
