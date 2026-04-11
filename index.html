@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#060d1b" />
+  <meta name="description" content="SoundAura – An emotion-driven music experience" />
+  <title>SoundAura</title>
+
+  <!-- Tailwind CSS via CDN -->
+  <!-- TODO: Replace Tailwind CDN with CLI build for production (https://tailwindcss.com/docs/installation) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Syne (display) + DM Sans (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Base ── */
+    *, *::before, *::after { box-sizing: border-box; }
+
+    :root {
+      --bg-primary: #060d1b;
+      --bg-secondary: #0d1a2d;
+      --bg-card: #0f2340;
+      --text-primary: #f0f6ff;
+      --text-muted: #6b7fa0;
+      --accent-cyan: #06b6d4;
+      --accent-blue: #3b82f6;
+      --accent-green: #10b981;
+      --border: rgba(255,255,255,0.08);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* ── Light Mode ── */
+    body.light-mode {
+      --bg-primary: #f0f5ff;
+      --bg-secondary: #e2ebff;
+      --bg-card: #d6e4ff;
+      --text-primary: #0f172a;
+      --text-muted: #475569;
+      --border: rgba(0,0,0,0.1);
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    body.light-mode .song-item { color: #0f172a; }
+    body.light-mode .song-item:hover { background: rgba(6,182,212,0.08); }
+    body.light-mode #sidebar { background: var(--bg-secondary); border-right-color: var(--border); }
+    body.light-mode #player-bar { background: var(--bg-secondary); border-top-color: var(--border); }
+    body.light-mode .navbar { background: var(--bg-secondary); border-bottom-color: var(--border); }
+    body.light-mode .text-gray-400 { color: var(--text-muted); }
+    body.light-mode .text-gray-300 { color: #334155; }
+    body.light-mode .text-gray-500 { color: #64748b; }
+    body.light-mode .bg-gray-900 { background: var(--bg-secondary); }
+    body.light-mode .bg-white\/5 { background: rgba(0,0,0,0.05); }
+    body.light-mode #eq-panel { background: var(--bg-secondary); }
+
+    /* ── Typography ── */
+    .font-display { font-family: 'Syne', sans-serif; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,0.3); border-radius: 999px; }
+
+    /* ── Mesh Background ── */
+    .mesh-bg {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(6,182,212,0.08) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(59,130,246,0.07) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(16,185,129,0.04) 0%, transparent 70%),
+        #060d1b;
+    }
+
+    body.light-mode .mesh-bg {
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(6,182,212,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(59,130,246,0.05) 0%, transparent 60%),
+        #f0f5ff;
+    }
+
+    /* ── Navbar ── */
+    .navbar {
+      background: rgba(6,13,27,0.8);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      background: rgba(13,26,45,0.6);
+      border-right: 1px solid var(--border);
+    }
+
+    /* ── Player Bar ── */
+    #player-bar {
+      background: rgba(9,17,30,0.95);
+      border-top: 1px solid var(--border);
+      backdrop-filter: blur(24px);
+    }
+
+    /* ── Progress Bar ── */
+    #progress-bar {
+      position: relative;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: height 0.15s ease;
+    }
+    #progress-bar:hover { height: 6px; }
+    #progress-filled {
+      height: 100%;
+      background: linear-gradient(90deg, #06b6d4, #3b82f6);
+      border-radius: 999px;
+      pointer-events: none;
+      transition: width 0.1s linear;
+    }
+    #progress-thumb {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      width: 12px; height: 12px;
+      background: white;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      margin-left: -6px;
+    }
+    #progress-bar:hover #progress-thumb { opacity: 1; }
+
+    /* ── Visualizer ── */
+    #visualizer-canvas {
+      border-radius: 8px;
+      opacity: 0.8;
+    }
+
+    /* ── EQ Slider ── */
+    .eq-slider-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .eq-slider {
+      /* writing-mode + direction is the standards-compliant way (no appearance:slider-vertical) */
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 24px;
+      height: 100px;
+      cursor: pointer;
+      accent-color: #06b6d4;
+    }
+
+    /* ── Song item animations ── */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .song-item { animation: fadeSlideIn 0.2s ease both; }
+
+    /* ── Glow button ── */
+    .glow-btn {
+      box-shadow: 0 0 18px rgba(6,182,212,0.3);
+    }
+    .glow-btn:hover {
+      box-shadow: 0 0 28px rgba(6,182,212,0.5);
+    }
+
+    /* ── Modal backdrop ── */
+    .modal-backdrop {
+      backdrop-filter: blur(8px);
+    }
+
+    /* ── Playing bars animation ── */
+    @keyframes playBar {
+      0%, 100% { transform: scaleY(0.3); }
+      50% { transform: scaleY(1); }
+    }
+    .playing-bars .bar { transform-origin: bottom; animation: playBar 0.6s ease-in-out infinite; }
+    .playing-bars .bar:nth-child(2) { animation-delay: 0.2s; }
+    .playing-bars .bar:nth-child(3) { animation-delay: 0.4s; }
+
+    /* ── Explore modal tabs ── */
+    .explore-tab.active {
+      background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(59,130,246,0.2));
+      border-color: rgba(6,182,212,0.5);
+      color: #06b6d4;
+    }
+
+    /* ── Logo pulse ── */
+    @keyframes logoPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .logo-dot { animation: logoPulse 2s ease-in-out infinite; }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 768px) {
+      #sidebar { display: none; }
+      #main-content { width: 100%; }
+    }
+  </style>
+</head>
+
+<body class="mesh-bg">
+
+<!-- ════════════════════════════════════════════════════════
+     STICKY NAVBAR
+     ═══════════════════════════════════════════════════════ -->
+<nav class="navbar sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 h-14">
+  <!-- Logo -->
+  <div class="flex items-center gap-2">
+    <div class="relative w-8 h-8 flex items-center justify-center">
+      <svg viewBox="0 0 32 32" class="w-8 h-8">
+        <circle cx="16" cy="16" r="14" fill="url(#logoGrad)" opacity="0.9"/>
+        <path d="M12 10 L12 22 L22 16 Z" fill="white" opacity="0.9"/>
+        <circle cx="22" cy="10" r="3" fill="#06b6d4" class="logo-dot"/>
+        <defs>
+          <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#06b6d4"/>
+            <stop offset="100%" stop-color="#3b82f6"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <span class="font-display font-800 text-lg bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent tracking-tight">
+      SoundAura
+    </span>
+  </div>
+
+  <!-- Center: Search -->
+  <div class="hidden md:flex flex-1 max-w-sm mx-6">
+    <div class="relative w-full">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input
+        id="search-input"
+        type="text"
+        placeholder="Search songs, artists…"
+        class="w-full pl-9 pr-4 py-1.5 text-sm bg-white/5 border border-white/10 rounded-full text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 focus:bg-white/8 transition-all"
+      />
+    </div>
+  </div>
+
+  <!-- Right: Actions -->
+  <div class="flex items-center gap-2">
+    <!-- Explore -->
+    <button
+      id="explore-btn"
+      class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
+    >
+      <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
+      <span class="hidden sm:inline">Explore</span>
+    </button>
+
+    <!-- Dice -->
+    <button
+      id="dice-btn"
+      title="Random song"
+      class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-all"
+    >
+      🎲
+    </button>
+
+    <!-- Mobile: Library button (shows sidebar drawer) -->
+    <button
+      id="mobile-library-btn"
+      title="My Library"
+      class="md:hidden w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-all"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18M3 9h18M3 15h18M3 21h18"/></svg>
+    </button>
+
+    <!-- 3-Dot Menu -->
+    <div class="relative">
+      <button
+        id="menu-btn"
+        class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+        aria-label="Menu"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+        </svg>
+      </button>
+      <!-- Menu Panel -->
+      <div id="menu-panel" class="hidden absolute right-0 top-10 w-44 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+        <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
+          ☀️ Light Mode
+        </button>
+        <button id="eq-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          🎛️ Equalizer
+        </button>
+        <button id="help-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          ❓ Help
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════
+     MAIN LAYOUT: Sidebar + Content
+     ═══════════════════════════════════════════════════════ -->
+<div class="flex" style="height: calc(100dvh - 3.5rem - 5.5rem);">
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="w-56 flex-shrink-0 flex flex-col overflow-hidden">
+    <!-- Library heading -->
+    <div class="px-4 pt-4 pb-2">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Library</p>
+    </div>
+
+    <!-- All Songs button -->
+    <button
+      id="all-songs-btn"
+      class="mx-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+    >
+      <span class="text-base">🎵</span> All Songs
+    </button>
+
+    <!-- User Playlists -->
+    <div class="px-4 pt-3 pb-1 flex items-center justify-between">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Playlists</p>
+      <button
+        id="new-playlist-btn"
+        class="w-5 h-5 flex items-center justify-center rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 text-xs leading-none transition-colors"
+        title="New playlist"
+      >+</button>
+    </div>
+
+    <div id="user-playlists" class="flex-1 overflow-y-auto px-1 pb-4 space-y-0.5">
+      <!-- Populated by JS -->
+    </div>
+
+    <!-- Visualizer at bottom of sidebar -->
+    <div class="p-3 border-t border-white/5">
+      <canvas id="visualizer-canvas" width="176" height="36" class="w-full"></canvas>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main id="main-content" class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Song List Header -->
+    <div id="song-list-section" class="flex items-center justify-between gap-2 px-4 md:px-6 pt-4 pb-2 flex-shrink-0 flex-wrap">
+      <div class="min-w-0">
+        <h2 class="font-display font-700 text-base text-white">Now Playing From</h2>
+        <p id="playlist-meta" class="text-xs text-gray-400 mt-0.5">🎵 All Songs · 0 songs</p>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        <!-- "Add Songs" button — only shown inside a user playlist -->
+        <button
+          id="add-songs-btn"
+          class="hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium hover:bg-emerald-500/25 transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Songs
+        </button>
+        <!-- Mobile search -->
+        <div class="flex md:hidden">
+          <input
+            id="search-input-mobile"
+            type="text"
+            placeholder="Search…"
+            class="w-28 px-3 py-1 text-sm bg-white/5 border border-white/10 rounded-full text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-all"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- Song List -->
+    <div id="song-list" class="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-1">
+      <!-- Loading state -->
+      <div class="flex flex-col items-center justify-center py-20 text-gray-500">
+        <div class="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+        <p class="text-sm">Loading songs…</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     BOTTOM PLAYER BAR
+     ═══════════════════════════════════════════════════════ -->
+<div
+  id="player-bar"
+  class="fixed bottom-0 left-0 right-0 z-40 h-22 px-3 md:px-6"
+  style="height:5.5rem;"
+>
+  <!-- Progress Bar -->
+  <div class="pt-2 pb-1 px-1">
+    <div id="progress-bar" class="relative w-full cursor-pointer group">
+      <div id="progress-filled" style="width:0%"></div>
+      <div id="progress-thumb"></div>
+    </div>
+    <div class="flex justify-between mt-1">
+      <span id="time-current" class="text-xs text-gray-500">0:00</span>
+      <span id="time-total" class="text-xs text-gray-500">0:00</span>
+    </div>
+  </div>
+
+  <!-- Controls Row -->
+  <div class="flex items-center justify-between gap-2">
+
+    <!-- Song Info -->
+    <div class="flex items-center gap-3 flex-1 min-w-0">
+      <img
+        id="player-thumb"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><rect width='44' height='44' fill='%23374151' rx='8'/><text x='22' y='28' text-anchor='middle' font-size='18'>🎵</text></svg>"
+        alt="Now playing"
+        class="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+      />
+      <div class="min-w-0">
+        <p id="player-title" class="text-sm font-medium text-white truncate">No song selected</p>
+        <p id="player-artist" class="text-xs text-gray-400 truncate">–</p>
+      </div>
+    </div>
+
+    <!-- Center Controls -->
+    <div class="flex items-center gap-1 md:gap-2">
+      <!-- Mode -->
+      <button id="mode-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-cyan-400 transition-all" title="Playback mode">
+        <!-- Populated by JS -->
+      </button>
+      <!-- Prev -->
+      <button id="prev-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <!-- Skip back 10 -->
+      <button id="skip-back-btn" class="hidden md:flex w-8 h-8 items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="-10s">-10</button>
+      <!-- Play/Pause -->
+      <button
+        id="play-btn"
+        class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+      </button>
+      <!-- Skip fwd 10 -->
+      <button id="skip-fwd-btn" class="hidden md:flex w-8 h-8 items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="+10s">+10</button>
+      <!-- Next -->
+      <button id="next-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+    </div>
+
+    <!-- Right: Speed -->
+    <div class="flex items-center gap-2 flex-1 justify-end">
+      <select
+        id="speed-select"
+        class="text-xs bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-gray-400 focus:outline-none focus:border-cyan-500/50 cursor-pointer"
+      >
+        <option value="0.5">0.5x</option>
+        <option value="0.75">0.75x</option>
+        <option value="1" selected>1x</option>
+        <option value="1.25">1.25x</option>
+        <option value="1.5">1.5x</option>
+        <option value="2">2x</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     EXPLORE MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div
+  id="explore-modal"
+  class="hidden fixed inset-0 z-50 items-center justify-center modal-backdrop bg-black/70 p-3"
+>
+  <div class="relative w-full max-w-3xl bg-gray-950 border border-white/10 rounded-2xl shadow-2xl flex flex-col" style="max-height:92dvh;">
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
+      <h2 id="explore-title" class="font-display font-700 text-lg text-white">Explore</h2>
+      <button id="close-explore" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Selection Bar (shown only in Add Songs mode) -->
+    <div id="explore-selection-bar" class="hidden flex-shrink-0 px-5 py-3 bg-emerald-500/10 border-b border-emerald-500/20 flex items-center justify-between gap-3">
+      <p id="selection-count" class="text-sm text-emerald-400">Select songs below</p>
+      <div class="flex gap-2">
+        <button id="confirm-add-selection"
+          class="px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-medium transition-colors disabled:opacity-40"
+          disabled
+        >Add Selected</button>
+        <button onclick="Explore.close()" class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 text-sm transition-colors">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 px-5 pt-3 pb-1 flex-shrink-0 overflow-x-auto">
+      <button
+        id="tab-mood"
+        class="explore-tab active px-4 py-1.5 rounded-full text-sm border border-transparent hover:border-cyan-500/30 transition-all whitespace-nowrap"
+        onclick="switchExploreTab('mood')"
+      >🎭 Moods</button>
+      <button
+        id="tab-singer"
+        class="explore-tab px-4 py-1.5 rounded-full text-sm border border-transparent text-gray-400 hover:text-white hover:border-cyan-500/30 transition-all whitespace-nowrap"
+        onclick="switchExploreTab('singer')"
+      >🎤 Artists</button>
+    </div>
+
+    <!-- Scrollable content -->
+    <div class="flex-1 overflow-y-auto px-5 pb-5 pt-3">
+      <!-- Mood Grid -->
+      <div id="mood-section">
+        <div id="mood-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <!-- Singer Grid (hidden by default) -->
+      <div id="singer-section" class="hidden">
+        <div id="singer-grid" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     EQ PANEL (Draggable, viewport-clamped)
+     ═══════════════════════════════════════════════════════ -->
+<div
+  id="eq-panel"
+  class="hidden fixed z-50 bg-gray-900 border border-white/10 rounded-2xl shadow-2xl"
+  style="bottom:6.5rem;right:1rem;width:min(22rem,calc(100vw - 2rem));max-height:calc(100dvh - 8rem);overflow-y:auto;"
+>
+  <!-- Drag Handle -->
+  <div id="eq-drag-handle"
+    class="flex items-center justify-between px-4 py-3 border-b border-white/5 cursor-grab active:cursor-grabbing select-none"
+  >
+    <div class="flex items-center gap-2">
+      <svg class="text-gray-600 w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+        <circle cx="5" cy="4" r="1.2"/><circle cx="11" cy="4" r="1.2"/>
+        <circle cx="5" cy="8" r="1.2"/><circle cx="11" cy="8" r="1.2"/>
+        <circle cx="5" cy="12" r="1.2"/><circle cx="11" cy="12" r="1.2"/>
+      </svg>
+      <h3 class="font-display font-600 text-white text-sm">🎛️ Equalizer</h3>
+    </div>
+    <div class="flex gap-2 items-center">
+      <button id="eq-save-preset-btn" class="text-xs text-gray-400 hover:text-emerald-400 transition-colors" title="Save as preset">💾 Save</button>
+      <button id="eq-reset" class="text-xs text-gray-400 hover:text-cyan-400 transition-colors">Reset</button>
+      <button id="close-eq" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="p-4">
+    <!-- EQ Bands -->
+    <div class="flex items-end justify-between gap-1 h-36">
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-0" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">60</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-1" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">170</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-2" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">310</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-3" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">600</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-4" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">1k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-5" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">3k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-6" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">6k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-7" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">12k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-8" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">14k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-9" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">16k</span></div>
+    </div>
+
+    <!-- Built-in Presets -->
+    <div class="mt-4 flex gap-1.5 flex-wrap border-t border-white/5 pt-3">
+      <span class="text-xs text-gray-500 self-center mr-1">Built-in:</span>
+      <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="bass">Bass Boost</button>
+      <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="vocal">Vocal</button>
+      <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="treble">Treble</button>
+      <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="flat">Flat</button>
+    </div>
+
+    <!-- Custom (Saved) Presets -->
+    <div class="mt-3 border-t border-white/5 pt-3">
+      <p class="text-xs text-gray-500 mb-2">My Presets:</p>
+      <div id="custom-presets-container" class="space-y-1.5">
+        <p class="text-xs text-gray-600 italic">No saved presets yet</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     MOBILE SIDEBAR DRAWER (slide in from right)
+     ═══════════════════════════════════════════════════════ -->
+<!-- Overlay -->
+<div id="mobile-sidebar-overlay"
+  class="hidden fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+></div>
+
+<!-- Drawer -->
+<div id="mobile-sidebar-drawer"
+  class="fixed top-0 right-0 h-full w-72 z-50 bg-gray-950 border-l border-white/10 flex flex-col
+         transform translate-x-full transition-transform duration-300 ease-out md:hidden"
+>
+  <div class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+    <p class="font-display font-600 text-white text-sm">My Library</p>
+    <button id="close-mobile-sidebar" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">✕</button>
+  </div>
+
+  <!-- All Songs -->
+  <button
+    id="all-songs-btn-mobile"
+    class="flex items-center gap-2 mx-4 mt-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+    onclick="document.getElementById('mobile-sidebar-overlay').classList.add('hidden');document.getElementById('mobile-sidebar-drawer').classList.add('translate-x-full');document.getElementById('all-songs-btn').click()"
+  >
+    <span class="text-base">🎵</span> All Songs
+  </button>
+
+  <!-- Playlists heading -->
+  <div class="px-5 pt-4 pb-1 flex items-center justify-between">
+    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Playlists</p>
+    <button
+      class="w-5 h-5 flex items-center justify-center rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 text-xs leading-none transition-colors"
+      onclick="const n=prompt('Playlist name:');if(n&&typeof UserPlaylists!=='undefined')UserPlaylists.create(n.trim())"
+      title="New playlist"
+    >+</button>
+  </div>
+
+  <!-- Mirror of desktop user-playlists -->
+  <div id="user-playlists-mobile" class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+    <p class="text-xs text-gray-500 px-3 py-2">No playlists yet</p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     HELP MODAL
+     ═══════════════════════════════════════════════════════ -->
+<div
+  id="help-modal"
+  class="hidden fixed inset-0 z-50 flex items-center justify-center modal-backdrop bg-black/70"
+>
+  <div class="relative w-full max-w-sm mx-4 bg-gray-900 border border-white/10 rounded-2xl shadow-2xl p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-display font-700 text-white text-base">Keyboard Shortcuts</h3>
+      <button id="close-help" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">✕</button>
+    </div>
+    <div class="space-y-2 text-sm">
+      <div class="flex justify-between"><span class="text-gray-400">Play / Pause</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">Space</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Skip +10s</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">→</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Skip −10s</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">←</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Next Song</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">N</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Previous Song</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">P</kbd></div>
+      <div class="flex justify-between"><span class="text-gray-400">Cycle Mode</span><kbd class="px-2 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-xs">M</kbd></div>
+    </div>
+    <div class="mt-5 pt-4 border-t border-white/5 text-xs text-gray-500">
+      <p>Songs are streamed from GitHub repos via the SoundAura network. Click <strong class="text-gray-400">Explore</strong> to browse by mood or artist.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Main Script -->
+<script src="script.js"></script>
+
+<!-- Inline helpers that need DOM access -->
+<script>
+  // ── Explore Tab Switcher ──
+  function switchExploreTab(tab) {
+    const moodSection = document.getElementById('mood-section');
+    const singerSection = document.getElementById('singer-section');
+    const selSection = document.getElementById('selection-list-section');
+    const tabMood = document.getElementById('tab-mood');
+    const tabSinger = document.getElementById('tab-singer');
+
+    // Hide selection list when switching tabs
+    if (selSection) selSection.classList.add('hidden');
+
+    if (tab === 'mood') {
+      moodSection.classList.remove('hidden');
+      singerSection.classList.add('hidden');
+      tabMood.classList.add('active');
+      tabSinger.classList.remove('active');
+      tabSinger.classList.add('text-gray-400');
+    } else {
+      moodSection.classList.add('hidden');
+      singerSection.classList.remove('hidden');
+      tabSinger.classList.add('active');
+      tabSinger.classList.remove('text-gray-400');
+      tabMood.classList.remove('active');
+    }
+  }
+
+  // ── Built-in EQ Presets ──
+  const EQ_PRESETS = {
+    bass:   [8, 6, 4, 2, 0, -1, -2, -2, -2, -3],
+    vocal:  [-3, -2, 0, 3, 5, 5, 3, 1, 0, -2],
+    treble: [-3, -2, -1, 0, 1, 3, 5, 7, 8, 9],
+    flat:   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Wire up built-in preset buttons — uses AudioEngine.applyPreset if available
+    document.querySelectorAll('.eq-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = EQ_PRESETS[btn.dataset.preset];
+        if (!preset) return;
+        if (typeof AudioEngine !== 'undefined' && AudioEngine.applyPreset) {
+          AudioEngine.applyPreset(preset);
+        } else {
+          preset.forEach((val, i) => {
+            const slider = document.getElementById(`eq-band-${i}`);
+            if (slider) {
+              slider.value = val;
+              slider.parentElement.querySelector('.eq-value').textContent = val;
+            }
+          });
+        }
+      });
+    });
+
+    // ── Mobile search mirrors desktop search ──
+    const mobileSearch = document.getElementById('search-input-mobile');
+    const mainSearch = document.getElementById('search-input');
+    if (mobileSearch && mainSearch) {
+      mobileSearch.addEventListener('input', () => {
+        mainSearch.value = mobileSearch.value;
+        mainSearch.dispatchEvent(new Event('input'));
+      });
+    }
+
+    // ── Mobile Drawer: sync playlist list whenever it opens ──
+    document.getElementById('mobile-library-btn')?.addEventListener('click', () => {
+      syncMobileDrawerPlaylists();
+    });
+  });
+
+  /** Mirror desktop playlist items into mobile drawer */
+  function syncMobileDrawerPlaylists() {
+    const mobileContainer = document.getElementById('user-playlists-mobile');
+    const desktopContainer = document.getElementById('user-playlists');
+    if (!mobileContainer || !desktopContainer) return;
+
+    if (!desktopContainer.innerHTML.trim() || desktopContainer.innerHTML.includes('No playlists')) {
+      mobileContainer.innerHTML = '<p class="text-xs text-gray-500 px-3 py-2">No playlists yet</p>';
+      return;
+    }
+
+    // Clone desktop entries with same click behaviour
+    const names = typeof state !== 'undefined' ? Object.keys(state.userPlaylists) : [];
+    mobileContainer.innerHTML = names.map(name => `
+      <div class="flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 text-gray-300 transition-colors" data-name="${name}">
+        <span class="text-sm truncate">📂 ${name}</span>
+      </div>
+    `).join('') || '<p class="text-xs text-gray-500 px-3 py-2">No playlists yet</p>';
+
+    mobileContainer.querySelectorAll('[data-name]').forEach(el => {
+      el.addEventListener('click', () => {
+        if (typeof UserPlaylists !== 'undefined') UserPlaylists.open(el.dataset.name);
+        // Close drawer
+        document.getElementById('mobile-sidebar-overlay')?.classList.add('hidden');
+        document.getElementById('mobile-sidebar-drawer')?.classList.add('translate-x-full');
+      });
+    });
+  }
+</script>
+
+</body>
+</html>
