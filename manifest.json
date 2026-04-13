@@ -2,7 +2,8 @@
   "name": "SoundAura",
   "short_name": "SoundAura",
   "description": "An emotion-driven music streaming experience",
-  "start_url": "/",
+  "start_url": "/soundaura/",
+  "scope": "/soundaura/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "theme_color": "#060d1b",
@@ -11,29 +12,30 @@
   "categories": ["music", "entertainment"],
   "icons": [
     {
-      "src": "/pwa_icon/splash.png",
+      "src": "/soundaura/pwa_icon/splash.png",
       "sizes": "any",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/favicon/icon-192.png",
+      "src": "/soundaura/pwa_icon/splash.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon/icon-512.png",
+      "src": "/soundaura/pwa_icon/splash.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
   ],
-  "splash_screens": [
+  "screenshots": [
     {
-      "src": "/pwa_icon/splash.png",
+      "src": "/soundaura/pwa_icon/splash.png",
       "sizes": "any",
-      "type": "image/png"
+      "type": "image/png",
+      "form_factor": "narrow"
     }
   ],
   "shortcuts": [
@@ -41,15 +43,15 @@
       "name": "All Songs",
       "short_name": "Songs",
       "description": "Browse all songs",
-      "url": "/?view=all",
-      "icons": [{ "src": "/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
+      "url": "/soundaura/?view=all",
+      "icons": [{ "src": "/soundaura/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
     },
     {
       "name": "Favorites",
       "short_name": "Favorites",
       "description": "My favorite songs",
-      "url": "/?view=favorites",
-      "icons": [{ "src": "/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
+      "url": "/soundaura/?view=favorites",
+      "icons": [{ "src": "/soundaura/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
     }
   ]
 }

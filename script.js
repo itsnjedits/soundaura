@@ -822,32 +822,129 @@ const MediaSession = {
 // 7d. SONG CARD MODAL
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// 7e. PLAYBACK SPEED CONTROL — modal popup, preset buttons, custom slider
+// ═══════════════════════════════════════════════════════════
+
 const SpeedControl = {
-  RATES: [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2],
   current: 1.0,
 
-  /** Set speed, update audio and all UI instances */
+  /**
+   * Set playback rate, persist, update all UI surfaces:
+   * – all .speed-display spans (player bars)
+   * – speed modal live display + slider fill + active preset highlight
+   */
   set(rate) {
-    rate = Math.max(0.25, Math.min(2, parseFloat(rate)));
+    rate = Math.max(0.25, Math.min(2, Math.round(parseFloat(rate) * 20) / 20)); // snap to 0.05
     SpeedControl.current = rate;
     audioEl.playbackRate = rate;
-    // Update all speed labels and sliders
-    document.querySelectorAll('.speed-display').forEach(el => {
-      el.textContent = `${rate}×`;
+
+    const label = Number.isInteger(rate) ? `${rate}×` : `${rate.toFixed(2)}×`;
+
+    // Update all navbar/player bar speed labels
+    document.querySelectorAll('.speed-display').forEach(el => { el.textContent = label; });
+
+    // Update modal elements if open
+    const modalCurrent = document.getElementById('speed-modal-current');
+    const modalSlider  = document.getElementById('speed-modal-slider');
+    if (modalCurrent) modalCurrent.textContent = label;
+    if (modalSlider) {
+      modalSlider.value = rate;
+      SpeedControl._fillSlider(modalSlider);
+    }
+    // Highlight active preset button
+    document.querySelectorAll('.speed-preset-btn').forEach(btn => {
+      const r = parseFloat(btn.dataset.rate);
+      btn.classList.toggle('active-speed', Math.abs(r - rate) < 0.001);
     });
-    document.querySelectorAll('.speed-slider').forEach(slider => {
-      slider.value = rate;
-      // Filled track
-      const pct = ((rate - 0.25) / 1.75) * 100;
-      slider.style.background =
-        `linear-gradient(to right, #06b6d4 ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
-    });
+
     Storage.save('playbackSpeed', rate);
   },
 
+  /** Fill the modal slider track cyan on the left, gray on the right */
+  _fillSlider(slider) {
+    const min = parseFloat(slider.min), max = parseFloat(slider.max);
+    const pct = ((parseFloat(slider.value) - min) / (max - min)) * 100;
+    slider.style.background =
+      `linear-gradient(to right, #06b6d4 ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
+  },
+
   restore() {
-    const saved = Storage.load('playbackSpeed', 1.0);
-    SpeedControl.set(saved);
+    SpeedControl.set(Storage.load('playbackSpeed', 1.0));
+  },
+
+  /** Open the speed selection modal */
+  openModal() {
+    const modal = document.getElementById('speed-modal');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    // Sync slider + display to current rate
+    const slider = document.getElementById('speed-modal-slider');
+    if (slider) {
+      slider.value = SpeedControl.current;
+      SpeedControl._fillSlider(slider);
+    }
+    SpeedControl.set(SpeedControl.current); // re-applies highlights
+    // Close on backdrop click
+    modal._closeHandler = (e) => { if (e.target === modal) SpeedControl.closeModal(); };
+    modal.addEventListener('click', modal._closeHandler);
+    // Close on Escape
+    modal._escHandler = (e) => { if (e.key === 'Escape') SpeedControl.closeModal(); };
+    document.addEventListener('keydown', modal._escHandler);
+  },
+
+  closeModal() {
+    const modal = document.getElementById('speed-modal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    if (modal._closeHandler) modal.removeEventListener('click', modal._closeHandler);
+    if (modal._escHandler)   document.removeEventListener('keydown', modal._escHandler);
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 7f. PWA INSTALL PROMPT
+// ═══════════════════════════════════════════════════════════
+
+const PWAInstall = {
+  _deferredPrompt: null,
+
+  init() {
+    // Capture the browser's install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      PWAInstall._deferredPrompt = e;
+      // Show our custom banner after a short delay
+      setTimeout(() => {
+        const banner = document.getElementById('pwa-install-banner');
+        if (banner) banner.classList.remove('hidden');
+      }, 3000);
+    });
+
+    // Hide banner if already installed
+    window.addEventListener('appinstalled', () => {
+      const banner = document.getElementById('pwa-install-banner');
+      if (banner) banner.classList.add('hidden');
+      PWAInstall._deferredPrompt = null;
+      console.log('[PWA] App installed');
+    });
+  },
+
+  async install() {
+    if (!PWAInstall._deferredPrompt) return;
+    PWAInstall._deferredPrompt.prompt();
+    const { outcome } = await PWAInstall._deferredPrompt.userChoice;
+    console.log('[PWA] Install outcome:', outcome);
+    PWAInstall._deferredPrompt = null;
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.classList.add('hidden');
+  },
+
+  dismiss() {
+    const banner = document.getElementById('pwa-install-banner');
+    if (banner) banner.classList.add('hidden');
+    // Don't show again this session
+    sessionStorage.setItem('pwa-banner-dismissed', '1');
   }
 };
 
@@ -1198,24 +1295,37 @@ const UI = {
   },
 
   /** Dynamically update favicon AND navbar logo based on current theme.
-   *  Favicon:      favicon/dark.svg  |  favicon/light.svg
-   *  Navbar logo:  navbar_icon/dark.png  |  navbar_icon/light.png  */
+   *
+   *  Asset map (all paths absolute for zero ambiguity on GitHub Pages):
+   *  • Favicon:      /soundaura/favicon/dark.svg   (dark mode)
+   *                  /soundaura/favicon/light.svg  (light mode)
+   *  • Navbar logo:  /soundaura/navbar_icon/dark.png  (dark mode)
+   *                  /soundaura/navbar_icon/light.png (light mode)
+   *  • App icon/splash: /soundaura/pwa_icon/splash.png (static, mode-independent)
+   */
   updateFavicon() {
-    // ── Favicon ──
-    const faviconHref = state.isDarkMode ? 'favicon/dark.svg' : 'favicon/light.svg';
-    let link = document.querySelector("link[rel~='icon']");
+    // ── Favicon (browser tab icon) ──
+    // Prefer the static <link id="favicon-link"> we put in <head>;
+    // fall back to creating one dynamically if somehow absent.
+    let link = document.getElementById('favicon-link') ||
+               document.querySelector("link[rel~='icon']");
     if (!link) {
       link = document.createElement('link');
+      link.id  = 'favicon-link';
       link.rel = 'icon';
       document.head.appendChild(link);
     }
     link.type = 'image/svg+xml';
-    link.href = faviconHref;
+    link.href = state.isDarkMode
+      ? '/soundaura/favicon/dark.svg'
+      : '/soundaura/favicon/light.svg';
 
     // ── Navbar logo image ──
     const navLogo = document.getElementById('navbar-logo');
     if (navLogo) {
-      navLogo.src = state.isDarkMode ? 'navbar_icon/dark.png' : 'navbar_icon/light.png';
+      navLogo.src = state.isDarkMode
+        ? '/soundaura/navbar_icon/dark.png'
+        : '/soundaura/navbar_icon/light.png';
     }
   },
 
@@ -2594,12 +2704,35 @@ function bindEvents() {
     Storage.save('muted', state.isMuted);
   });
 
-  // ── Speed Sliders ──
-  // Initialise all sliders to current rate before adding listeners
-  SpeedControl.set(SpeedControl.current);
-  document.querySelectorAll('.speed-slider').forEach(slider => {
-    slider.addEventListener('input', () => SpeedControl.set(parseFloat(slider.value)));
+  // ── Speed buttons → open speed modal ──
+  ['speed-btn-mobile', 'speed-btn-desktop'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      SpeedControl.openModal();
+    });
   });
+
+  // ── Speed modal: close button ──
+  document.getElementById('close-speed-modal')?.addEventListener('click', SpeedControl.closeModal);
+
+  // ── Speed modal: preset buttons ──
+  document.querySelectorAll('.speed-preset-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      SpeedControl.set(parseFloat(btn.dataset.rate));
+    });
+  });
+
+  // ── Speed modal: custom slider (live update, 0.05 step) ──
+  const speedModalSlider = document.getElementById('speed-modal-slider');
+  if (speedModalSlider) {
+    speedModalSlider.addEventListener('input', () => {
+      SpeedControl.set(parseFloat(speedModalSlider.value));
+    });
+  }
+
+  // ── PWA Install banner ──
+  document.getElementById('pwa-install-btn')?.addEventListener('click', PWAInstall.install);
+  document.getElementById('pwa-install-dismiss')?.addEventListener('click', PWAInstall.dismiss);
 
   // ── Volume Slider ──
   const volSlider = document.getElementById('volume-slider');
@@ -2851,6 +2984,25 @@ function bindEvents() {
     document.getElementById('menu-panel')?.classList.add('hidden');
     handleDownloadCurrent();
   });
+
+  // ── Reload App (3-dot menu) ──
+  document.getElementById('reload-app-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.getElementById('menu-panel')?.classList.add('hidden');
+    window.location.reload();
+  });
+
+  // ── Content Protection ──
+  // Prevent right-click context menu on the whole page
+  document.addEventListener('contextmenu', (e) => {
+    // Allow on inputs/textareas so browser spellcheck still works
+    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    e.preventDefault();
+  });
+  // Prevent drag-start on images (desktop)
+  document.addEventListener('dragstart', (e) => {
+    if (e.target.tagName === 'IMG') e.preventDefault();
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2944,7 +3096,10 @@ async function init() {
 
   // Restore volume and speed
   Volume.restore();
-  SpeedControl.restore();
+  SpeedControl.restore();  // applies rate + updates all speed labels
+
+  // PWA install prompt listener
+  PWAInstall.init();
 
   // Register service worker
   registerServiceWorker();
