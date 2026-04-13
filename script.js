@@ -2860,7 +2860,7 @@ function bindEvents() {
 function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
-  navigator.serviceWorker.register('/sw.js').then(reg => {
+  navigator.serviceWorker.register('/soundaura/sw.js').then(reg => {
     console.log('[SW] Registered:', reg.scope);
 
     // ── Update detection ──────────────────────────────────────
