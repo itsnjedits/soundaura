@@ -81,7 +81,7 @@ const MOODS = [
   { id: 'punjabi', label: 'Punjabi', emoji: '🥁', color: '#22c55e' },  // energetic green
   { id: 'motivational', label: 'Motivational', emoji: '🔥', color: '#f97316' }, // strong orange sunrise
   { id: 'instrumental', label: 'Instrumental', emoji: '🎸', color: '#8b9dc3' }, // calm bluish grey (piano tone)
-  { id: 'slowedreverb', label: 'Slowed+Reverb', emoji: '🌊', color: '#3ba7a0' }, // aqua dreamy
+  { id: 'slowedreverb', label: 'Slowed & Reverb', emoji: '🌊', color: '#3ba7a0' }, // aqua dreamy
   { id: 'oldisgold', label: 'Old is Gold', emoji: '🌟', color: '#c89b3c' }, // vintage gold
 
   { id: 'meditation', label: 'Meditation', emoji: '🧘', color: '#b7c7a3' }, // soft earthy green
@@ -637,9 +637,18 @@ const Player = {
     audioEl.src = url;
     audioEl.load();
 
+    // ── SPEED SYNC FIX ──────────────────────────────────────
+    // Some browsers (Chrome, Safari) silently reset playbackRate to 1.0 when
+    // audioEl.src changes or audioEl.load() is called.
+    // Re-apply the saved speed immediately so the NEXT song plays at the
+    // correct rate without any desync between UI and audio.
+    audioEl.playbackRate = SpeedControl.current;
+
     if (autoplay) {
       audioEl.play()
         .then(() => {
+          // Re-apply after play() as well (belt-and-suspenders for Safari)
+          audioEl.playbackRate = SpeedControl.current;
           state.isPlaying = true;
           UI.setPlayPauseIcon(true);
           AudioEngine.resume();
@@ -2634,20 +2643,52 @@ const PlaylistIO = {
 const About = {
   open() {
     const existing = document.getElementById('about-modal');
-    if (existing) { existing.remove(); return; }
+    if (existing) {
+      // Animate out then remove
+      existing.style.opacity = '0';
+      existing.style.transition = 'opacity 0.15s ease';
+      setTimeout(() => existing.remove(), 150);
+      return;
+    }
+
+    // Use same logo path as navbar (theme-aware)
+    const logoSrc = (typeof state !== 'undefined' && !state.isDarkMode)
+      ? '/soundaura/navbar_icon/light.png'
+      : '/soundaura/navbar_icon/dark.png';
 
     const modal = document.createElement('div');
     modal.id = 'about-modal';
     modal.className = 'fixed inset-0 z-[80] flex items-center justify-center modal-backdrop bg-black/70 p-4';
+    modal.style.cssText = 'opacity:0;transition:opacity 0.2s ease;';
     modal.innerHTML = `
-      <div class="bg-gray-900 border border-white/10 rounded-3xl p-7 w-full max-w-sm shadow-2xl text-center">
-        <!-- Logo -->
-        <div class="flex justify-center mb-4">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg">
-            <svg viewBox="0 0 32 32" class="w-9 h-9"><polygon points="10,8 10,24 24,16" fill="white" opacity="0.95"/></svg>
+      <div class="bg-gray-900 border border-white/10 rounded-3xl p-7 w-full max-w-sm shadow-2xl text-center
+                  transform scale-95"
+           style="transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;">
+
+        <!-- Theme-aware logo — identical to navbar -->
+        <div class="flex justify-center mb-3">
+          <img
+            id="about-modal-logo"
+            src="${logoSrc}"
+            alt="SoundAura logo"
+            class="h-14 w-auto object-contain"
+            style="filter:drop-shadow(0 2px 12px rgba(6,182,212,0.4));pointer-events:none;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
+          />
+          <!-- Fallback if image fails to load -->
+          <div style="display:none" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-lg">
+            <svg viewBox="0 0 32 32" class="w-8 h-8"><polygon points="10,8 10,24 24,16" fill="white" opacity="0.95"/></svg>
           </div>
         </div>
-        <h2 class="font-display font-800 text-2xl bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent mb-1">SoundAura</h2>
+
+        <!-- Title: exact same gradient + font as #navbar-title -->
+        <h2 class="font-display leading-none tracking-wide mb-1"
+            style="font-weight:800;font-size:1.5rem;
+                   background:linear-gradient(110deg,#67e8f9 0%,#38bdf8 40%,#818cf8 100%);
+                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+                   background-clip:text;">
+          SoundAura
+        </h2>
         <p class="text-gray-500 text-xs mb-5">Emotion-driven music, always.</p>
 
         <div class="space-y-3 text-left text-sm text-gray-300">
@@ -2672,12 +2713,35 @@ const About = {
         <div class="mt-6 pt-4 border-t border-white/5 text-xs text-gray-500">
           Built with ❤️ using Vanilla JS · Web Audio API · Tailwind CSS
         </div>
-        <button id="close-about" class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400 hover:from-cyan-500/30 hover:to-blue-500/30 text-sm font-medium transition-all">Close</button>
+        <button id="close-about"
+          class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400
+                 hover:from-cyan-500/30 hover:to-blue-500/30 text-sm font-medium transition-all">
+          Close
+        </button>
       </div>`;
+
     document.body.appendChild(modal);
-    document.getElementById('close-about')?.addEventListener('click', () => modal.remove());
-    modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-    const onEsc = (e) => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', onEsc); }};
+
+    // Animate in (double rAF so transition fires after paint)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      modal.style.opacity = '1';
+      const card = modal.querySelector('[style*="scale-95"]') ||
+                   modal.querySelector('.bg-gray-900');
+      if (card) {
+        card.style.transform = 'scale(1)';
+        card.style.opacity   = '1';
+      }
+    }));
+
+    const close = () => {
+      modal.style.opacity = '0';
+      setTimeout(() => modal.remove(), 150);
+    };
+    document.getElementById('close-about')?.addEventListener('click', close);
+    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    const onEsc = (e) => {
+      if (e.key === 'Escape') { close(); document.removeEventListener('keydown', onEsc); }
+    };
     document.addEventListener('keydown', onEsc);
   }
 };
@@ -2687,6 +2751,41 @@ const About = {
 // ═══════════════════════════════════════════════════════════
 
 function bindEvents() {
+  // ── Smart Scroll Buttons (Feature 1) ──────────────────────
+  // Attach to the song list container, not the page.
+  // Show "scroll to top" when user is far from top, "scroll to bottom" vice versa.
+  (() => {
+    const list = document.getElementById('song-list');
+    const topBtn = document.getElementById('scroll-top-btn');
+    const botBtn = document.getElementById('scroll-bottom-btn');
+    if (!list || !topBtn || !botBtn) return;
+
+    const THRESHOLD = 150; // px scrolled before showing a button
+
+    const update = () => {
+      const { scrollTop, scrollHeight, clientHeight } = list;
+      const distFromBottom = scrollHeight - scrollTop - clientHeight;
+
+      // Show "up" button only when scrolled down beyond threshold
+      topBtn.classList.toggle('visible', scrollTop > THRESHOLD);
+      // Show "down" button only when there's more content below threshold
+      botBtn.classList.toggle('visible', distFromBottom > THRESHOLD);
+    };
+
+    list.addEventListener('scroll', update, { passive: true });
+
+    topBtn.addEventListener('click', () => {
+      list.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    botBtn.addEventListener('click', () => {
+      list.scrollTo({ top: list.scrollHeight, behavior: 'smooth' });
+    });
+
+    // Re-check whenever song list is re-rendered (songs load, playlist changes)
+    // We observe mutations on the list to catch these cases
+    new MutationObserver(update).observe(list, { childList: true });
+  })();
+
   // ── Save exact position on tab/window close ──
   window.addEventListener('beforeunload', () => {
     if (state.currentSongIndex >= 0) {
