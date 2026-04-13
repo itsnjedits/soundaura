@@ -7,6 +7,17 @@
   <meta name="description" content="SoundAura – An emotion-driven music experience" />
   <title>SoundAura</title>
 
+  <!-- PWA: Web App Manifest + mobile chrome -->
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="SoundAura" />
+  <link rel="apple-touch-icon" href="/pwa_icon/splash.png" />
+  <link rel="apple-touch-icon" sizes="192x192" href="/favicon/icon-192.png" />
+  <!-- Apple splash screen -->
+  <link rel="apple-touch-startup-image" href="/pwa_icon/splash.png" />
+
   <!-- Tailwind CSS via CDN -->
   <!-- TODO: Replace Tailwind CDN with CLI build for production (https://tailwindcss.com/docs/installation) -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -30,14 +41,23 @@
       --accent-blue: #3b82f6;
       --accent-green: #10b981;
       --border: rgba(255,255,255,0.08);
+      /* ── Layout sizing — on :root so ALL elements can read them ── */
+      --navbar-h: 3.5rem;      /* nav height: h-14 = 3.5rem */
+      --player-h: 8.5rem;      /* mobile player: 3-row layout */
     }
+    /* Desktop player is single-row — 5.5rem tall */
+    @media (min-width: 768px) {
+      :root { --player-h: 5.5rem; }
+    }
+
+    html { height: 100%; }
 
     body {
       font-family: 'DM Sans', sans-serif;
       background: var(--bg-primary);
       color: var(--text-primary);
-      min-height: 100dvh;
-      overflow-x: hidden;
+      height: 100dvh;
+      overflow: hidden; /* ← only #song-list scrolls; page itself must NOT scroll */
     }
 
     /* ── Light Mode ── */
@@ -163,6 +183,41 @@
 
     /* Add-songs button stays readable */
     body.light-mode #add-songs-btn { color: #059669; }
+
+    /* Playlist context menu — light mode */
+    body.light-mode .pl-ctx-menu {
+      background: #eef3ff !important;
+      border-color: rgba(0,0,0,0.12) !important;
+    }
+    body.light-mode .pl-ctx-menu button { color: #334155; }
+    body.light-mode .pl-ctx-menu .pl-ctx-rename:hover { background: rgba(0,0,0,0.06); color: #0f172a; }
+    body.light-mode .pl-ctx-menu .pl-ctx-delete { color: #dc2626; border-color: rgba(0,0,0,0.07); }
+    body.light-mode .pl-ctx-menu .pl-ctx-delete:hover { background: rgba(220,38,38,0.08); }
+
+    /* About, Share, Song-detail modals — keep dark even in light mode for legibility */
+    body.light-mode #about-modal > div,
+    body.light-mode #share-instructions-modal > div { background: #1a2942 !important; border-color: rgba(255,255,255,0.12) !important; }
+    body.light-mode #about-modal h2,
+    body.light-mode #about-modal p,
+    body.light-mode #share-instructions-modal h3,
+    body.light-mode #share-instructions-modal p { color: #e2eeff; }
+    body.light-mode #about-modal .text-gray-500 { color: #94a3b8 !important; }
+
+    /* Import button and sidebar actions */
+    body.light-mode #import-playlist-btn,
+    body.light-mode #share-how-btn { color: #475569; }
+    body.light-mode #import-playlist-btn:hover,
+    body.light-mode #share-how-btn:hover { color: #0f172a; background: rgba(0,0,0,0.05); }
+
+    /* Favorites sidebar button */
+    body.light-mode #favorites-btn { color: #475569; }
+    body.light-mode #favorites-btn:hover { color: #e11d48; background: rgba(225,29,72,0.06); }
+    body.light-mode #fav-count-badge { color: #e11d48; }
+
+    /* Heart buttons in song rows */
+    body.light-mode .fav-btn { color: #94a3b8; }
+    body.light-mode .fav-btn:hover { color: #f43f5e; }
+    body.light-mode .fav-btn.active { color: #f43f5e; background: rgba(244,63,94,0.08); }
 
     /* ── Typography ── */
     .font-display { font-family: 'Syne', sans-serif; }
@@ -297,6 +352,37 @@
       color: #06b6d4;
     }
 
+    /* ── Navbar logo image ── */
+    #navbar-logo {
+      height: 2rem;         /* 32px — matches h-8 */
+      width: auto;
+      object-fit: contain;
+      flex-shrink: 0;
+      /* Subtle drop-shadow that works on both themes */
+      filter: drop-shadow(0 1px 4px rgba(6,182,212,0.25));
+      transition: filter 0.3s ease, opacity 0.3s ease;
+    }
+    #navbar-logo:hover { filter: drop-shadow(0 2px 8px rgba(6,182,212,0.45)); opacity: 0.9; }
+
+    /* ── Brand title — dark mode ── */
+    #navbar-title {
+      background: linear-gradient(110deg, #67e8f9 0%, #38bdf8 40%, #818cf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.03em;
+      font-weight: 800;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    /* ── Brand title — light mode ── */
+    body.light-mode #navbar-title {
+      background: linear-gradient(110deg, #0891b2 0%, #2563eb 55%, #7c3aed 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
     /* ── Logo pulse ── */
     @keyframes logoPulse {
       0%, 100% { opacity: 1; }
@@ -304,72 +390,46 @@
     }
     .logo-dot { animation: logoPulse 2s ease-in-out infinite; }
 
-    /* ── Custom Speed Dropdown ── */
-    .speed-dropdown-menu {
-      position: absolute;
-      right: 0;
-      bottom: calc(100% + 6px); /* opens UPWARD — safe on mobile */
-      min-width: 80px;
-      background: #0d1a2d;
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 10px;
-      overflow: hidden;
-      z-index: 60;
-      box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+    /* ── Speed slider ── */
+    .speed-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 999px;
+      /* background set dynamically via JS (SpeedControl.set) */
+      background: linear-gradient(to right, #06b6d4 42.9%, rgba(255,255,255,0.15) 42.9%);
+      cursor: pointer;
+      outline: none;
     }
-    body.light-mode .speed-dropdown-menu {
-      background: #eef3ff;
-      border-color: rgba(0,0,0,0.12);
-      box-shadow: 0 -8px 24px rgba(0,0,0,0.12);
+    .speed-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: white;
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.4);
     }
-    .speed-dropdown-menu button {
-      display: block;
-      width: 100%;
-      padding: 7px 14px;
-      font-size: 12px;
-      text-align: center;
-      color: #94a3b8;
-      background: transparent;
+    .speed-slider::-moz-range-thumb {
+      width: 13px; height: 13px;
+      border-radius: 50%;
+      background: white;
       border: none;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
     }
-    body.light-mode .speed-dropdown-menu button { color: #475569; }
-    .speed-dropdown-menu button:hover {
-      background: rgba(6,182,212,0.15);
-      color: #06b6d4;
-    }
-    .speed-dropdown-menu button.active-speed {
-      color: #06b6d4;
-      font-weight: 600;
-    }
-    body.light-mode .speed-dropdown-menu button.active-speed { color: #0891b2; }
+    body.light-mode .speed-slider { background: linear-gradient(to right, #0891b2 42.9%, rgba(0,0,0,0.12) 42.9%); }
 
-    /* ── Disc spin (player thumbnail rotates while playing) ── */
-    @keyframes discSpin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
-    }
-    #player-thumb { transition: border-radius 0.4s ease; }
-    #player-thumb.disc-spin {
-      animation: discSpin 8s linear infinite;
-      border-radius: 50% !important;
-      box-shadow: 0 0 16px rgba(6,182,212,0.35);
-    }
-
-    /* ── Volume slider ── */
+    /* ── Volume slider — filled track ── */
     #volume-slider {
       -webkit-appearance: none;
       appearance: none;
       width: 70px;
       height: 4px;
       border-radius: 999px;
-      background: rgba(255,255,255,0.15);
+      /* background set dynamically via Volume.updateUI() */
+      background: linear-gradient(to right, #06b6d4 100%, rgba(255,255,255,0.15) 100%);
       cursor: pointer;
       outline: none;
-      accent-color: #06b6d4;
     }
-    body.light-mode #volume-slider { background: rgba(0,0,0,0.12); }
     #volume-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       width: 12px; height: 12px;
@@ -384,12 +444,42 @@
       border: none;
       cursor: pointer;
     }
+    body.light-mode #volume-slider { background: linear-gradient(to right, #0891b2 100%, rgba(0,0,0,0.12) 100%); }
     #volume-icon { cursor: pointer; color: #6b7fa0; transition: color 0.15s; }
     #volume-icon:hover { color: #06b6d4; }
     body.light-mode #volume-icon { color: #64748b; }
 
-    /* ── Progress bar — taller touch target on mobile ── */
-    @media (max-width: 768px) {
+    /* ── Song card modal animation ── */
+    .song-modal-card { will-change: transform, opacity; }
+    @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+    /* Light mode: darken the modal card so it stays readable */
+    body.light-mode .song-modal-card {
+      background: linear-gradient(160deg, #1a2e4a, #0d1a2d) !important;
+    }
+    body.light-mode #song-detail-modal h2 { color: #f0f6ff; }
+    body.light-mode #song-detail-modal p  { color: #94a3b8; }
+
+    /* ── Disc spin (player thumbnail rotates while playing) ── */
+    @keyframes discSpin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    #player-thumb { transition: border-radius 0.4s ease; }
+    #player-thumb.disc-spin {
+      animation: discSpin 8s linear infinite;
+      border-radius: 50% !important;
+      box-shadow: 0 0 16px rgba(6,182,212,0.35);
+    }
+
+    /* ── Main layout height: fills the space between navbar and player bar.
+          Uses vars from :root — siblings cannot share custom properties. ── */
+    #layout-wrapper {
+      height: calc(100dvh - var(--navbar-h) - var(--player-h));
+    }
+
+    /* ── Responsive tweaks ── */
+    @media (max-width: 767px) {
       #sidebar { display: none; }
       #main-content { width: 100%; }
       #progress-bar { height: 6px !important; }
@@ -404,22 +494,18 @@
      STICKY NAVBAR
      ═══════════════════════════════════════════════════════ -->
 <nav class="navbar sticky top-0 z-40 flex items-center justify-between px-4 md:px-6 h-14">
-  <!-- Logo -->
-  <div class="flex items-center gap-2">
-    <div class="relative w-8 h-8 flex items-center justify-center">
-      <svg viewBox="0 0 32 32" class="w-8 h-8">
-        <circle cx="16" cy="16" r="14" fill="url(#logoGrad)" opacity="0.9"/>
-        <path d="M12 10 L12 22 L22 16 Z" fill="white" opacity="0.9"/>
-        <circle cx="22" cy="10" r="3" fill="#06b6d4" class="logo-dot"/>
-        <defs>
-          <linearGradient id="logoGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#06b6d4"/>
-            <stop offset="100%" stop-color="#3b82f6"/>
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-    <span class="font-display font-800 text-lg bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent tracking-tight">
+  <!-- Logo — click opens About modal -->
+  <div id="logo-area" class="flex items-center gap-2.5 cursor-pointer select-none" title="About SoundAura">
+    <!-- Theme-aware logo image: /navbar_icon/dark.png or light.png -->
+    <img
+      id="navbar-logo"
+      src="navbar_icon/dark.png"
+      alt="SoundAura logo"
+      class="h-8 w-auto object-contain flex-shrink-0"
+      draggable="false"
+    />
+    <!-- Refined brand title -->
+    <span id="navbar-title" class="font-display font-800 text-xl tracking-wide leading-none">
       SoundAura
     </span>
   </div>
@@ -478,12 +564,15 @@
         </svg>
       </button>
       <!-- Menu Panel -->
-      <div id="menu-panel" class="hidden absolute right-0 top-10 w-44 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+      <div id="menu-panel" class="hidden absolute right-0 top-10 w-48 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
         <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
           ☀️ Light Mode
         </button>
         <button id="eq-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           🎛️ Equalizer
+        </button>
+        <button id="download-current-btn-menu" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          ⬇️ Download Song
         </button>
         <button id="help-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ❓ Help
@@ -496,7 +585,7 @@
 <!-- ════════════════════════════════════════════════════════
      MAIN LAYOUT: Sidebar + Content
      ═══════════════════════════════════════════════════════ -->
-<div class="flex" style="height: calc(100dvh - 3.5rem - 5.5rem);">
+<div id="layout-wrapper" class="flex overflow-hidden">
 
   <!-- Sidebar -->
   <aside id="sidebar" class="w-56 flex-shrink-0 flex flex-col overflow-hidden">
@@ -511,6 +600,18 @@
       class="mx-3 mb-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
     >
       <span class="text-base">🎵</span> All Songs
+    </button>
+
+    <!-- Favorites button -->
+    <button
+      id="favorites-btn"
+      class="mx-3 mb-1 flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-rose-400 hover:bg-rose-500/5 transition-colors group"
+    >
+      <span class="flex items-center gap-2">
+        <svg class="w-4 h-4 text-rose-400 group-hover:fill-rose-400 transition-all" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        Favorites
+      </span>
+      <span id="fav-count-badge" class="text-xs text-rose-400 font-semibold min-w-4 text-right"></span>
     </button>
 
     <!-- User Playlists -->
@@ -531,6 +632,20 @@
     <div class="p-3 border-t border-white/5">
       <canvas id="visualizer-canvas" width="176" height="36" class="w-full"></canvas>
     </div>
+
+    <!-- Import / Share actions -->
+    <div class="px-3 pb-3 space-y-1">
+      <button id="import-playlist-btn"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import Playlist
+      </button>
+      <button id="share-how-btn"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Sharing Guide
+      </button>
+    </div>
   </aside>
 
   <!-- Main Content -->
@@ -550,6 +665,20 @@
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Add Songs
+        </button>
+        <!-- Export current playlist — only shown inside a user playlist -->
+        <button id="export-playlist-btn"
+          class="hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-xs font-medium hover:bg-blue-500/20 transition-all"
+          title="Export this playlist as JSON">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+        <!-- Download currently playing song -->
+        <button id="download-current-btn"
+          class="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-gray-400 text-xs hover:text-white hover:bg-white/10 transition-all"
+          title="Download current song">
+          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download
         </button>
         <!-- Mobile search -->
         <div class="flex md:hidden">
@@ -576,91 +705,127 @@
 
 <!-- ════════════════════════════════════════════════════════
      BOTTOM PLAYER BAR
+     Desktop: single row | Mobile: 3-row layout
      ═══════════════════════════════════════════════════════ -->
-<div
-  id="player-bar"
-  class="fixed bottom-0 left-0 right-0 z-40 h-22 px-3 md:px-6"
-  style="height:5.5rem;"
->
-  <!-- Progress Bar -->
-  <div class="pt-2 pb-1 px-1">
-    <div id="progress-bar" class="relative w-full cursor-pointer group">
-      <div id="progress-filled" style="width:0%"></div>
-      <div id="progress-thumb"></div>
+<div id="player-bar" class="fixed bottom-0 left-0 right-0 z-40 px-3 md:px-6"
+     style="padding-bottom: env(safe-area-inset-bottom, 0);">
+
+  <!-- ══ MOBILE LAYOUT (3 rows, shown only on small screens) ══ -->
+  <div class="md:hidden">
+    <!-- Row 1: Thumbnail + Song info — extra top padding and gap for breathing room -->
+    <div class="flex items-center gap-3.5 pt-2.5 pb-1.5">
+      <img
+        id="player-thumb"
+        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>"
+        alt="Now playing"
+        class="w-11 h-11 rounded-xl object-cover flex-shrink-0 shadow-md"
+      />
+      <div class="min-w-0 flex-1">
+        <p id="player-title" class="text-sm font-semibold text-white leading-snug" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">No song selected</p>
+        <p id="player-artist" class="text-xs text-gray-400 leading-snug mt-0.5" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">–</p>
+      </div>
     </div>
-    <div class="flex justify-between mt-1">
-      <span id="time-current" class="text-xs text-gray-500">0:00</span>
-      <span id="time-total" class="text-xs text-gray-500">0:00</span>
+
+    <!-- Row 2: Progress bar — slightly more vertical space -->
+    <div class="px-0.5 pb-1.5">
+      <div id="progress-bar" class="relative w-full cursor-pointer group">
+        <div id="progress-filled" style="width:0%"></div>
+        <div id="progress-thumb"></div>
+      </div>
+      <div class="flex justify-between mt-1">
+        <span id="time-current" class="text-xs text-gray-500">0:00</span>
+        <span id="time-total" class="text-xs text-gray-500">0:00</span>
+      </div>
+    </div>
+
+    <!-- Row 3: All controls -->
+    <div class="flex items-center justify-between pb-2">
+      <!-- Mode -->
+      <button id="mode-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-cyan-400 transition-all flex-shrink-0" title="Playback mode"></button>
+      <!-- Skip back -->
+      <button id="skip-back-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all flex-shrink-0" title="-10s">-10</button>
+      <!-- Prev -->
+      <button id="prev-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <!-- Play/Pause -->
+      <button id="play-btn" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+      </button>
+      <!-- Next -->
+      <button id="next-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all flex-shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+      </button>
+      <!-- Skip fwd -->
+      <button id="skip-fwd-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all flex-shrink-0" title="+10s">+10</button>
+      <!-- Speed slider (mobile) -->
+      <div class="flex items-center gap-1 flex-shrink-0 min-w-0" style="max-width:90px;">
+        <input id="speed-slider" type="range" min="0.25" max="2" step="0.05" value="1"
+          class="speed-slider w-14 flex-shrink-0" title="Playback speed" />
+        <span id="speed-display" class="speed-display text-xs text-gray-400 font-mono w-7 text-right flex-shrink-0">1×</span>
+      </div>
     </div>
   </div>
 
-  <!-- Controls Row -->
-  <div class="flex items-center justify-between gap-2">
-
-    <!-- Song Info -->
-    <div class="flex items-center gap-3 flex-1 min-w-0">
-      <img
-        id="player-thumb"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><rect width='44' height='44' fill='%23374151' rx='8'/><text x='22' y='28' text-anchor='middle' font-size='18'>🎵</text></svg>"
-        alt="Now playing"
-        class="w-11 h-11 rounded-lg object-cover flex-shrink-0"
-      />
-      <div class="min-w-0">
-        <p id="player-title" class="text-sm font-medium text-white truncate">No song selected</p>
-        <p id="player-artist" class="text-xs text-gray-400 truncate">–</p>
+  <!-- ══ DESKTOP LAYOUT (single row, hidden on mobile) ══ -->
+  <div class="hidden md:block">
+    <!-- Progress Bar -->
+    <div class="pt-2 pb-1 px-1">
+      <div id="progress-bar-desktop" class="relative w-full cursor-pointer group" style="height:4px;background:rgba(255,255,255,0.1);border-radius:999px;">
+        <div id="progress-filled-desktop" style="width:0%;height:100%;background:linear-gradient(90deg,#06b6d4,#3b82f6);border-radius:999px;pointer-events:none;transition:width 0.1s linear;"></div>
+        <div id="progress-thumb-desktop" style="position:absolute;top:50%;transform:translateY(-50%);width:12px;height:12px;background:white;border-radius:50%;pointer-events:none;opacity:0;transition:opacity 0.15s;margin-left:-6px;"></div>
+      </div>
+      <div class="flex justify-between mt-1">
+        <span id="time-current-desktop" class="text-xs text-gray-500">0:00</span>
+        <span id="time-total-desktop" class="text-xs text-gray-500">0:00</span>
       </div>
     </div>
 
-    <!-- Center Controls -->
-    <div class="flex items-center gap-1 md:gap-2">
-      <!-- Mode -->
-      <button id="mode-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-cyan-400 transition-all" title="Playback mode">
-        <!-- Populated by JS -->
-      </button>
-      <!-- Prev -->
-      <button id="prev-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
-      </button>
-      <!-- Skip back 10 -->
-      <button id="skip-back-btn" class="hidden md:flex w-8 h-8 items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="-10s">-10</button>
-      <!-- Play/Pause -->
-      <button
-        id="play-btn"
-        class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-      </button>
-      <!-- Skip fwd 10 -->
-      <button id="skip-fwd-btn" class="hidden md:flex w-8 h-8 items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="+10s">+10</button>
-      <!-- Next -->
-      <button id="next-btn" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
-      </button>
-    </div>
+    <!-- Controls Row -->
+    <div class="flex items-center justify-between gap-2 pb-2">
+      <!-- Song Info -->
+      <div class="flex items-center gap-3 flex-1 min-w-0">
+        <img
+          id="player-thumb-desktop"
+          src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='44' height='44' viewBox='0 0 44 44'><rect width='44' height='44' fill='%23374151' rx='8'/><text x='22' y='28' text-anchor='middle' font-size='18'>🎵</text></svg>"
+          alt="Now playing"
+          class="w-11 h-11 rounded-lg object-cover flex-shrink-0"
+        />
+        <div class="min-w-0">
+          <p id="player-title-desktop" class="text-sm font-medium text-white truncate">No song selected</p>
+          <p id="player-artist-desktop" class="text-xs text-gray-400 truncate">–</p>
+        </div>
+      </div>
 
-    <!-- Right: Volume + Speed -->
-    <div class="flex items-center gap-2 flex-1 justify-end">
-      <!-- Volume (hidden on very small screens, shown md+) -->
-      <div class="hidden sm:flex items-center gap-1.5">
-        <button id="volume-icon" title="Mute / Unmute">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+      <!-- Center Controls -->
+      <div class="flex items-center gap-2">
+        <button id="mode-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-cyan-400 transition-all" title="Playback mode"></button>
+        <button id="prev-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
         </button>
-        <input id="volume-slider" type="range" min="0" max="1" step="0.02" value="1" title="Volume" />
+        <button id="skip-back-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="-10s">-10</button>
+        <button id="play-btn-desktop" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
+        </button>
+        <button id="skip-fwd-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="+10s">+10</button>
+        <button id="next-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
+        </button>
       </div>
 
-      <!-- Custom speed dropdown — themed, opens upward (safe on mobile) -->
-      <div class="relative" id="speed-wrapper">
-        <button id="speed-btn"
-          class="text-xs px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all font-mono"
-          title="Playback speed"
-        >1×</button>
-        <div id="speed-menu" class="speed-dropdown-menu hidden">
-          <button data-speed="0.5">0.5×</button>
-          <button data-speed="0.75">0.75×</button>
-          <button data-speed="1" class="active-speed">1×</button>
-          <button data-speed="1.25">1.25×</button>
-          <button data-speed="1.5">1.5×</button>
-          <button data-speed="2">2×</button>
+      <!-- Right: Volume + Speed -->
+      <div class="flex items-center gap-2 flex-1 justify-end">
+        <div class="flex items-center gap-1.5">
+          <button id="volume-icon" title="Mute / Unmute">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          </button>
+          <input id="volume-slider" type="range" min="0" max="1" step="0.02" value="1" title="Volume" />
+        </div>
+        <!-- Speed slider (desktop) -->
+        <div class="flex items-center gap-1.5">
+          <input id="speed-slider-desktop" type="range" min="0.25" max="2" step="0.05" value="1"
+            class="speed-slider w-20" title="Playback speed" />
+          <span id="speed-display-desktop" class="speed-display text-xs text-gray-400 font-mono w-8">1×</span>
         </div>
       </div>
     </div>
@@ -749,6 +914,7 @@
       <h3 class="font-display font-600 text-white text-sm">🎛️ Equalizer</h3>
     </div>
     <div class="flex gap-2 items-center">
+      <button id="eq-expand-btn" class="text-xs text-gray-400 hover:text-blue-400 transition-colors" title="Expand EQ">⤢ Expand</button>
       <button id="eq-save-preset-btn" class="text-xs text-gray-400 hover:text-emerald-400 transition-colors" title="Save as preset">💾 Save</button>
       <button id="eq-reset" class="text-xs text-gray-400 hover:text-cyan-400 transition-colors">Reset</button>
       <button id="close-eq" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">
@@ -760,15 +926,15 @@
   <div class="p-4">
     <!-- EQ Bands -->
     <div class="flex items-end justify-between gap-1 h-36">
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-0" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">60</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-1" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">170</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-2" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">310</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-3" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">600</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-4" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">1k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-5" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">3k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-6" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">6k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-7" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">12k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-8" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">14k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-0" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">31</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-1" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">62</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-2" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">125</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-3" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">250</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-4" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">500</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-5" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">1k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-6" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">2k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-7" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">4k</span></div>
+      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-8" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">8k</span></div>
       <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-9" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">16k</span></div>
     </div>
 
@@ -804,33 +970,71 @@
   class="fixed top-0 right-0 h-full w-72 z-50 bg-gray-950 border-l border-white/10 flex flex-col
          transform translate-x-full transition-transform duration-300 ease-out md:hidden"
 >
-  <div class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+  <!-- Header -->
+  <div class="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
     <p class="font-display font-600 text-white text-sm">My Library</p>
     <button id="close-mobile-sidebar" class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">✕</button>
   </div>
 
-  <!-- All Songs -->
-  <button
-    id="all-songs-btn-mobile"
-    class="flex items-center gap-2 mx-4 mt-3 px-3 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
-    onclick="document.getElementById('mobile-sidebar-overlay').classList.add('hidden');document.getElementById('mobile-sidebar-drawer').classList.add('translate-x-full');document.getElementById('all-songs-btn').click()"
-  >
-    <span class="text-base">🎵</span> All Songs
-  </button>
+  <!-- Scrollable content -->
+  <div class="flex-1 overflow-y-auto">
 
-  <!-- Playlists heading -->
-  <div class="px-5 pt-4 pb-1 flex items-center justify-between">
-    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Playlists</p>
+    <!-- All Songs -->
     <button
-      class="w-5 h-5 flex items-center justify-center rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 text-xs leading-none transition-colors"
-      onclick="const n=prompt('Playlist name:');if(n&&typeof UserPlaylists!=='undefined')UserPlaylists.create(n.trim())"
-      title="New playlist"
-    >+</button>
+      id="all-songs-btn-mobile"
+      class="w-full flex items-center gap-2 px-5 mt-3 mb-1 py-2 rounded-lg text-sm text-gray-300 hover:text-white hover:bg-white/5 transition-colors text-left"
+      onclick="document.getElementById('mobile-sidebar-overlay').classList.add('hidden');document.getElementById('mobile-sidebar-drawer').classList.add('translate-x-full');document.getElementById('all-songs-btn').click()"
+    >
+      <svg class="w-4 h-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      All Songs
+    </button>
+
+    <!-- Favorites -->
+    <button
+      id="favorites-btn-mobile"
+      class="w-full flex items-center gap-2 px-5 py-2 mb-2 rounded-lg text-sm text-gray-300 hover:text-rose-400 hover:bg-rose-500/5 transition-colors text-left"
+    >
+      <svg class="w-4 h-4 text-rose-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      Favorites
+      <span id="fav-count-badge-mobile" class="ml-auto text-xs text-rose-400 font-semibold"></span>
+    </button>
+
+    <!-- Playlists heading -->
+    <div class="px-5 pt-2 pb-1 flex items-center justify-between">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Playlists</p>
+      <button
+        class="w-5 h-5 flex items-center justify-center rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 text-xs leading-none transition-colors"
+        onclick="const n=prompt('Playlist name:');if(n&&typeof UserPlaylists!=='undefined')UserPlaylists.create(n.trim())"
+        title="New playlist"
+      >+</button>
+    </div>
+
+    <!-- Mirror of desktop user-playlists -->
+    <div id="user-playlists-mobile" class="px-2 pb-2 space-y-0.5">
+      <p class="text-xs text-gray-500 px-3 py-2">No playlists yet</p>
+    </div>
+
+    <!-- Divider -->
+    <div class="border-t border-white/5 mx-4 my-2"></div>
+
+    <!-- Import / Share -->
+    <div class="px-3 space-y-0.5 pb-2">
+      <button id="import-playlist-btn-mobile"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import Playlist
+      </button>
+      <button id="share-how-btn-mobile"
+        class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Sharing Guide
+      </button>
+    </div>
   </div>
 
-  <!-- Mirror of desktop user-playlists -->
-  <div id="user-playlists-mobile" class="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-    <p class="text-xs text-gray-500 px-3 py-2">No playlists yet</p>
+  <!-- Visualizer at bottom of mobile drawer (Feature 5) -->
+  <div class="flex-shrink-0 border-t border-white/5 p-3">
+    <canvas id="visualizer-canvas-mobile" width="240" height="32" class="w-full rounded-md opacity-80"></canvas>
   </div>
 </div>
 

@@ -1,0 +1,55 @@
+{
+  "name": "SoundAura",
+  "short_name": "SoundAura",
+  "description": "An emotion-driven music streaming experience",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "theme_color": "#060d1b",
+  "background_color": "#060d1b",
+  "lang": "en",
+  "categories": ["music", "entertainment"],
+  "icons": [
+    {
+      "src": "/pwa_icon/splash.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "splash_screens": [
+    {
+      "src": "/pwa_icon/splash.png",
+      "sizes": "any",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "All Songs",
+      "short_name": "Songs",
+      "description": "Browse all songs",
+      "url": "/?view=all",
+      "icons": [{ "src": "/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
+    },
+    {
+      "name": "Favorites",
+      "short_name": "Favorites",
+      "description": "My favorite songs",
+      "url": "/?view=favorites",
+      "icons": [{ "src": "/pwa_icon/splash.png", "sizes": "any", "type": "image/png" }]
+    }
+  ]
+}
