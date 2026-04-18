@@ -1008,6 +1008,9 @@ audioEl.addEventListener('timeupdate', () => {
   const dThumb = document.getElementById('progress-thumb-desktop');
   if (dThumb) dThumb.style.left = `${pct}%`;
 
+  // ── Sync mini player progress (same pct, zero extra computation) ──
+  MiniPlayer.syncProgress(pct);
+
   // Throttle-save position every 5 s
   if (!_savePositionTimer) {
     _savePositionTimer = setTimeout(() => {
@@ -1059,6 +1062,8 @@ const PlaybackMode = {
       btn.classList.toggle('text-cyan-400', state.playbackMode !== 'none');
       btn.classList.toggle('text-gray-500', state.playbackMode === 'none');
     });
+    // ── Sync mini player ──
+    MiniPlayer.syncMode();
   }
 };
 
@@ -1339,6 +1344,9 @@ const UI = {
     setThumb('player-thumb-desktop');
 
     document.title = `♪ ${song.title} – SoundAura`;
+
+    // ── Sync mini player (shared state, no duplicate audio) ──
+    MiniPlayer.update(song);
   },
 
   /** Update playlist header meta */
@@ -1385,6 +1393,8 @@ const UI = {
       const el = document.getElementById(id);
       if (el) el.classList.toggle('disc-spin', playing);
     });
+    // ── Sync mini player (shared state, no duplicate audio) ──
+    MiniPlayer.syncPlayState(playing);
   },
 
   /** Toggle dark / light theme */
@@ -2965,6 +2975,316 @@ const About = {
 };
 
 // ═══════════════════════════════════════════════════════════
+// 13f. MINI PLAYER — Floating detachable controller
+//
+//  Architecture: ZERO separate audio. All controls call
+//  existing Player.* methods. Sync is achieved by patching
+//  UI.setPlayPauseIcon, UI.updatePlayerUI, timeupdate,
+//  and PlaybackMode.updateUI — the same hooks that drive
+//  the main player already fire and now also reach here.
+// ═══════════════════════════════════════════════════════════
+
+const MiniPlayer = {
+  _visible: false,
+  _dragging: false,
+  _dragOffX: 0,
+  _dragOffY: 0,
+
+  // ── DOM helpers ────────────────────────────────────────────
+  el()           { return document.getElementById('mini-player'); },
+  isVisible()    { return this._visible; },
+
+  // ── Show / Hide / Toggle ───────────────────────────────────
+
+  show() {
+    const el = this.el();
+    if (!el || this._visible) return;
+    this._visible = true;
+
+    // Ensure position is restored BEFORE making visible so no flash
+    this._restorePosition();
+
+    el.classList.remove('hidden');
+    el.classList.add('mp-entering');
+    el.addEventListener('animationend', () => el.classList.remove('mp-entering'), { once: true });
+
+    // Immediately sync current state
+    const song = state.currentSongId
+      ? state.allSongs.find(s => songId(s) === state.currentSongId)
+      : null;
+    if (song) MiniPlayer.update(song);
+    MiniPlayer.syncPlayState(state.isPlaying);
+    MiniPlayer.syncMode();
+    MiniPlayer._syncCurrentProgress();
+
+    Storage.save('miniPlayerVisible', true);
+    console.log('[MiniPlayer] Shown');
+  },
+
+  hide() {
+    const el = this.el();
+    if (!el || !this._visible) return;
+    this._visible = false;
+
+    el.classList.add('mp-leaving');
+    el.addEventListener('animationend', () => {
+      el.classList.add('hidden');
+      el.classList.remove('mp-leaving');
+    }, { once: true });
+
+    Storage.save('miniPlayerVisible', false);
+    console.log('[MiniPlayer] Hidden');
+  },
+
+  toggle() { this._visible ? MiniPlayer.hide() : MiniPlayer.show(); },
+
+  // ── Sync methods (called from patched UI / audio events) ────
+
+  /** Called from patched UI.updatePlayerUI — updates song art, title, artist */
+  update(song) {
+    if (!song || !this._visible) return;
+    const thumb   = DataLoader.getThumbnailUrl(song);
+    const artists = Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '—');
+    const fallback = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>";
+
+    const img = document.getElementById('mini-thumb');
+    if (img) { img.src = thumb; img.onerror = () => { img.src = fallback; }; }
+
+    const titleEl = document.getElementById('mini-title');
+    if (titleEl) titleEl.textContent = song.title;
+
+    const artistEl = document.getElementById('mini-artist');
+    if (artistEl) artistEl.textContent = artists;
+  },
+
+  /** Called from patched UI.setPlayPauseIcon — syncs play/pause button + disc spin */
+  syncPlayState(playing) {
+    if (!this._visible) return;
+    const btn = document.getElementById('mini-play-btn');
+    if (!btn) return;
+
+    const pauseIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    const playIcon  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
+    btn.innerHTML = playing ? pauseIcon : playIcon;
+    btn.classList.toggle('playing', playing);
+
+    // Disc spin on thumbnail
+    const img = document.getElementById('mini-thumb');
+    if (img) img.classList.toggle('disc-spin', playing);
+
+    // Playing dot indicator
+    const dot = document.getElementById('mini-playing-dot');
+    if (dot) dot.classList.toggle('hidden', !playing);
+  },
+
+  /** Called from patched timeupdate listener — updates thin progress strip */
+  syncProgress(pct) {
+    if (!this._visible) return;
+    const filled = document.getElementById('mini-progress-filled');
+    if (filled) filled.style.width = `${pct}%`;
+
+    // Move hover-thumb
+    const thumb = document.getElementById('mini-progress-thumb');
+    if (thumb) thumb.style.left = `${pct}%`;
+  },
+
+  /** Read current audio state and push it to the progress bar now */
+  _syncCurrentProgress() {
+    const { currentTime, duration } = audioEl;
+    if (duration) MiniPlayer.syncProgress((currentTime / duration) * 100);
+  },
+
+  /** Called from patched PlaybackMode.updateUI */
+  syncMode() {
+    if (!this._visible) return;
+    const btn = document.getElementById('mini-mode-btn');
+    if (!btn) return;
+    btn.innerHTML = MODE_ICONS[state.playbackMode] || MODE_ICONS.repeat;
+    btn.title = MODE_LABELS[state.playbackMode] || '';
+    btn.classList.toggle('text-cyan-400', state.playbackMode !== 'none');
+    btn.classList.toggle('text-gray-500', state.playbackMode === 'none');
+  },
+
+  // ── Drag & Drop ─────────────────────────────────────────────
+
+  _initDrag() {
+    const el     = this.el();
+    const handle = document.getElementById('mini-player-drag');
+    if (!el || !handle) return;
+
+    /** Clamp el within the viewport */
+    const clampToViewport = () => {
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const rect = el.getBoundingClientRect();
+      let left = Math.max(0, Math.min(rect.left, vw - rect.width));
+      let top  = Math.max(0, Math.min(rect.top,  vh - rect.height));
+      el.style.left   = `${left}px`;
+      el.style.top    = `${top}px`;
+      el.style.right  = 'auto';
+      el.style.bottom = 'auto';
+    };
+
+    const startDrag = (clientX, clientY, e) => {
+      // Don't drag if the user tapped a button
+      if (e && e.target.closest('button, #mini-thumb-click')) return;
+      const rect = el.getBoundingClientRect();
+      MiniPlayer._dragging = true;
+      MiniPlayer._dragOffX = clientX - rect.left;
+      MiniPlayer._dragOffY = clientY - rect.top;
+      // Freeze position: convert right/bottom defaults to left/top px
+      el.style.right  = 'auto';
+      el.style.bottom = 'auto';
+      el.style.left   = `${rect.left}px`;
+      el.style.top    = `${rect.top}px`;
+      el.style.transition = 'none';
+      handle.style.cursor = 'grabbing';
+    };
+
+    const moveDrag = (clientX, clientY) => {
+      if (!MiniPlayer._dragging) return;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      const pw = el.offsetWidth, ph = el.offsetHeight;
+      el.style.left = `${Math.max(0, Math.min(clientX - MiniPlayer._dragOffX, vw - pw))}px`;
+      el.style.top  = `${Math.max(0, Math.min(clientY - MiniPlayer._dragOffY, vh - ph))}px`;
+    };
+
+    const endDrag = () => {
+      if (!MiniPlayer._dragging) return;
+      MiniPlayer._dragging = false;
+      handle.style.cursor = 'grab';
+      el.style.transition = '';
+      MiniPlayer._savePosition();
+    };
+
+    // Mouse
+    handle.addEventListener('mousedown',  (e) => startDrag(e.clientX, e.clientY, e));
+    document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
+    document.addEventListener('mouseup',   endDrag);
+
+    // Touch
+    handle.addEventListener('touchstart', (e) => {
+      const t = e.touches[0];
+      startDrag(t.clientX, t.clientY, e);
+    }, { passive: true });
+    document.addEventListener('touchmove', (e) => {
+      if (!MiniPlayer._dragging) return;
+      e.preventDefault();
+      moveDrag(e.touches[0].clientX, e.touches[0].clientY);
+    }, { passive: false });
+    document.addEventListener('touchend', endDrag);
+
+    // Clamp on resize
+    window.addEventListener('resize', () => { if (MiniPlayer._visible) clampToViewport(); });
+  },
+
+  _savePosition() {
+    const el = this.el();
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    Storage.save('miniPlayerPos', { left: rect.left, top: rect.top });
+  },
+
+  _restorePosition() {
+    const el = this.el();
+    if (!el) return;
+    const saved = Storage.load('miniPlayerPos', null);
+    if (!saved) return; // keep default CSS (bottom+right)
+
+    // Ensure el is briefly visible so offsetWidth/Height are accurate
+    const wasHidden = el.classList.contains('hidden');
+    if (wasHidden) {
+      el.style.visibility = 'hidden';
+      el.classList.remove('hidden');
+    }
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const pw = el.offsetWidth  || 340;
+    const ph = el.offsetHeight || 72;
+    if (wasHidden) {
+      el.classList.add('hidden');
+      el.style.visibility = '';
+    }
+
+    const left = Math.max(0, Math.min(saved.left, vw - pw));
+    const top  = Math.max(0, Math.min(saved.top,  vh - ph));
+    el.style.right  = 'auto';
+    el.style.bottom = 'auto';
+    el.style.left   = `${left}px`;
+    el.style.top    = `${top}px`;
+  },
+
+  // ── Wire buttons ────────────────────────────────────────────
+
+  _wireButtons() {
+    // Play / Pause — calls the SAME Player.togglePlay as the main player
+    document.getElementById('mini-play-btn')?.addEventListener('click', () => {
+      AudioEngine.init();
+      Player.togglePlay();
+    });
+
+    // Prev / Next
+    document.getElementById('mini-prev-btn')?.addEventListener('click', Player.prev);
+    document.getElementById('mini-next-btn')?.addEventListener('click', Player.next);
+
+    // Mode cycle — same as main player
+    document.getElementById('mini-mode-btn')?.addEventListener('click', PlaybackMode.cycle);
+
+    // Reattach: collapse mini player (main player still runs)
+    document.getElementById('mini-attach-btn')?.addEventListener('click', MiniPlayer.hide);
+    document.getElementById('mini-close-btn')?.addEventListener('click', MiniPlayer.hide);
+
+    // Thumbnail click → open song detail modal
+    document.getElementById('mini-thumb-click')?.addEventListener('click', () => {
+      if (!state.currentSongId) return;
+      const song = state.allSongs.find(s => songId(s) === state.currentSongId);
+      if (song) SongModal.open(song);
+    });
+
+    // Progress bar scrub
+    const barWrap = document.getElementById('mini-progress-bar-wrap');
+    if (barWrap) {
+      const scrubTo = (clientX) => {
+        const rect = barWrap.getBoundingClientRect();
+        const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
+      };
+      barWrap.addEventListener('click',      (e) => scrubTo(e.clientX));
+      barWrap.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+        scrubTo(e.touches[0].clientX);
+      }, { passive: true });
+    }
+
+    // Detach buttons (in main player bar)
+    ['mini-detach-btn', 'mini-detach-btn-desktop'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        // Require a song to be loaded before allowing detach
+        if (!state.currentSongId && state.currentSongIndex < 0) {
+          Toast.show('Play a song first', 'warning');
+          return;
+        }
+        MiniPlayer.toggle();
+      });
+    });
+  },
+
+  // ── Initialise (called once from app init) ──────────────────
+
+  init() {
+    MiniPlayer._initDrag();
+    MiniPlayer._wireButtons();
+
+    // Restore visibility from last session (only if a song was playing)
+    const wasVisible = Storage.load('miniPlayerVisible', false);
+    if (wasVisible && state.currentSongId) {
+      // Small delay so the DOM is fully rendered before we compute sizes
+      setTimeout(() => MiniPlayer.show(), 300);
+    }
+
+    console.log('[MiniPlayer] Initialized');
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
 // 14. EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════
 
@@ -3430,6 +3750,9 @@ async function init() {
   // Initialize EQ panel
   EQPanel.initDraggable();
   EQPanel.renderCustomPresets();
+
+  // Initialize Mini Player
+  MiniPlayer.init();
 
   // Restore EQ slider display values
   const savedEQ = Storage.load('eqSettings');
