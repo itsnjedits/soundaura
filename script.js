@@ -347,6 +347,7 @@ const AudioEngine = {
       state.gainNode.connect(ctx.destination);
 
       console.log('[Audio] Web Audio API initialized');
+      AudioEngine._bindVisibilityResume();
     } catch (e) {
       console.warn('[Audio] Web Audio API unavailable:', e);
     }
@@ -355,8 +356,26 @@ const AudioEngine = {
   /** Resume context after user gesture */
   resume() {
     if (state.audioContext?.state === 'suspended') {
-      state.audioContext.resume();
+      state.audioContext.resume().catch(() => {});
     }
+  },
+
+  /** Resume context whenever the page becomes visible again (screen unlock, tab switch) */
+  _bindVisibilityResume() {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && state.isPlaying) {
+        AudioEngine.resume();
+        // Some mobile browsers suspend the audio element itself — restart it
+        if (audioEl.paused && state.isPlaying) {
+          audioEl.play().catch(() => {});
+        }
+      }
+    });
+    // Page Lifecycle API: fires on freeze/resume (battery-saver, etc.)
+    document.addEventListener('resume', () => { AudioEngine.resume(); });
+    window.addEventListener('focus', () => {
+      if (state.isPlaying) AudioEngine.resume();
+    });
   },
 
   /** Set EQ band gain (-12 to +12 dB) */
@@ -562,12 +581,19 @@ const Playlist = {
   /** Play by index in current playlist — always sets currentSongId as source of truth */
   playAt(index, fromUserAction = true) {
     if (index < 0 || index >= state.currentPlaylist.length) return;
+
+    // ── Instant visual feedback ─────────────────────────────
+    // Update state BEFORE audio loads so the UI responds immediately.
+    // This eliminates the "did my click work?" feeling.
     state.currentSongIndex = index;
     const song = state.currentPlaylist[index];
-    state.currentSongId = songId(song);          // ← lock onto this song's identity
-    Player.loadAndPlay(song, fromUserAction);
-    UI.highlightCurrentSong();
+    state.currentSongId = songId(song);   // ← lock onto this song's identity
+
+    // Immediately highlight without waiting for audio events
+    UI._instantHighlight(index);
     UI.updatePlayerUI(song);
+
+    Player.loadAndPlay(song, fromUserAction);
     Storage.saveAll();
   },
 
@@ -1118,7 +1144,12 @@ const UI = {
               }
             </button>
             ${inUserPlaylist
-              ? `<button class="remove-btn w-7 h-7 rounded-full bg-red-500/20 hover:bg-red-500/40 text-red-400 flex items-center justify-center text-sm transition-colors" data-url="${audioUrl}" title="Remove">−</button>`
+              ? `<button class="song-ctx-btn w-7 h-7 rounded-full bg-white/5 hover:bg-white/15 text-gray-500 hover:text-white flex items-center justify-center transition-all"
+                   data-song='${JSON.stringify(song).replace(/'/g, "&#39;")}' data-url="${audioUrl}" title="Song options">
+                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                     <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+                   </svg>
+                 </button>`
               : `<button class="add-btn w-7 h-7 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 flex items-center justify-center text-sm transition-colors" data-song='${JSON.stringify(song).replace(/'/g, "&#39;")}' title="Add to playlist">+</button>`
             }
             <!-- Download button -->
@@ -1135,7 +1166,7 @@ const UI = {
     container.querySelectorAll('.song-item').forEach(el => {
       // ── Tap / Click ──
       el.addEventListener('click', (e) => {
-        if (e.target.closest('.add-btn, .remove-btn, .drag-handle, .fav-btn, .dl-btn')) return;
+        if (e.target.closest('.add-btn, .remove-btn, .song-ctx-btn, .drag-handle, .fav-btn, .dl-btn')) return;
         const idx = parseInt(el.dataset.index);
         if (idx >= 0) Playlist.playAt(idx);
       });
@@ -1143,17 +1174,16 @@ const UI = {
       // ── Long-press (mobile) → open song detail modal ──
       let longPressTimer = null;
       el.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.add-btn, .remove-btn, .drag-handle, .fav-btn, .dl-btn')) return;
+        if (e.target.closest('.add-btn, .remove-btn, .song-ctx-btn, .drag-handle, .fav-btn, .dl-btn')) return;
         longPressTimer = setTimeout(() => {
           const idx = parseInt(el.dataset.index);
           if (idx < 0) return;
           const song = state.currentPlaylist[idx];
           if (song) {
-            // Haptic feedback if available
             if (navigator.vibrate) navigator.vibrate(30);
             SongModal.open(song, idx);
           }
-        }, 500); // 500ms = standard long-press threshold
+        }, 500);
       }, { passive: true });
       el.addEventListener('touchend',   () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
       el.addEventListener('touchmove',  () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
@@ -1177,12 +1207,21 @@ const UI = {
       });
     });
 
-    // Remove-from-playlist buttons
+    // Song 3-dot context menu (user playlist rows)
+    container.querySelectorAll('.song-ctx-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const song    = JSON.parse(btn.dataset.song);
+        const audioUrl = btn.dataset.url;
+        UI.showSongContextMenu(btn, song, audioUrl);
+      });
+    });
+
+    // Remove-from-playlist buttons (legacy — kept for safety)
     container.querySelectorAll('.remove-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const audioUrl = btn.dataset.url;
-        UserPlaylists.removeSong(state.activePlaylistName, audioUrl);
+        UserPlaylists.removeSong(state.activePlaylistName, btn.dataset.url);
       });
     });
 
@@ -1204,6 +1243,61 @@ const UI = {
   /** Highlight the currently playing song */
   highlightCurrentSong() {
     UI.renderSongList();
+  },
+
+  /**
+   * Instantly update the visual highlight of the active song row WITHOUT a full re-render.
+   * Used on click for immediate feedback. Falls back to full re-render if DOM isn't in sync.
+   */
+  _instantHighlight(activeIndex) {
+    const container = document.getElementById('song-list');
+    if (!container) return;
+    const items = container.querySelectorAll('.song-item');
+    // If item count doesn't match, fall back to full re-render
+    if (items.length !== state.currentPlaylist.length) {
+      UI.renderSongList();
+      return;
+    }
+    items.forEach((el, i) => {
+      const isActive = i === activeIndex;
+      // Apply/remove active styling without a full re-render
+      el.classList.toggle('bg-gradient-to-r', isActive);
+      el.classList.toggle('from-cyan-500/20', isActive);
+      el.classList.toggle('to-blue-500/10', isActive);
+      el.classList.toggle('border-cyan-500/30', isActive);
+      el.classList.toggle('active-song', isActive);
+      el.classList.toggle('hover:bg-white/5', !isActive);
+      el.classList.toggle('border-transparent', !isActive);
+      // Update title colour
+      const titleEl = el.querySelector('.song-title');
+      if (titleEl) {
+        titleEl.classList.toggle('text-cyan-400', isActive);
+        titleEl.classList.toggle('text-white', !isActive);
+      }
+      // Show/hide playing bars overlay
+      const imgWrap = el.querySelector('.relative.flex-shrink-0');
+      if (imgWrap) {
+        const existingBars = imgWrap.querySelector('.playing-bars-overlay');
+        if (isActive && state.isPlaying) {
+          if (!existingBars) {
+            const bars = document.createElement('div');
+            bars.className = 'playing-bars-overlay absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg';
+            bars.innerHTML = `<div class="playing-bars flex gap-0.5 items-end h-4">
+              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:60%;animation-delay:0s"></span>
+              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:100%;animation-delay:0.15s"></span>
+              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:70%;animation-delay:0.3s"></span>
+            </div>`;
+            imgWrap.appendChild(bars);
+          }
+        } else {
+          existingBars?.remove();
+        }
+      }
+    });
+    // Scroll into view
+    if (items[activeIndex]) {
+      setTimeout(() => items[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    }
   },
 
   /** Scroll the song list to bring index into view */
@@ -1265,7 +1359,9 @@ const UI = {
       hide(addBtn, exportBtn);
     } else if (state.activePlaylistName === '__favorites__') {
       meta.textContent = `❤️ Favorites · ${count} songs`;
-      hide(addBtn, exportBtn);
+      hide(addBtn);
+      // Allow exporting favorites
+      if (exportBtn) { exportBtn.classList.remove('hidden'); exportBtn.classList.add('flex'); }
     } else if (isUserPl) {
       meta.textContent = `📂 ${state.activePlaylistName} · ${count} songs`;
       show(addBtn, exportBtn);
@@ -1375,6 +1471,59 @@ const UI = {
         state.dragSrcIndex = null;
       });
     });
+  },
+
+  /**
+   * Per-song 3-dot context menu for user playlist rows.
+   * Options: Add to another playlist | Remove from current playlist
+   */
+  showSongContextMenu(triggerEl, song, audioUrl) {
+    document.querySelectorAll('.song-ctx-menu').forEach(m => m.remove());
+
+    const menu = document.createElement('div');
+    menu.className = 'song-ctx-menu fixed z-[100] rounded-xl shadow-2xl overflow-hidden';
+    menu.style.cssText = 'min-width:172px;background:#0d1a2d;border:1px solid rgba(255,255,255,0.12);';
+    menu.innerHTML = `
+      <button class="sctx-add w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/8 hover:text-white transition-colors text-left">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add to another playlist
+      </button>
+      <button class="sctx-remove w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 transition-colors text-left border-t border-white/5">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        Remove from playlist
+      </button>`;
+    document.body.appendChild(menu);
+
+    const rect = triggerEl.getBoundingClientRect();
+    const menuW = 172, menuH = 88;
+    let top  = rect.bottom + 6;
+    let left = rect.right - menuW;
+    if (left < 4) left = 4;
+    if (top + menuH > window.innerHeight - 8) top = rect.top - menuH - 6;
+    menu.style.top  = `${top}px`;
+    menu.style.left = `${left}px`;
+
+    menu.querySelector('.sctx-add').addEventListener('click', () => {
+      menu.remove(); cleanup();
+      UserPlaylists.showAddModal(song);
+    });
+    menu.querySelector('.sctx-remove').addEventListener('click', () => {
+      menu.remove(); cleanup();
+      UserPlaylists.removeSong(state.activePlaylistName, audioUrl);
+    });
+
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); cleanup(); } };
+    const closeKey = (e) => { if (e.key === 'Escape') { menu.remove(); cleanup(); } };
+    const cleanup = () => {
+      document.removeEventListener('click',      close,    true);
+      document.removeEventListener('touchstart', close,    true);
+      document.removeEventListener('keydown',    closeKey);
+    };
+    setTimeout(() => {
+      document.addEventListener('click',      close,    true);
+      document.addEventListener('touchstart', close,    true);
+      document.addEventListener('keydown',    closeKey);
+    }, 0);
   },
 
   /** Render user playlist sidebar */
@@ -1568,7 +1717,22 @@ const Explore = {
   renderMoods() {
     const container = document.getElementById('mood-grid');
     if (!container) return;
-    container.innerHTML = MOODS.map(mood => `
+
+    // "All Songs" card — always first
+    const allSongsCard = `
+      <button
+        class="mood-card col-span-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-white/5 hover:bg-white/10 transition-all duration-200 cursor-pointer group"
+        id="explore-all-songs-btn"
+      >
+        <div class="w-10 h-10 rounded-full flex-shrink-0 flex items-center justify-center"
+             style="background:rgba(6,182,212,0.15);border:2px solid rgba(6,182,212,0.35);">
+          <span class="text-xl">🎵</span>
+        </div>
+        <span class="text-sm font-semibold text-gray-200 group-hover:text-white">All Songs</span>
+        <span class="ml-auto text-xs text-gray-500">${state.allSongs.length} songs</span>
+      </button>`;
+
+    container.innerHTML = allSongsCard + MOODS.map(mood => `
       <button
         class="mood-card flex flex-col items-center gap-2 p-4 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-white/5 hover:bg-white/10 transition-all duration-200 cursor-pointer group"
         data-mood="${mood.id}"
@@ -1586,6 +1750,20 @@ const Explore = {
         <span class="mood-label text-xs font-medium text-gray-300 group-hover:text-white leading-tight text-center">${mood.label}</span>
       </button>
     `).join('');
+
+    // All Songs card handler
+    container.querySelector('#explore-all-songs-btn')?.addEventListener('click', () => {
+      if (state.addSongsMode) {
+        const sorted = [...state.allSongs].sort((a, b) => a.title.localeCompare(b.title));
+        Explore.showSelectionList(sorted, 'All Songs');
+      } else {
+        state.activePlaylistName = null;
+        Playlist.loadAll();
+        UI.renderUserPlaylists();
+        Explore.close();
+        Toast.show(`🎵 Loaded all ${state.allSongs.length} songs`, 'success');
+      }
+    });
 
     container.querySelectorAll('.mood-card').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1654,7 +1832,6 @@ const Explore = {
     if (moodSection) moodSection.classList.add('hidden');
     if (singerSection) singerSection.classList.add('hidden');
 
-    // Inject a temporary selection list
     let sel = document.getElementById('selection-list-section');
     if (!sel) {
       sel = document.createElement('div');
@@ -1663,36 +1840,83 @@ const Explore = {
     }
     sel.classList.remove('hidden');
 
+    // Store the full list for search filtering
+    sel._allSongs = songs;
+    sel._label    = label;
+
+    const renderList = (filtered) => {
+      const listEl = sel.querySelector('#sel-song-list');
+      if (!listEl) return;
+      listEl.innerHTML = filtered.map((song) => {
+        const url = DataLoader.getAudioUrl(song);
+        const artists = Array.isArray(song.artist) ? song.artist.join(', ') : song.artist;
+        const checked = state.selectedSongs.has(url);
+        return `
+          <label class="sel-song-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
+            ${checked ? 'bg-cyan-500/15 border border-cyan-500/30' : 'hover:bg-white/5 border border-transparent'} transition-all" data-url="${url}">
+            <input type="checkbox" class="song-check w-4 h-4 accent-cyan-400 flex-shrink-0" data-url="${url}" ${checked ? 'checked' : ''} />
+            <img src="${DataLoader.getThumbnailUrl(song)}" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-gray-800"
+              onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2236%22 height=%2236%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%23374151%22 rx=%228%22/><text x=%2218%22 y=%2224%22 text-anchor=%22middle%22 font-size=%2216%22>🎵</text></svg>'"
+            />
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-white truncate">${song.title}</p>
+              <p class="text-xs text-gray-400 truncate">${artists}</p>
+            </div>
+          </label>`;
+      }).join('') || '<p class="text-center text-gray-500 text-sm py-6">No songs match your search</p>';
+
+      // Wire checkboxes
+      listEl.querySelectorAll('.song-check').forEach(cb => {
+        cb.addEventListener('change', () => {
+          if (cb.checked) state.selectedSongs.add(cb.dataset.url);
+          else state.selectedSongs.delete(cb.dataset.url);
+          const lbl = cb.closest('label');
+          if (lbl) {
+            lbl.classList.toggle('bg-cyan-500/15', cb.checked);
+            lbl.classList.toggle('border-cyan-500/30', cb.checked);
+            lbl.classList.toggle('border-transparent', !cb.checked);
+          }
+          Explore.updateSelectionCount();
+        });
+      });
+    };
+
     sel.innerHTML = `
       <div class="flex items-center gap-3 mb-3">
         <button id="sel-back-btn" class="text-gray-400 hover:text-cyan-400 transition-colors text-lg">←</button>
         <span class="text-sm font-medium text-gray-300">${label} · ${songs.length} songs</span>
         <button id="sel-all-btn" class="ml-auto text-xs px-3 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors">Select All</button>
       </div>
-      <div class="space-y-1">
-        ${songs.map((song, i) => {
-          const url = DataLoader.getAudioUrl(song);
-          const artists = Array.isArray(song.artist) ? song.artist.join(', ') : song.artist;
-          const checked = state.selectedSongs.has(url);
-          return `
-            <label class="sel-song-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer
-              ${checked ? 'bg-cyan-500/15 border border-cyan-500/30' : 'hover:bg-white/5 border border-transparent'} transition-all" data-url="${url}">
-              <input type="checkbox" class="song-check w-4 h-4 accent-cyan-400 flex-shrink-0" data-url="${url}" ${checked ? 'checked' : ''} />
-              <img src="${DataLoader.getThumbnailUrl(song)}" class="w-9 h-9 rounded-lg object-cover flex-shrink-0 bg-gray-800"
-                onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2236%22 height=%2236%22 viewBox=%220 0 36 36%22><rect width=%2236%22 height=%2236%22 fill=%22%23374151%22 rx=%228%22/><text x=%2218%22 y=%2224%22 text-anchor=%22middle%22 font-size=%2216%22>🎵</text></svg>'"
-              />
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-white truncate">${song.title}</p>
-                <p class="text-xs text-gray-400 truncate">${artists}</p>
-              </div>
-            </label>`;
-        }).join('')}
-      </div>`;
+      <!-- Search bar -->
+      <div class="relative mb-3">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 w-4 h-4 pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="sel-search" type="text" placeholder="Search songs…"
+          class="w-full pl-9 pr-4 py-2 text-sm bg-white/5 border border-white/10 rounded-xl text-gray-300 placeholder-gray-600 focus:outline-none focus:border-cyan-500/50 transition-all" />
+      </div>
+      <div id="sel-song-list" class="space-y-1"></div>`;
+
+    renderList(songs);
 
     // Back button
     sel.querySelector('#sel-back-btn')?.addEventListener('click', () => {
       sel.classList.add('hidden');
       if (moodSection) moodSection.classList.remove('hidden');
+      if (singerSection) singerSection.classList.remove('hidden');
+      // Restore active tab visibility
+      const tabMoodActive = !document.getElementById('tab-mood')?.classList.contains('active') === false;
+      if (tabMoodActive) singerSection?.classList.add('hidden');
+    });
+
+    // Live search
+    sel.querySelector('#sel-search')?.addEventListener('input', (e) => {
+      const q = e.target.value.trim().toLowerCase();
+      const filtered = q
+        ? songs.filter(s =>
+            s.title.toLowerCase().includes(q) ||
+            (Array.isArray(s.artist) ? s.artist.join(' ') : s.artist || '').toLowerCase().includes(q)
+          )
+        : songs;
+      renderList(filtered);
     });
 
     // Select All button
@@ -1703,22 +1927,10 @@ const Explore = {
         if (allChecked) state.selectedSongs.delete(url);
         else state.selectedSongs.add(url);
       });
-      Explore.showSelectionList(songs, label); // re-render
+      const q = sel.querySelector('#sel-search')?.value.trim().toLowerCase() || '';
+      const filtered = q ? songs.filter(s => s.title.toLowerCase().includes(q)) : songs;
+      renderList(filtered);
       Explore.updateSelectionCount();
-    });
-
-    // Individual checkboxes
-    sel.querySelectorAll('.song-check').forEach(cb => {
-      cb.addEventListener('change', () => {
-        if (cb.checked) state.selectedSongs.add(cb.dataset.url);
-        else state.selectedSongs.delete(cb.dataset.url);
-        const label = cb.closest('label');
-        if (label) {
-          label.classList.toggle('bg-cyan-500/15', cb.checked);
-          label.classList.toggle('border-cyan-500/30', cb.checked);
-        }
-        Explore.updateSelectionCount();
-      });
     });
   }
 };
@@ -1764,7 +1976,6 @@ const EQPanel = {
           <div class="flex items-center gap-2">
             <span class="text-lg">🎛️</span>
             <h2 class="font-display font-700 text-white">Equalizer</h2>
-            <span class="text-xs text-gray-500 ml-1">10-Band</span>
           </div>
           <div class="flex items-center gap-2">
             <button id="eq-exp-reset" class="text-xs px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors">Reset All</button>
@@ -2533,13 +2744,20 @@ const Downloader = {
 // ═══════════════════════════════════════════════════════════
 
 const PlaylistIO = {
-  /** Export a named user playlist as JSON download */
+  /** Export a named user playlist OR favorites as JSON download */
   export(playlistName) {
-    const songs = state.userPlaylists[playlistName];
-    if (!songs?.length) return Toast.show('Playlist is empty', 'warning');
+    let songs, displayName;
+    if (playlistName === '__favorites__') {
+      songs = Favorites.getSongs();
+      displayName = 'My Favorites';
+    } else {
+      songs = state.userPlaylists[playlistName];
+      displayName = playlistName;
+    }
+    if (!songs?.length) return Toast.show('Nothing to export', 'warning');
 
     const payload = {
-      name:    playlistName,
+      name:    displayName,
       version: 1,
       songs:   songs.map(s => ({
         title:    s.title,
@@ -2555,10 +2773,10 @@ const PlaylistIO = {
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${playlistName.replace(/[/\\?%*:|"<>]/g, '-')}.soundaura.json`;
+    a.download = `${displayName.replace(/[/\\?%*:|"<>]/g, '-')}.soundaura.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    Toast.show(`📦 Exported "${playlistName}"`, 'success');
+    Toast.show(`📦 Exported "${displayName}"`, 'success');
   },
 
   /** Open a file picker and import a SoundAura playlist JSON */
@@ -3066,14 +3284,20 @@ function bindEvents() {
   document.getElementById('export-playlist-btn')?.addEventListener('click', () => {
     if (state.activePlaylistName && state.activePlaylistName !== '__favorites__') {
       PlaylistIO.export(state.activePlaylistName);
+    } else if (state.activePlaylistName === '__favorites__') {
+      PlaylistIO.export('__favorites__');
     } else {
-      Toast.show('Open a user playlist first', 'warning');
+      Toast.show('Open a playlist or Favorites first', 'warning');
     }
   });
 
   // ── Download currently playing song (also from 3-dot menu) ──
+  // IMPORTANT: Use state.currentSongId → look up in allSongs, NOT currentPlaylist,
+  // so the download works even when the user has navigated to a different playlist.
   const handleDownloadCurrent = () => {
-    const song = state.currentSongIndex >= 0 ? state.currentPlaylist[state.currentSongIndex] : null;
+    const song = state.currentSongId
+      ? state.allSongs.find(s => songId(s) === state.currentSongId)
+      : null;
     if (song) Downloader.download(song);
     else Toast.show('No song is playing', 'warning');
   };

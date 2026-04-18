@@ -320,14 +320,14 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      min-width: 0;   /* allow shrinking in flex container */
     }
     .eq-slider {
-      /* writing-mode + direction is the standards-compliant way (no appearance:slider-vertical) */
       writing-mode: vertical-lr;
       direction: rtl;
-      width: 24px;
-      height: 100px;
+      width: 22px;
+      height: 96px;
       cursor: pointer;
       accent-color: #06b6d4;
     }
@@ -545,16 +545,13 @@
         left: 0.5rem !important;
         bottom: calc(var(--player-h) + 0.5rem) !important;
       }
-      /* Make sliders slightly narrower so 10 bands fit */
-      .eq-slider { width: 18px !important; height: 80px !important; }
+      .eq-slider { width: 16px !important; height: 80px !important; }
       /* Hide dB value labels on very small screens — keep only freq labels */
       .eq-value { display: none !important; }
-      #eq-panel .p-4 { padding: 0.6rem !important; }
-      /* Slightly smaller freq labels */
-      .eq-slider-wrap > span:last-child { font-size: 0.6rem !important; }
+      #eq-panel .p-3 { padding: 0.5rem !important; }
     }
-    /* Ensure the EQ band row never overflows */
-    #eq-panel .flex.items-end { flex-wrap: nowrap; overflow-x: auto; gap: 2px !important; }
+    /* Ensure EQ band row fills width and never overflows */
+    #eq-panel .flex.items-end { flex-wrap: nowrap; overflow: hidden; }
 
     /* ── Scroll To Top / Bottom buttons ── */
     #scroll-top-btn, #scroll-bottom-btn {
@@ -1014,7 +1011,7 @@
     <div class="flex-1 overflow-y-auto px-5 pb-5 pt-3">
       <!-- Mood Grid -->
       <div id="mood-section">
-        <div id="mood-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-3">
+        <div id="mood-grid" class="grid grid-cols-3 sm:grid-cols-5 gap-3 [&_.col-span-full]:col-span-3 sm:[&_.col-span-full]:col-span-5">
           <!-- Populated by JS -->
         </div>
       </div>
@@ -1050,8 +1047,11 @@
       <h3 class="font-display font-600 text-white text-sm">🎛️ Equalizer</h3>
     </div>
     <div class="flex gap-2 items-center">
-      <button id="eq-expand-btn" class="text-xs text-gray-400 hover:text-blue-400 transition-colors" title="Expand EQ">⤢ Expand</button>
-      <button id="eq-save-preset-btn" class="text-xs text-gray-400 hover:text-emerald-400 transition-colors" title="Save as preset">💾 Save</button>
+      <!-- Icon-only expand button — no text -->
+      <button id="eq-expand-btn" class="w-6 h-6 flex items-center justify-center rounded hover:bg-white/10 text-gray-400 hover:text-blue-400 transition-colors" title="Expand Equalizer">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
+      <button id="eq-save-preset-btn" class="text-xs text-gray-400 hover:text-emerald-400 transition-colors" title="Save as preset">💾</button>
       <button id="eq-reset" class="text-xs text-gray-400 hover:text-cyan-400 transition-colors">Reset</button>
       <button id="close-eq" class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -1059,24 +1059,24 @@
     </div>
   </div>
 
-  <div class="p-4">
-    <!-- EQ Bands -->
-    <div class="flex items-end justify-between gap-1 h-36">
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-0" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">31</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-1" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">62</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-2" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">125</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-3" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">250</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-4" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">500</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-5" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">1k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-6" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">2k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-7" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">4k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-8" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">8k</span></div>
-      <div class="eq-slider-wrap"><input type="range" class="eq-slider" id="eq-band-9" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-xs text-gray-600">16k</span></div>
+  <div class="p-3">
+    <!-- EQ Bands — full-width with equal flex columns, no overflow -->
+    <div class="flex items-end justify-between gap-0" style="height:9rem;">
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-0" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">31</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-1" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">62</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-2" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">125</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-3" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">250</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-4" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">500</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-5" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">1k</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-6" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">2k</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-7" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">4k</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-8" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">8k</span></div>
+      <div class="eq-slider-wrap flex-1"><input type="range" class="eq-slider" id="eq-band-9" min="-12" max="12" value="0" step="0.5"><span class="eq-value text-xs text-gray-500">0</span><span class="text-gray-600" style="font-size:9px">16k</span></div>
     </div>
 
     <!-- Built-in Presets -->
-    <div class="mt-4 flex gap-1.5 flex-wrap border-t border-white/5 pt-3">
-      <span class="text-xs text-gray-500 self-center mr-1">Built-in:</span>
+    <div class="mt-3 flex gap-1.5 flex-wrap border-t border-white/5 pt-3">
+      <span class="text-xs text-gray-500 self-center mr-1">Presets:</span>
       <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="bass">Bass Boost</button>
       <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="vocal">Vocal</button>
       <button class="eq-preset text-xs px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="treble">Treble</button>
