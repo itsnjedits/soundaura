@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en" id="mp-html">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SoundAura</title>
+  <style>
+    /* ── Reset ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme variables — dark (default) ── */
+    :root {
+      --bg:       #060d1b;
+      --bg2:      #0d1a2d;
+      --text:     #f0f6ff;
+      --muted:    #6b7fa0;
+      --accent:   #06b6d4;
+      --accent2:  #3b82f6;
+      --border:   rgba(255,255,255,0.1);
+      --btn-bg:   rgba(255,255,255,0.06);
+      --btn-hover:rgba(255,255,255,0.14);
+    }
+
+    /* ── Light theme ── */
+    html.light {
+      --bg:       #f0f5ff;
+      --bg2:      #e2ebff;
+      --text:     #0f172a;
+      --muted:    #475569;
+      --accent:   #0891b2;
+      --accent2:  #2563eb;
+      --border:   rgba(0,0,0,0.1);
+      --btn-bg:   rgba(0,0,0,0.05);
+      --btn-hover:rgba(0,0,0,0.1);
+    }
+
+    /* ── Body layout ── */
+    html, body {
+      width: 370px;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Progress bar — very top ── */
+    #prog-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+    }
+    #prog-bar:hover { height: 5px; }
+    #prog-filled {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%;
+      transition: width 0.15s linear;
+      pointer-events: none;
+    }
+    #prog-thumb {
+      position: absolute;
+      top: 50%; transform: translateY(-50%);
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: white;
+      margin-left: -5px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.1s;
+    }
+    #prog-bar:hover #prog-thumb { opacity: 1; }
+
+    /* ── Header strip ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px 3px;
+      flex-shrink: 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      background: linear-gradient(110deg, #67e8f9, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    html.light .brand {
+      background: linear-gradient(110deg, #0891b2, #2563eb);
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+    .time-row {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      font-size: 9px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .sep { opacity: 0.4; }
+
+    /* ── Main content row ── */
+    .main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      min-height: 0;
+    }
+
+    /* ── Album art ── */
+    #thumb {
+      width: 46px;
+      height: 46px;
+      border-radius: 9px;
+      object-fit: cover;
+      flex-shrink: 0;
+      background: #374151;
+      box-shadow: 0 3px 12px rgba(0,0,0,0.45);
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    #thumb:hover {
+      transform: scale(1.04);
+      box-shadow: 0 4px 16px rgba(6,182,212,0.3);
+    }
+    #thumb.spinning { animation: spin 5s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #thumb.spinning:hover { transform: rotate(var(--spin-deg, 0deg)) scale(1.04); }
+
+    /* ── Song info ── */
+    .info { flex: 1; min-width: 0; }
+    .song-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+    .song-artist {
+      font-size: 10px;
+      color: var(--muted);
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+      line-height: 1.3;
+    }
+
+    /* ── Controls ── */
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+    }
+
+    button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      transition: background 0.15s, transform 0.08s, color 0.15s;
+      outline: none;
+    }
+
+    .ctrl-btn {
+      width: 28px;
+      height: 28px;
+      color: rgba(255,255,255,0.7);
+    }
+    html.light .ctrl-btn { color: #334155; }
+    .ctrl-btn:hover { background: var(--btn-hover); color: var(--text); }
+    .ctrl-btn:active { transform: scale(0.88); }
+
+    #btn-play {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 50%;
+      color: white;
+      box-shadow: 0 0 12px rgba(6,182,212,0.35);
+      transition: filter 0.15s, transform 0.08s, box-shadow 0.15s;
+    }
+    #btn-play:hover {
+      filter: brightness(1.15);
+      box-shadow: 0 0 20px rgba(6,182,212,0.55);
+    }
+    #btn-play:active { transform: scale(0.9); }
+    #btn-play.playing {
+      animation: playGlow 2.2s ease-in-out infinite;
+    }
+    @keyframes playGlow {
+      0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.3); }
+      50%      { box-shadow: 0 0 22px rgba(6,182,212,0.65); }
+    }
+
+    #btn-mode {
+      width: 26px;
+      height: 26px;
+      color: var(--accent);
+    }
+    #btn-mode.inactive { color: var(--muted); }
+    #btn-mode:hover { background: var(--btn-hover); }
+    #btn-mode:active { transform: scale(0.88); }
+
+    /* ── Action buttons (close, etc.) ── */
+    .action-btns {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      padding-left: 8px;
+      border-left: 1px solid var(--border);
+    }
+    .action-btn {
+      width: 22px;
+      height: 22px;
+      color: var(--muted);
+    }
+    .action-btn:hover { color: var(--text); background: var(--btn-hover); }
+    .action-btn:active { transform: scale(0.88); }
+
+    /* ── Volume row ── */
+    .vol-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px 7px;
+      flex-shrink: 0;
+    }
+    .vol-row svg { flex-shrink: 0; color: var(--muted); }
+    #vol-btn { color: var(--muted); width: 22px; height: 22px; flex-shrink: 0; }
+    #vol-btn:hover { color: var(--text); background: var(--btn-hover); }
+
+    input[type=range] {
+      flex: 1;
+      height: 3px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      background: linear-gradient(to right, var(--accent) 100%, var(--border) 100%);
+    }
+    #vol-val {
+      font-size: 9px;
+      color: var(--muted);
+      width: 24px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    /* ── Keyboard hint ── */
+    #kb-hint {
+      text-align: center;
+      font-size: 8.5px;
+      color: var(--muted);
+      padding-bottom: 4px;
+      opacity: 0.55;
+      letter-spacing: 0.02em;
+    }
+
+    /* ── No BroadcastChannel fallback ── */
+    #no-bc {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 16px;
+      text-align: center;
+      gap: 8px;
+    }
+    #no-bc .icon { font-size: 32px; }
+    #no-bc p { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Offline / disconnected state ── */
+    body.disconnected #thumb { opacity: 0.4; }
+    body.disconnected #song-title { color: var(--muted) !important; }
+  </style>
+</head>
+<body>
+
+<!-- Progress bar — top -->
+<div id="prog-bar">
+  <div id="prog-filled"></div>
+  <div id="prog-thumb"></div>
+</div>
+
+<!-- Header -->
+<div class="header">
+  <span class="brand">SoundAura</span>
+  <div class="time-row">
+    <span id="time-cur">0:00</span>
+    <span class="sep">/</span>
+    <span id="time-tot">0:00</span>
+  </div>
+</div>
+
+<!-- Main row: art + info + controls -->
+<div class="main">
+
+  <!-- Album art (click opens song info prompt) -->
+  <img id="thumb"
+    src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23374151' rx='9'/><text x='23' y='30' text-anchor='middle' font-size='20'>🎵</text></svg>"
+    alt="Album art"
+    title="Click for song info"
+  />
+
+  <!-- Song info -->
+  <div class="info">
+    <div class="song-title" id="song-title">No song playing</div>
+    <div class="song-artist" id="song-artist">–</div>
+  </div>
+
+  <!-- Playback controls -->
+  <div class="controls">
+    <button id="btn-prev" class="ctrl-btn" title="Previous (←)">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+        <polygon points="19,20 9,12 19,4"/>
+        <rect x="4" y="4" width="3" height="16" rx="1.5"/>
+      </svg>
+    </button>
+
+    <button id="btn-play" class="playing" title="Play / Pause (Space)">
+      <!-- icon injected by JS -->
+      <svg id="play-svg" viewBox="0 0 24 24" fill="currentColor" width="17" height="17">
+        <polygon points="5,3 19,12 5,21"/>
+      </svg>
+    </button>
+
+    <button id="btn-next" class="ctrl-btn" title="Next (→)">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+        <polygon points="5,4 15,12 5,20"/>
+        <rect x="17" y="4" width="3" height="16" rx="1.5"/>
+      </svg>
+    </button>
+
+    <button id="btn-mode" title="Cycle playback mode">
+      <!-- icon injected by JS -->
+    </button>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="action-btns">
+    <button id="btn-close" class="action-btn" title="Close mini player">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+
+</div>
+
+<!-- Volume row -->
+<div class="vol-row">
+  <button id="vol-btn" title="Mute / Unmute">
+    <svg id="vol-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+      <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+      <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/>
+    </svg>
+  </button>
+  <input type="range" id="vol-slider" min="0" max="1" step="0.02" value="1" title="Volume" />
+  <span id="vol-val">100%</span>
+</div>
+
+<!-- Keyboard hint -->
+<div id="kb-hint">Space: play/pause &nbsp;·&nbsp; ← prev &nbsp;·&nbsp; → next</div>
+
+<!-- No BroadcastChannel fallback -->
+<div id="no-bc">
+  <div class="icon">⚠️</div>
+  <p>Your browser doesn't support the BroadcastChannel API.<br>
+     Please use a modern browser (Chrome 54+, Firefox 38+, Edge 79+).</p>
+</div>
+
+<script>
+'use strict';
+
+// ── Mode SVG map ─────────────────────────────────────────────
+const MODE_SVG = {
+  repeat:  `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`,
+  shuffle: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`,
+  loop:    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="10" y="14" font-size="7" fill="currentColor" stroke="none">1</text></svg>`,
+  none:    `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><line x1="3" y1="3" x2="21" y2="21" stroke-width="2.5"/></svg>`,
+};
+const MODE_LABEL = { repeat: 'Repeat', shuffle: 'Shuffle', loop: 'Loop One', none: 'Play Once' };
+
+// ── Helpers ──────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function fmt(s) {
+  if (!s || isNaN(s) || !isFinite(s)) return '0:00';
+  const m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return `${m}:${ss.toString().padStart(2, '0')}`;
+}
+
+function volIcon(vol) {
+  if (vol === 0) return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>`;
+  if (vol < 0.5) return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+}
+
+function updateVolSliderFill(val) {
+  const pct = val * 100;
+  $('vol-slider').style.background =
+    `linear-gradient(to right, var(--accent) ${pct}%, var(--border) ${pct}%)`;
+}
+
+// ── State ────────────────────────────────────────────────────
+let currentVol = 1, isMuted = false, lastVol = 1;
+
+// ── BroadcastChannel ─────────────────────────────────────────
+if (!('BroadcastChannel' in window)) {
+  // Show fallback message
+  document.querySelector('.header').style.display = 'none';
+  document.querySelector('.main').style.display = 'none';
+  document.querySelector('.vol-row').style.display = 'none';
+  $('kb-hint').style.display = 'none';
+  $('prog-bar').style.display = 'none';
+  $('no-bc').style.display = 'flex';
+} else {
+  const bc = new BroadcastChannel('soundaura_player');
+
+  // ── Receive state from main window ──────────────────────────
+  bc.onmessage = (e) => {
+    const d = e.data;
+    if (d.type !== 'STATE') return;
+
+    // Theme
+    document.getElementById('mp-html').className = d.isDark ? '' : 'light';
+
+    // Song info
+    $('song-title').textContent  = d.title  || 'No song playing';
+    $('song-artist').textContent = d.artist || '–';
+    document.title = d.title ? `${d.playing ? '▶' : '⏸'} ${d.title}` : 'SoundAura';
+
+    // Thumbnail
+    const thumb = $('thumb');
+    if (d.thumb && thumb.dataset.src !== d.thumb) {
+      thumb.dataset.src = d.thumb;
+      thumb.src = d.thumb;
+      thumb.onerror = () => {
+        thumb.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23374151' rx='9'/><text x='23' y='30' text-anchor='middle' font-size='20'>🎵</text></svg>";
+      };
+    }
+    thumb.classList.toggle('spinning', d.playing);
+
+    // Play/pause
+    const PAUSE_SVG = `<svg viewBox="0 0 24 24" fill="currentColor" width="17" height="17"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
+    const PLAY_SVG  = `<svg viewBox="0 0 24 24" fill="currentColor" width="17" height="17"><polygon points="5,3 19,12 5,21"/></svg>`;
+    $('btn-play').innerHTML = d.playing ? PAUSE_SVG : PLAY_SVG;
+    $('btn-play').classList.toggle('playing', d.playing);
+
+    // Progress
+    const pct = d.progress || 0;
+    $('prog-filled').style.width = `${pct}%`;
+    $('prog-thumb').style.left   = `${pct}%`;
+    $('time-cur').textContent = fmt(d.currentTime);
+    $('time-tot').textContent = fmt(d.duration);
+
+    // Mode
+    const modeBtn = $('btn-mode');
+    modeBtn.innerHTML = MODE_SVG[d.mode] || MODE_SVG.repeat;
+    modeBtn.title     = MODE_LABEL[d.mode] || 'Mode';
+    modeBtn.classList.toggle('inactive', d.mode === 'none');
+
+    // Volume
+    if (d.volume !== undefined) {
+      currentVol = d.volume;
+      $('vol-slider').value = d.volume;
+      updateVolSliderFill(d.volume);
+      $('vol-icon').innerHTML  = volIcon(d.volume).match(/<svg[^>]*>(.*?)<\/svg>/s)?.[1] || '';
+      $('vol-val').textContent = `${Math.round(d.volume * 100)}%`;
+    }
+
+    document.body.classList.remove('disconnected');
+  };
+
+  // ── Button commands → main window ───────────────────────────
+  $('btn-play').addEventListener('click', () => bc.postMessage({ type: 'CMD_PLAY' }));
+  $('btn-prev').addEventListener('click', () => bc.postMessage({ type: 'CMD_PREV' }));
+  $('btn-next').addEventListener('click', () => bc.postMessage({ type: 'CMD_NEXT' }));
+  $('btn-mode').addEventListener('click', () => bc.postMessage({ type: 'CMD_MODE' }));
+
+  // Close
+  $('btn-close').addEventListener('click', () => {
+    bc.postMessage({ type: 'POPUP_CLOSED' });
+    bc.close();
+    window.close();
+  });
+
+  // Album art click — show song info in title bar
+  $('thumb').addEventListener('click', () => {
+    const title  = $('song-title').textContent;
+    const artist = $('song-artist').textContent;
+    if (title && title !== 'No song playing') {
+      alert(`🎵 ${title}\n🎤 ${artist}`);
+    }
+  });
+
+  // ── Progress scrubbing ───────────────────────────────────────
+  let scrubbing = false;
+  const progBar = $('prog-bar');
+  const doScrub = (clientX) => {
+    const rect = progBar.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100));
+    // Optimistically update local UI
+    $('prog-filled').style.width = `${pct}%`;
+    $('prog-thumb').style.left   = `${pct}%`;
+    bc.postMessage({ type: 'CMD_SEEK', pct });
+  };
+  progBar.addEventListener('click',     (e) => { doScrub(e.clientX); });
+  progBar.addEventListener('mousedown', (e) => { scrubbing = true; doScrub(e.clientX); e.preventDefault(); });
+  document.addEventListener('mousemove',(e) => { if (scrubbing) doScrub(e.clientX); });
+  document.addEventListener('mouseup',  ()  => { scrubbing = false; });
+
+  // ── Volume ───────────────────────────────────────────────────
+  const volSlider = $('vol-slider');
+  volSlider.addEventListener('input', () => {
+    const v = parseFloat(volSlider.value);
+    currentVol = v;
+    $('vol-val').textContent = `${Math.round(v * 100)}%`;
+    updateVolSliderFill(v);
+    $('vol-icon').innerHTML = volIcon(v).match(/<svg[^>]*>(.*?)<\/svg>/s)?.[1] || '';
+    bc.postMessage({ type: 'CMD_VOLUME', volume: v });
+  });
+
+  // Mute toggle
+  $('vol-btn').addEventListener('click', () => {
+    const v = parseFloat(volSlider.value);
+    if (v > 0) {
+      lastVol = v;
+      volSlider.value = 0;
+    } else {
+      volSlider.value = lastVol || 1;
+    }
+    volSlider.dispatchEvent(new Event('input'));
+  });
+
+  // ── Keyboard shortcuts ───────────────────────────────────────
+  document.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    switch (e.code) {
+      case 'Space':
+        e.preventDefault();
+        bc.postMessage({ type: 'CMD_PLAY' });
+        break;
+      case 'ArrowRight':
+        bc.postMessage({ type: 'CMD_NEXT' });
+        break;
+      case 'ArrowLeft':
+        bc.postMessage({ type: 'CMD_PREV' });
+        break;
+      case 'KeyM':
+        bc.postMessage({ type: 'CMD_MODE' });
+        break;
+    }
+  });
+
+  // ── Announce ready — ask main window for full state ──────────
+  bc.postMessage({ type: 'POPUP_READY' });
+
+  // ── Detect if main window closes (stops sending pings) ───────
+  // Show disconnected state if no STATE message for 8 seconds
+  let deadTimer = setTimeout(() => {
+    document.body.classList.add('disconnected');
+    $('song-title').textContent  = 'Waiting for SoundAura…';
+    $('song-artist').textContent = 'Keep the main window open';
+    document.title = 'SoundAura — Connecting…';
+  }, 8000);
+
+  bc.addEventListener('message', () => {
+    clearTimeout(deadTimer);
+    deadTimer = setTimeout(() => {
+      document.body.classList.add('disconnected');
+    }, 8000);
+  });
+
+  // Initialize volume fill
+  updateVolSliderFill(1);
+}
+</script>
+</body>
+</html>

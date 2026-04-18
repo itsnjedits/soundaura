@@ -785,6 +785,8 @@ const Volume = {
     Volume.updateUI();
     Storage.save('volume', state.volume);
     Storage.save('muted', state.isMuted);
+    // Broadcast volume change to popup
+    PopupMiniPlayer.broadcastState();
   },
 
   /** Toggle mute / unmute */
@@ -1010,6 +1012,8 @@ audioEl.addEventListener('timeupdate', () => {
 
   // ── Sync mini player progress (same pct, zero extra computation) ──
   MiniPlayer.syncProgress(pct);
+  // ── Broadcast progress to popup (throttled to 2/s) ──
+  PopupMiniPlayer.broadcastProgress();
 
   // Throttle-save position every 5 s
   if (!_savePositionTimer) {
@@ -1064,6 +1068,8 @@ const PlaybackMode = {
     });
     // ── Sync mini player ──
     MiniPlayer.syncMode();
+    // ── Broadcast to popup ──
+    PopupMiniPlayer.broadcastState();
   }
 };
 
@@ -1347,6 +1353,9 @@ const UI = {
 
     // ── Sync mini player (shared state, no duplicate audio) ──
     MiniPlayer.update(song);
+    // ── Broadcast to popup + sync compact strip ──
+    PopupMiniPlayer.broadcastState();
+    CompactMode.onSongChange(song);
   },
 
   /** Update playlist header meta */
@@ -1395,6 +1404,11 @@ const UI = {
     });
     // ── Sync mini player (shared state, no duplicate audio) ──
     MiniPlayer.syncPlayState(playing);
+    // ── Broadcast to popup mini player ──
+    PopupMiniPlayer.broadcastState();
+    // ── Compact mode: spin album art ──
+    const compactArt = document.getElementById('compact-art');
+    if (compactArt) compactArt.classList.toggle('disc-spin', playing);
   },
 
   /** Toggle dark / light theme */
@@ -1775,7 +1789,9 @@ const Explore = {
       }
     });
 
-    container.querySelectorAll('.mood-card').forEach(btn => {
+    // [data-mood] excludes the "All Songs" card (no mood attr) so it doesn't
+    // also fire the mood handler with mood=undefined → 0 results + broken toast
+    container.querySelectorAll('.mood-card[data-mood]').forEach(btn => {
       btn.addEventListener('click', () => {
         const mood = btn.dataset.mood;
         const songs = DataLoader.filterByMood(mood);
@@ -2975,7 +2991,251 @@ const About = {
 };
 
 // ═══════════════════════════════════════════════════════════
-// 13f. MINI PLAYER — Floating detachable controller
+// 13g. POPUP MINI PLAYER  (Primary — desktop only)
+//
+//  Uses window.open() + BroadcastChannel for true OS-level
+//  floating window with bidirectional sync.
+//
+//  Architecture:
+//   Main window → broadcasts STATE on every player event
+//   Popup       → receives STATE, renders UI
+//   Popup       → sends CMD_* back when user clicks controls
+//   Main window → handles CMD_* exactly like keyboard shortcuts
+//
+//  Fallback: if popup is blocked → falls back to in-page
+//  MiniPlayer overlay (which already exists).
+// ═══════════════════════════════════════════════════════════
+
+const PopupMiniPlayer = {
+  _popup:     null,   // reference to the popup window
+  _bc:        null,   // BroadcastChannel instance
+  _poll:      null,   // setInterval handle for popup-closed detection
+  _supported: false,
+
+  // ── Setup ──────────────────────────────────────────────
+
+  init() {
+    if (!('BroadcastChannel' in window)) {
+      console.warn('[PopupMiniPlayer] BroadcastChannel not supported');
+      return;
+    }
+    this._supported = true;
+    this._bc = new BroadcastChannel('soundaura_player');
+
+    this._bc.onmessage = (e) => {
+      const d = e.data;
+      switch (d.type) {
+        case 'POPUP_READY':
+          // Popup just loaded — send it the full current state immediately
+          PopupMiniPlayer.broadcastState();
+          break;
+        case 'POPUP_CLOSED':
+          PopupMiniPlayer._cleanup();
+          break;
+        case 'CMD_PLAY':
+          AudioEngine.init(); Player.togglePlay();
+          break;
+        case 'CMD_NEXT':  Player.next();  break;
+        case 'CMD_PREV':  Player.prev();  break;
+        case 'CMD_MODE':  PlaybackMode.cycle(); break;
+        case 'CMD_SEEK':
+          if (audioEl.duration && typeof d.pct === 'number')
+            audioEl.currentTime = (d.pct / 100) * audioEl.duration;
+          break;
+        case 'CMD_VOLUME': Volume.set(d.volume); break;
+      }
+    };
+
+    console.log('[PopupMiniPlayer] Ready (BroadcastChannel active)');
+  },
+
+  // ── Open popup (or fall back) ───────────────────────────
+
+  open() {
+    // If popup is already open, focus it
+    if (this._popup && !this._popup.closed) {
+      try { this._popup.focus(); } catch (e) {}
+      return;
+    }
+
+    if (!this._supported) {
+      Toast.show('Popup not supported — showing overlay player', 'info');
+      MiniPlayer.show();
+      return;
+    }
+
+    // Calculate position: near top-right corner of screen
+    const W = 370, H = 145;
+    const left = Math.max(0, screen.width  - W - 20);
+    const top  = Math.max(0, 60);
+
+    const features = [
+      `width=${W}`, `height=${H}`,
+      `left=${left}`, `top=${top}`,
+      'resizable=no', 'menubar=no', 'toolbar=no',
+      'location=no', 'status=no', 'scrollbars=no',
+    ].join(',');
+
+    const popup = window.open('/soundaura/miniplayer.html', 'SoundAura_MiniPlayer', features);
+
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      // Popup was blocked
+      Toast.show('Popup blocked — showing overlay player', 'info');
+      MiniPlayer.show();
+      return;
+    }
+
+    this._popup = popup;
+
+    // Poll every second to detect if the popup was closed by the user
+    clearInterval(this._poll);
+    this._poll = setInterval(() => {
+      if (this._popup?.closed) PopupMiniPlayer._cleanup();
+    }, 1000);
+
+    Toast.show('🎵 Mini player opened', 'success');
+    console.log('[PopupMiniPlayer] Popup opened');
+  },
+
+  close() {
+    if (this._popup && !this._popup.closed) {
+      try { this._popup.close(); } catch (e) {}
+    }
+    this._cleanup();
+  },
+
+  _cleanup() {
+    clearInterval(this._poll);
+    this._popup = null;
+    console.log('[PopupMiniPlayer] Cleaned up');
+  },
+
+  isOpen() {
+    return !!this._popup && !this._popup.closed;
+  },
+
+  // ── Broadcast state to popup ─────────────────────────────
+
+  broadcastState() {
+    if (!this._bc) return;
+
+    const song    = state.currentSongId
+      ? state.allSongs.find(s => songId(s) === state.currentSongId)
+      : null;
+    const artists = song
+      ? (Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '—'))
+      : '—';
+    const dur = audioEl.duration || 0;
+
+    this._bc.postMessage({
+      type:        'STATE',
+      title:       song?.title  || 'No song playing',
+      artist:      artists,
+      thumb:       song ? DataLoader.getThumbnailUrl(song) : '',
+      playing:     state.isPlaying,
+      progress:    dur ? (audioEl.currentTime / dur) * 100 : 0,
+      currentTime: audioEl.currentTime || 0,
+      duration:    dur,
+      mode:        state.playbackMode,
+      volume:      state.isMuted ? 0 : state.volume,
+      isDark:      state.isDarkMode,
+    });
+  },
+
+  // Throttled progress-only broadcast — fires on timeupdate
+  _lastProgressBroadcast: 0,
+  broadcastProgress() {
+    if (!this._bc) return;
+    const now = Date.now();
+    if (now - this._lastProgressBroadcast < 500) return; // throttle to 2/s
+    this._lastProgressBroadcast = now;
+    this.broadcastState();
+  },
+};
+
+// ═══════════════════════════════════════════════════════════
+// 13h. COMPACT MODE  (Fallback — same-window mini experience)
+//
+//  Hides sidebar + song list, leaving only the player bar
+//  visible, with a centered "now playing" display above it.
+//  Ideal when popup is blocked or user prefers staying in-tab.
+// ═══════════════════════════════════════════════════════════
+
+const CompactMode = {
+  _active: false,
+
+  enable() {
+    if (this._active) return;
+    this._active = true;
+    document.body.classList.add('compact-mode');
+    // Update the now-playing strip with current song
+    CompactMode._syncStrip();
+    Storage.save('compactMode', true);
+    const btn = document.getElementById('compact-mode-toggle');
+    if (btn) btn.textContent = '⬆ Expand View';
+    Toast.show('Compact Mode — press Expand to return', 'info');
+  },
+
+  disable() {
+    if (!this._active) return;
+    this._active = false;
+    document.body.classList.remove('compact-mode');
+    Storage.save('compactMode', false);
+    const btn = document.getElementById('compact-mode-toggle');
+    if (btn) btn.textContent = '⬇ Compact Mode';
+  },
+
+  toggle() {
+    this._active ? CompactMode.disable() : CompactMode.enable();
+  },
+
+  /** Sync the now-playing strip above the player */
+  _syncStrip() {
+    const song = state.currentSongId
+      ? state.allSongs.find(s => songId(s) === state.currentSongId)
+      : null;
+
+    const thumb   = document.getElementById('compact-art');
+    const titleEl = document.getElementById('compact-title');
+    const artistEl= document.getElementById('compact-artist');
+
+    if (thumb && song) {
+      thumb.src = DataLoader.getThumbnailUrl(song);
+      thumb.onerror = () => { thumb.src = ''; };
+    }
+    if (titleEl)  titleEl.textContent  = song?.title  || 'No song playing';
+    if (artistEl) artistEl.textContent = song
+      ? (Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '—'))
+      : '—';
+  },
+
+  /** Called whenever song changes while compact mode is on */
+  onSongChange(song) {
+    if (!this._active) return;
+    CompactMode._syncStrip();
+  },
+
+  init() {
+    // Wire the expand button inside the compact strip
+    document.getElementById('compact-expand-btn')?.addEventListener('click', () => {
+      CompactMode.disable();
+    });
+
+    // Wire the toggle in the menu
+    document.getElementById('compact-mode-toggle')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.getElementById('menu-panel')?.classList.add('hidden');
+      CompactMode.toggle();
+    });
+
+    // Restore from previous session
+    if (Storage.load('compactMode', false)) {
+      setTimeout(() => CompactMode.enable(), 200);
+    }
+  }
+};
+
+
 //
 //  Architecture: ZERO separate audio. All controls call
 //  existing Player.* methods. Sync is achieved by patching
@@ -3254,15 +3514,22 @@ const MiniPlayer = {
       }, { passive: true });
     }
 
-    // Detach buttons (in main player bar)
+    // Detach buttons (in main player bar) — try popup first, overlay as fallback
     ['mini-detach-btn', 'mini-detach-btn-desktop'].forEach(id => {
       document.getElementById(id)?.addEventListener('click', () => {
-        // Require a song to be loaded before allowing detach
         if (!state.currentSongId && state.currentSongIndex < 0) {
           Toast.show('Play a song first', 'warning');
           return;
         }
-        MiniPlayer.toggle();
+        // If popup already open → focus it; if overlay visible → hide it
+        if (PopupMiniPlayer.isOpen()) {
+          try { PopupMiniPlayer._popup?.focus(); } catch (e) {}
+          return;
+        }
+        // Close overlay if visible before opening popup
+        if (MiniPlayer.isVisible()) MiniPlayer.hide();
+        // Try to open popup window (will fall back to overlay if blocked)
+        PopupMiniPlayer.open();
       });
     });
   },
@@ -3467,6 +3734,17 @@ function bindEvents() {
     document.getElementById('eq-panel')?.classList.add('hidden');
   });
   document.getElementById('eq-reset')?.addEventListener('click', AudioEngine.resetEQ);
+
+  // ── Pop Out Player (popup mini player window) ──
+  document.getElementById('popup-player-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuPanel?.classList.add('hidden');
+    if (!state.currentSongId && state.currentSongIndex < 0) {
+      Toast.show('Play a song first', 'warning');
+      return;
+    }
+    PopupMiniPlayer.open();
+  });
 
   // ── EQ Expand (Feature 3) ──
   document.getElementById('eq-expand-btn')?.addEventListener('click', (e) => {
@@ -3753,6 +4031,12 @@ async function init() {
 
   // Initialize Mini Player
   MiniPlayer.init();
+
+  // Initialize Popup Mini Player (BroadcastChannel setup)
+  PopupMiniPlayer.init();
+
+  // Initialize Compact Mode
+  CompactMode.init();
 
   // Restore EQ slider display values
   const savedEQ = Storage.load('eqSettings');

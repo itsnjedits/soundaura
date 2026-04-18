@@ -550,8 +550,89 @@
       .eq-value { display: none !important; }
       #eq-panel .p-3 { padding: 0.5rem !important; }
     }
-    /* Ensure EQ band row fills width and never overflows */
+    /* ── Ensure EQ band row fills width and never overflows */
     #eq-panel .flex.items-end { flex-wrap: nowrap; overflow: hidden; }
+
+    /* ════════════════════════════════════════════════════
+       COMPACT MODE — hides sidebar + song list, leaves
+       only the player bar + a centred now-playing strip
+       ════════════════════════════════════════════════════ */
+    body.compact-mode #layout-wrapper { display: none !important; }
+    body.compact-mode .navbar          { display: none !important; }
+    body.compact-mode #compact-screen  { display: flex  !important; }
+
+    /* The compact screen fills the gap between top and player */
+    #compact-screen {
+      display: none;
+      position: fixed;
+      inset: 0;
+      bottom: var(--player-h);
+      z-index: 38;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1.25rem;
+      padding: 1.5rem;
+      background: var(--bg-primary);
+    }
+
+    #compact-art {
+      width: 140px;
+      height: 140px;
+      border-radius: 1.25rem;
+      object-fit: cover;
+      box-shadow: 0 12px 48px rgba(0,0,0,0.55),
+                  0 0 0 1px rgba(255,255,255,0.06);
+    }
+    body.compact-mode #compact-art.disc-spin {
+      animation: discSpin 4s linear infinite;
+    }
+
+    #compact-info { text-align: center; }
+    #compact-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--text-primary);
+      max-width: 280px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    #compact-artist {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.2rem;
+      max-width: 280px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    /* Expand button inside compact screen */
+    #compact-expand-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.55rem 1.4rem;
+      border-radius: 999px;
+      background: rgba(6,182,212,0.15);
+      border: 1px solid rgba(6,182,212,0.35);
+      color: #06b6d4;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, box-shadow 0.15s;
+    }
+    #compact-expand-btn:hover {
+      background: rgba(6,182,212,0.28);
+      box-shadow: 0 0 16px rgba(6,182,212,0.25);
+    }
+
+    /* Light mode compact screen */
+    body.light-mode #compact-screen { background: var(--bg-primary); }
+    body.light-mode #compact-title  { color: #0f172a; }
+    body.light-mode #compact-artist { color: #475569; }
 
     /* ── Scroll To Top / Bottom buttons ── */
     #scroll-top-btn, #scroll-bottom-btn {
@@ -694,12 +775,20 @@
         </svg>
       </button>
       <!-- Menu Panel -->
-      <div id="menu-panel" class="hidden absolute right-0 top-10 w-48 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
+      <div id="menu-panel" class="hidden absolute right-0 top-10 w-52 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
         <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
           ☀️ Light Mode
         </button>
         <button id="eq-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           🎛️ Equalizer
+        </button>
+        <!-- Pop Out Player — opens popup mini player window -->
+        <button id="popup-player-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          🪟 Pop Out Player
+        </button>
+        <!-- Compact Mode — collapses UI to just the player bar -->
+        <button id="compact-mode-toggle" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          ⬇ Compact Mode
         </button>
         <button id="download-current-btn-menu" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ⬇️ Download Song
@@ -834,6 +923,30 @@
       </div>
     </div>
   </main>
+</div>
+
+<!-- ════════════════════════════════════════════════════════
+     COMPACT MODE SCREEN
+     Shown when body.compact-mode is active. Sits between
+     the top of the viewport and the fixed player bar.
+     ═══════════════════════════════════════════════════════ -->
+<div id="compact-screen">
+  <!-- Album art (disc-spin class toggled by CompactMode.onSongChange) -->
+  <img id="compact-art"
+    src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><rect width='140' height='140' fill='%23374151' rx='20'/><text x='70' y='86' text-anchor='middle' font-size='48'>🎵</text></svg>"
+    alt="Now playing" />
+
+  <!-- Song info -->
+  <div id="compact-info">
+    <div id="compact-title">No song playing</div>
+    <div id="compact-artist">–</div>
+  </div>
+
+  <!-- Expand button -->
+  <button id="compact-expand-btn">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+    Expand View
+  </button>
 </div>
 
 <!-- ════════════════════════════════════════════════════════
@@ -1445,7 +1558,121 @@
     0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.3); }
     50%      { box-shadow: 0 0 22px rgba(6,182,212,0.6); }
   }
+
+  /* ══════════════════════════════════════════════════════════
+     COMPACT MODE — hides sidebar + song list, shows centered
+     now-playing display above the fixed player bar.
+     ════════════════════════════════════════════════════════ */
+  body.compact-mode #layout-wrapper  { display: none !important; }
+  body.compact-mode .navbar          { display: none !important; }
+  body.compact-mode #compact-overlay { display: flex !important; }
+
+  /* The overlay fills all space between top and player bar */
+  #compact-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    bottom: var(--player-h);
+    z-index: 30;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.25rem;
+    background: var(--bg-primary);
+    /* Subtle radial glow matching app aesthetic */
+    background-image:
+      radial-gradient(ellipse 70% 50% at 50% 30%, rgba(6,182,212,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 50% 80%, rgba(59,130,246,0.05) 0%, transparent 70%);
+    user-select: none;
+  }
+
+  /* Album art in compact mode */
+  #compact-art {
+    width: clamp(120px, 30vw, 200px);
+    height: clamp(120px, 30vw, 200px);
+    border-radius: 1.25rem;
+    object-fit: cover;
+    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
+    transition: transform 0.3s ease;
+  }
+  #compact-art.disc-spin { animation: discSpin 5s linear infinite; }
+
+  /* Compact text */
+  #compact-title {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 700;
+    font-size: clamp(1rem, 3vw, 1.4rem);
+    color: var(--text-primary);
+    max-width: 80vw;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  #compact-artist {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
+  /* Expand button */
+  #compact-expand-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1.25rem;
+    border-radius: 999px;
+    background: rgba(6,182,212,0.12);
+    border: 1px solid rgba(6,182,212,0.3);
+    color: #06b6d4;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+  #compact-expand-btn:hover  { background: rgba(6,182,212,0.22); border-color: rgba(6,182,212,0.55); }
+  #compact-expand-btn:active { transform: scale(0.95); }
+
+  /* Light mode overrides for compact */
+  body.light-mode #compact-overlay { background: var(--bg-primary); }
+  body.light-mode #compact-title   { color: #0f172a; }
+  body.light-mode #compact-artist  { color: #475569; }
+  body.light-mode #compact-expand-btn {
+    background: rgba(8,145,178,0.08);
+    border-color: rgba(8,145,178,0.3);
+    color: #0891b2;
+  }
 </style>
+
+<!-- ════════════════════════════════════════════════════════
+     COMPACT MODE OVERLAY
+     Shown when body.compact-mode is active.
+     The player bar remains fixed at the bottom as normal.
+     ═══════════════════════════════════════════════════════ -->
+<div id="compact-overlay">
+  <!-- Expand button — top-right -->
+  <button id="compact-expand-btn" title="Exit Compact Mode">
+    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
+    </svg>
+    Expand
+  </button>
+
+  <!-- Album art -->
+  <img id="compact-art"
+    src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='%23374151' rx='20'/><text x='100' y='120' text-anchor='middle' font-size='72'>🎵</text></svg>"
+    alt="Now playing"
+  />
+
+  <!-- Song info -->
+  <div style="text-align:center;">
+    <div id="compact-title">No song playing</div>
+    <div id="compact-artist" style="margin-top:0.25rem;">–</div>
+  </div>
+</div>
 
 <!-- Main Script -->
 <script src="script.js"></script>
