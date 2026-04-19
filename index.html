@@ -476,17 +476,8 @@
     body.light-mode #song-detail-modal h2 { color: #f0f6ff; }
     body.light-mode #song-detail-modal p  { color: #94a3b8; }
 
-    /* ── Disc spin (player thumbnail rotates while playing) ── */
-    @keyframes discSpin {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
-    }
+    /* ── Disc spin removed per design spec — thumbnails stay static ── */
     #player-thumb { transition: border-radius 0.4s ease; }
-    #player-thumb.disc-spin {
-      animation: discSpin 8s linear infinite;
-      border-radius: 50% !important;
-      box-shadow: 0 0 16px rgba(6,182,212,0.35);
-    }
 
     /* ── Main layout height: fills the space between navbar and player bar.
           Uses vars from :root — siblings cannot share custom properties. ── */
@@ -583,9 +574,7 @@
       object-fit: cover;
       box-shadow: 0 12px 48px rgba(0,0,0,0.55),
                   0 0 0 1px rgba(255,255,255,0.06);
-    }
-    body.compact-mode #compact-art.disc-spin {
-      animation: discSpin 4s linear infinite;
+      /* Static — no disc-spin in compact or mini player */
     }
 
     #compact-info { text-align: center; }
@@ -679,10 +668,14 @@
       #progress-thumb { opacity: 1 !important; width: 14px !important; height: 14px !important; }
     }
 
-    /* ── Hide navbar title on very narrow screens to prevent collision ── */
-    @media (max-width: 360px) {
-      #navbar-title { display: none; }
+    /* ── Navbar: on very narrow screens hide the LOGO, keep the TITLE text ── */
+    @media (max-width: 400px) {
+      #navbar-logo  { display: none !important; }
+      #navbar-title { display: block !important; }
     }
+
+    /* ── Loading toast spinner keyframe ── */
+    @keyframes ltSpin { to { transform: rotate(360deg); } }
 
     /* ── Content protection: disable text selection, drag, context menu ── */
     body, img, .song-item, #song-list, #sidebar, #player-bar, .navbar {
@@ -774,27 +767,19 @@
           <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
         </svg>
       </button>
-      <!-- Menu Panel -->
+      <!-- Menu Panel — Order: Reload, EQ, Download, Theme, Help -->
       <div id="menu-panel" class="hidden absolute right-0 top-10 w-52 bg-gray-900 border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50">
-        <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
-          ☀️ Light Mode
+        <button id="reload-app-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors">
+          🔄 Reload Page
         </button>
         <button id="eq-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           🎛️ Equalizer
         </button>
-        <!-- Pop Out Player — opens popup mini player window -->
-        <button id="popup-player-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
-          🪟 Pop Out Player
-        </button>
-        <!-- Compact Mode — collapses UI to just the player bar -->
-        <button id="compact-mode-toggle" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
-          ⬇ Compact Mode
-        </button>
         <button id="download-current-btn-menu" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ⬇️ Download Song
         </button>
-        <button id="reload-app-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
-          🔄 Reload App
+        <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          ☀️ Light Mode
         </button>
         <button id="help-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ❓ Help
@@ -931,7 +916,7 @@
      the top of the viewport and the fixed player bar.
      ═══════════════════════════════════════════════════════ -->
 <div id="compact-screen">
-  <!-- Album art (disc-spin class toggled by CompactMode.onSongChange) -->
+  <!-- Album art (static — no rotation) -->
   <img id="compact-art"
     src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><rect width='140' height='140' fill='%23374151' rx='20'/><text x='70' y='86' text-anchor='middle' font-size='48'>🎵</text></svg>"
     alt="Now playing" />
@@ -958,25 +943,25 @@
 
   <!-- ══ MOBILE LAYOUT (3 rows, shown only on small screens) ══ -->
   <div class="md:hidden">
-    <!-- Row 1: Thumbnail + Song info — extra top padding and gap for breathing room -->
-    <div class="flex items-center gap-3.5 pt-2.5 pb-1.5">
-      <img
-        id="player-thumb"
-        src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>"
-        alt="Now playing"
-        class="w-11 h-11 rounded-xl object-cover flex-shrink-0 shadow-md"
-      />
-      <div class="min-w-0 flex-1">
-        <p id="player-title" class="text-sm font-semibold text-white leading-snug" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">No song selected</p>
-        <p id="player-artist" class="text-xs text-gray-400 leading-snug mt-0.5" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">–</p>
+      <!-- Row 1: Thumbnail + Song info — extra top padding and gap for breathing room -->
+      <div class="flex items-center gap-3.5 pt-2.5 pb-1.5">
+        <img
+          id="player-thumb"
+          src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>"
+          alt="Now playing"
+          class="w-11 h-11 rounded-xl object-cover flex-shrink-0 shadow-md"
+        />
+        <div class="min-w-0 flex-1">
+          <p id="player-title" class="text-sm font-semibold text-white leading-snug" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">No song selected</p>
+          <p id="player-artist" class="text-xs text-gray-400 leading-snug mt-0.5" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">–</p>
+        </div>
+        <!-- Compact mode toggle (mobile only) — collapses to focused player view -->
+        <button id="compact-toggle-mobile"
+          class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all flex-shrink-0 active:scale-90"
+          title="Compact Mode">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
       </div>
-      <!-- Mini player detach button (mobile) -->
-      <button id="mini-detach-btn"
-        class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all flex-shrink-0 active:scale-90"
-        title="Pop out mini player">
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-      </button>
-    </div>
 
     <!-- Row 2: Progress bar — slightly more vertical space -->
     <div class="px-0.5 pb-1.5">
@@ -1079,10 +1064,16 @@
           title="Playback speed">
           <span class="speed-display">1×</span>
         </button>
-        <!-- Mini player detach button (desktop) -->
+        <!-- Compact mode toggle (desktop) — collapses UI to focused player view -->
+        <button id="compact-toggle-desktop"
+          class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all active:scale-90"
+          title="Compact Mode">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
+        <!-- Pop Out Player (desktop only) — opens popup window -->
         <button id="mini-detach-btn-desktop"
           class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all active:scale-90"
-          title="Pop out mini player">
+          title="Pop Out Player">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
         </button>
       </div>
@@ -1545,9 +1536,8 @@
   /* Prevent text selection during drag */
   #mini-player-drag * { user-select: none; -webkit-user-select: none; }
 
-  /* Disc spin for mini thumb */
-  #mini-thumb.disc-spin { animation: discSpin 4s linear infinite; }
-  @keyframes discSpin   { to { transform: rotate(360deg); } }
+  /* Mini thumbnail — static, no rotation */
+  #mini-thumb { border-radius: 10px; }
 
   /* Glow pulse on mini play button when playing */
   #mini-play-btn.playing {
@@ -1586,16 +1576,14 @@
     user-select: none;
   }
 
-  /* Album art in compact mode */
+  /* Album art in compact mode — static, no rotation */
   #compact-art {
     width: clamp(120px, 30vw, 200px);
     height: clamp(120px, 30vw, 200px);
     border-radius: 1.25rem;
     object-fit: cover;
     box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-    transition: transform 0.3s ease;
   }
-  #compact-art.disc-spin { animation: discSpin 5s linear infinite; }
 
   /* Compact text */
   #compact-title {

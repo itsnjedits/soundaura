@@ -312,6 +312,7 @@ audioEl.onerror = () => {
   const reason = audioEl.error ? `MediaError code ${audioEl.error.code}` : 'Unknown error';
   console.error('[Player] Audio failed to load:', audioEl.src, reason);
   FailureLog.add(song, reason);
+  LoadingToast.error();
   Toast.show('⚠️ Song failed to load — skipping', 'error');
   setTimeout(() => Player.next(), 800);
 };
@@ -583,15 +584,16 @@ const Playlist = {
     if (index < 0 || index >= state.currentPlaylist.length) return;
 
     // ── Instant visual feedback ─────────────────────────────
-    // Update state BEFORE audio loads so the UI responds immediately.
-    // This eliminates the "did my click work?" feeling.
     state.currentSongIndex = index;
     const song = state.currentPlaylist[index];
-    state.currentSongId = songId(song);   // ← lock onto this song's identity
+    state.currentSongId = songId(song);
 
-    // Immediately highlight without waiting for audio events
+    // Immediate highlight + player UI update
     UI._instantHighlight(index);
     UI.updatePlayerUI(song);
+
+    // Show loading toast immediately — user sees progress before audio starts
+    if (fromUserAction) LoadingToast.show(song.title);
 
     Player.loadAndPlay(song, fromUserAction);
     Storage.saveAll();
@@ -673,7 +675,6 @@ const Player = {
     if (autoplay) {
       audioEl.play()
         .then(() => {
-          // Re-apply after play() as well (belt-and-suspenders for Safari)
           audioEl.playbackRate = SpeedControl.current;
           state.isPlaying = true;
           UI.setPlayPauseIcon(true);
@@ -682,13 +683,15 @@ const Player = {
           AudioEngine.startVisualizer();
           Player.preloadNext();
           MediaSession.update(song);
-          // Auto-scroll song list to active item
+          // Complete the loading toast — shows green checkmark briefly
+          LoadingToast.complete();
           setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
         })
         .catch(e => {
           console.warn('[Player] Playback blocked:', e);
           state.isPlaying = false;
           UI.setPlayPauseIcon(false);
+          LoadingToast.error();
         });
     }
   },
@@ -1397,18 +1400,10 @@ const UI = {
       const btn = document.getElementById(id);
       if (btn) btn.innerHTML = icon;
     });
-    // Spin the disc thumbnails while playing
-    ['player-thumb', 'player-thumb-desktop'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.classList.toggle('disc-spin', playing);
-    });
     // ── Sync mini player (shared state, no duplicate audio) ──
     MiniPlayer.syncPlayState(playing);
     // ── Broadcast to popup mini player ──
     PopupMiniPlayer.broadcastState();
-    // ── Compact mode: spin album art ──
-    const compactArt = document.getElementById('compact-art');
-    if (compactArt) compactArt.classList.toggle('disc-spin', playing);
   },
 
   /** Toggle dark / light theme */
@@ -2013,25 +2008,24 @@ const EQPanel = {
         </div>
 
         <!-- EQ sliders — scrollable -->
-        <div class="flex-1 overflow-y-auto p-5">
-          <!-- Frequency sliders grid -->
-          <div class="flex items-end justify-between gap-2 mb-6" style="height:180px;">
+        <div class="flex-1 overflow-y-auto p-4" style="min-height:0;">
+          <!-- Frequency sliders — taller to fill available space -->
+          <div class="flex items-end justify-between gap-1" style="height:min(220px,40vh);">
             ${EQ_BANDS.map((band, i) => {
               const val = currentVals[i];
-              const pct = ((val + 12) / 24) * 100;
               return `
-              <div class="flex flex-col items-center gap-2 flex-1" data-band="${i}">
-                <span class="eq-exp-val text-xs font-mono text-gray-400 tabular-nums" style="min-width:28px;text-align:center">${val > 0 ? '+' : ''}${val}</span>
+              <div class="flex flex-col items-center gap-1.5 flex-1" data-band="${i}">
+                <span class="eq-exp-val text-xs font-mono text-gray-400 tabular-nums" style="min-width:28px;text-align:center;font-size:10px">${val > 0 ? '+' : ''}${val}</span>
                 <input type="range" class="eq-exp-slider" data-band="${i}"
                   min="-12" max="12" step="0.5" value="${val}"
-                  style="writing-mode:vertical-lr;direction:rtl;width:28px;height:130px;cursor:pointer;accent-color:#06b6d4;" />
-                <span class="text-xs text-gray-500" style="font-size:10px">${band.label}</span>
+                  style="writing-mode:vertical-lr;direction:rtl;width:28px;height:calc(min(220px,40vh) - 52px);cursor:pointer;accent-color:#06b6d4;" />
+                <span class="text-gray-500" style="font-size:9px">${band.label}</span>
               </div>`;
             }).join('')}
           </div>
 
           <!-- Group labels bar -->
-          <div class="flex gap-1 mb-4">
+          <div class="flex gap-1 mt-3 mb-4">
             ${groups.map(g => `
               <div class="flex-none rounded-full px-2.5 py-0.5 text-xs font-medium"
                    style="background:${g.color}20;color:${g.color};flex:${g.bands.length};">
@@ -2039,14 +2033,22 @@ const EQPanel = {
               </div>`).join('')}
           </div>
 
-          <!-- Built-in presets row -->
+          <!-- Built-in presets -->
           <div class="border-t border-white/5 pt-4">
-            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Presets</p>
+            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Built-in Presets</p>
             <div class="flex gap-2 flex-wrap">
               <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="flat">Flat</button>
               <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="bass">Bass Boost</button>
               <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="vocal">Vocal</button>
               <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="treble">Treble</button>
+            </div>
+          </div>
+
+          <!-- User-saved presets (always visible) -->
+          <div class="border-t border-white/5 pt-4 mt-3" id="eq-exp-custom-presets">
+            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider">My Presets</p>
+            <div class="eq-exp-custom-list flex flex-wrap gap-2">
+              <span class="text-xs text-gray-600 italic">No saved presets yet</span>
             </div>
           </div>
         </div>
@@ -2113,6 +2115,35 @@ const EQPanel = {
         AudioEngine.applyPreset(vals);
       });
     });
+
+    // User-saved presets — load from storage and render into #eq-exp-custom-presets
+    const customPresets = Storage.loadCustomPresets();
+    const customList = modal.querySelector('.eq-exp-custom-list');
+    if (customList) {
+      const names = Object.keys(customPresets);
+      if (names.length === 0) {
+        customList.innerHTML = '<span class="text-xs text-gray-600 italic">No saved presets yet</span>';
+      } else {
+        customList.innerHTML = names.map(name => `
+          <button class="eq-exp-custom-preset text-xs px-3 py-1.5 rounded-full bg-cyan-500/10
+            hover:bg-cyan-500/25 text-cyan-400 transition-colors border border-cyan-500/20"
+            data-preset-name="${name.replace(/"/g, '&quot;')}">${name}</button>
+        `).join('');
+        customList.querySelectorAll('.eq-exp-custom-preset').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const vals = customPresets[btn.dataset.presetName];
+            if (!vals) return;
+            modal.querySelectorAll('.eq-exp-slider').forEach((slider, i) => {
+              slider.value = vals[i] ?? 0;
+              const valEl = slider.closest('[data-band]').querySelector('.eq-exp-val');
+              if (valEl) valEl.textContent = ((vals[i] ?? 0) > 0 ? '+' : '') + (vals[i] ?? 0);
+            });
+            AudioEngine.init();
+            AudioEngine.applyPreset(vals);
+          });
+        });
+      }
+    }
   },
 
   /** Make the EQ panel draggable, clamped to viewport */
@@ -2663,8 +2694,146 @@ const Toast = {
 };
 
 // ═══════════════════════════════════════════════════════════
-// 13. UTILITY FUNCTIONS
+// 12b. LOADING TOAST — animated progress indicator for song loads
+//
+//  Shows immediately on song click with a pseudo-progress bar
+//  that ramps from 0→90% over ~2.5s, then jumps to 100% when
+//  the audio actually starts playing.
+//  This makes every click feel instant and the system alive.
 // ═══════════════════════════════════════════════════════════
+
+const LoadingToast = {
+  _el:       null,
+  _bar:      null,
+  _label:    null,
+  _raf:      null,
+  _start:    0,
+  _duration: 2500,  // ms to reach 90%
+  _pct:      0,
+
+  /** Show loading toast for a song. Starts pseudo-progress immediately. */
+  show(songTitle) {
+    LoadingToast._clear();
+
+    const el = document.createElement('div');
+    el.id = 'loading-toast';
+    el.style.cssText = `
+      position:fixed; bottom:calc(var(--player-h) + 1rem); right:1rem;
+      z-index:210; min-width:220px; max-width:300px;
+      background:rgba(9,17,30,0.95); border:1px solid rgba(6,182,212,0.3);
+      border-radius:14px; padding:10px 14px; box-shadow:0 6px 24px rgba(0,0,0,0.5);
+      backdrop-filter:blur(16px); transform:translateX(110%);
+      transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+      font-family:'DM Sans',sans-serif;
+    `;
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
+        <div style="width:14px;height:14px;border:2px solid rgba(6,182,212,0.3);
+          border-top-color:#06b6d4;border-radius:50%;
+          animation:ltSpin 0.75s linear infinite;flex-shrink:0;"></div>
+        <span id="lt-label" style="font-size:11px;font-weight:600;color:#f0f6ff;
+          overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;">
+          Loading…
+        </span>
+        <span id="lt-pct" style="font-size:10px;color:#06b6d4;font-variant-numeric:tabular-nums;
+          font-weight:700;flex-shrink:0;">0%</span>
+      </div>
+      <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;">
+        <div id="lt-bar" style="height:100%;width:0%;border-radius:999px;
+          background:linear-gradient(90deg,#06b6d4,#3b82f6);
+          transition:width 0.12s ease;"></div>
+      </div>`;
+
+    document.body.appendChild(el);
+    LoadingToast._el    = el;
+    LoadingToast._bar   = el.querySelector('#lt-bar');
+    LoadingToast._label = el.querySelector('#lt-label');
+    LoadingToast._pctEl = el.querySelector('#lt-pct');
+
+    // Shorten title to fit
+    const shortTitle = songTitle && songTitle.length > 28
+      ? songTitle.slice(0, 26) + '…'
+      : (songTitle || 'Song');
+    LoadingToast._label.textContent = shortTitle;
+
+    // Animate in after next paint
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      el.style.transform = 'translateX(0)';
+    }));
+
+    // Start pseudo-progress
+    LoadingToast._pct   = 0;
+    LoadingToast._start = performance.now();
+    LoadingToast._tick();
+  },
+
+  /** Animate pseudo-progress from 0 → 90% over _duration ms */
+  _tick() {
+    if (!LoadingToast._el) return;
+    const elapsed = performance.now() - LoadingToast._start;
+    // Ease-out curve: fast start, slows near 90%
+    const raw = Math.min(elapsed / LoadingToast._duration, 1);
+    const pct  = Math.round(90 * (1 - Math.pow(1 - raw, 2.4)));
+    LoadingToast._setBar(pct);
+    if (pct < 90) {
+      LoadingToast._raf = requestAnimationFrame(LoadingToast._tick);
+    }
+  },
+
+  _setBar(pct) {
+    LoadingToast._pct = pct;
+    if (LoadingToast._bar)   LoadingToast._bar.style.width  = `${pct}%`;
+    if (LoadingToast._pctEl) LoadingToast._pctEl.textContent = `${pct}%`;
+  },
+
+  /** Called when audio actually starts playing — jump to 100% and auto-dismiss */
+  complete() {
+    if (!LoadingToast._el) return;
+    cancelAnimationFrame(LoadingToast._raf);
+    LoadingToast._setBar(100);
+    // Swap spinner for checkmark
+    const spinner = LoadingToast._el.querySelector('[style*="ltSpin"]');
+    if (spinner) {
+      spinner.style.animation = 'none';
+      spinner.style.border    = '2px solid #10b981';
+      spinner.innerHTML       = '<svg viewBox="0 0 12 12" fill="none" stroke="#10b981" stroke-width="2.5" width="10" height="10"><polyline points="1.5,6 4.5,9 10.5,3"/></svg>';
+      spinner.style.display   = 'flex';
+      spinner.style.alignItems = 'center';
+      spinner.style.justifyContent = 'center';
+    }
+    if (LoadingToast._label) LoadingToast._label.style.color = '#10b981';
+    // Dismiss after a brief moment so the green flash registers
+    setTimeout(() => LoadingToast._dismiss(), 450);
+  },
+
+  /** Called on load error — show red state */
+  error() {
+    if (!LoadingToast._el) return;
+    cancelAnimationFrame(LoadingToast._raf);
+    LoadingToast._setBar(LoadingToast._pct); // freeze where it is
+    if (LoadingToast._label) {
+      LoadingToast._label.textContent = 'Load failed';
+      LoadingToast._label.style.color = '#f87171';
+    }
+    if (LoadingToast._pctEl) LoadingToast._pctEl.textContent = '✕';
+    setTimeout(() => LoadingToast._dismiss(), 900);
+  },
+
+  _dismiss() {
+    const el = LoadingToast._el;
+    if (!el) return;
+    el.style.transform = 'translateX(110%)';
+    setTimeout(() => { el.remove(); }, 280);
+    LoadingToast._clear();
+  },
+
+  _clear() {
+    cancelAnimationFrame(LoadingToast._raf);
+    LoadingToast._el = LoadingToast._bar = LoadingToast._label = LoadingToast._pctEl = null;
+    LoadingToast._raf = null;
+  }
+};
 
 function formatTime(seconds) {
   if (isNaN(seconds)) return '0:00';
@@ -3052,7 +3221,12 @@ const PopupMiniPlayer = {
   // ── Open popup (or fall back) ───────────────────────────
 
   open() {
-    // If popup is already open, focus it
+    // ── Mobile: no popup window — use compact mode instead ──
+    if (window.innerWidth < 768) {
+      CompactMode.enable();
+      return;
+    }
+
     if (this._popup && !this._popup.closed) {
       try { this._popup.focus(); } catch (e) {}
       return;
@@ -3216,12 +3390,17 @@ const CompactMode = {
   },
 
   init() {
-    // Wire the expand button inside the compact strip
-    document.getElementById('compact-expand-btn')?.addEventListener('click', () => {
-      CompactMode.disable();
+    // Expand button inside the compact screen
+    document.getElementById('compact-expand-btn')?.addEventListener('click', CompactMode.disable);
+
+    // Compact toggle buttons inside the player bar (mobile + desktop)
+    ['compact-toggle-mobile', 'compact-toggle-desktop'].forEach(id => {
+      document.getElementById(id)?.addEventListener('click', () => {
+        CompactMode.toggle();
+      });
     });
 
-    // Wire the toggle in the menu
+    // Legacy menu toggle (kept for compatibility, menu item still exists for desktop)
     document.getElementById('compact-mode-toggle')?.addEventListener('click', (e) => {
       e.stopPropagation();
       document.getElementById('menu-panel')?.classList.add('hidden');
@@ -3317,21 +3496,15 @@ const MiniPlayer = {
     if (artistEl) artistEl.textContent = artists;
   },
 
-  /** Called from patched UI.setPlayPauseIcon — syncs play/pause button + disc spin */
+  /** Called from patched UI.setPlayPauseIcon — syncs play/pause button only */
   syncPlayState(playing) {
     if (!this._visible) return;
     const btn = document.getElementById('mini-play-btn');
     if (!btn) return;
-
     const pauseIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
     const playIcon  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
     btn.innerHTML = playing ? pauseIcon : playIcon;
     btn.classList.toggle('playing', playing);
-
-    // Disc spin on thumbnail
-    const img = document.getElementById('mini-thumb');
-    if (img) img.classList.toggle('disc-spin', playing);
-
     // Playing dot indicator
     const dot = document.getElementById('mini-playing-dot');
     if (dot) dot.classList.toggle('hidden', !playing);
@@ -3514,23 +3687,19 @@ const MiniPlayer = {
       }, { passive: true });
     }
 
-    // Detach buttons (in main player bar) — try popup first, overlay as fallback
-    ['mini-detach-btn', 'mini-detach-btn-desktop'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', () => {
-        if (!state.currentSongId && state.currentSongIndex < 0) {
-          Toast.show('Play a song first', 'warning');
-          return;
-        }
-        // If popup already open → focus it; if overlay visible → hide it
-        if (PopupMiniPlayer.isOpen()) {
-          try { PopupMiniPlayer._popup?.focus(); } catch (e) {}
-          return;
-        }
-        // Close overlay if visible before opening popup
-        if (MiniPlayer.isVisible()) MiniPlayer.hide();
-        // Try to open popup window (will fall back to overlay if blocked)
-        PopupMiniPlayer.open();
-      });
+    // Detach buttons in main player bar — popup only on desktop; mobile uses compact mode
+    // mini-detach-btn (mobile) is now compact-toggle-mobile — wired in CompactMode.init()
+    document.getElementById('mini-detach-btn-desktop')?.addEventListener('click', () => {
+      if (!state.currentSongId && state.currentSongIndex < 0) {
+        Toast.show('Play a song first', 'warning');
+        return;
+      }
+      if (PopupMiniPlayer.isOpen()) {
+        try { PopupMiniPlayer._popup?.focus(); } catch (e) {}
+        return;
+      }
+      if (MiniPlayer.isVisible()) MiniPlayer.hide();
+      PopupMiniPlayer.open();
     });
   },
 
