@@ -1,166 +1,212 @@
 <!DOCTYPE html>
 <html lang="en" id="mp-html">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SoundAura Mini Player</title>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SoundAura</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
     :root {
-      --bg: #060d1b; --bg2: #0d1a2d; --text: #f0f6ff; --muted: #6b7fa0;
+      --bg: #060d1b; --text: #f0f6ff; --muted: #6b7fa0;
       --accent: #06b6d4; --accent2: #3b82f6;
-      --border: rgba(255,255,255,0.1); --btn-bg: rgba(255,255,255,0.06);
-      --btn-hover: rgba(255,255,255,0.14);
+      --border: rgba(255,255,255,0.1); --hover: rgba(255,255,255,0.12);
     }
     html.light {
-      --bg: #f0f5ff; --bg2: #e2ebff; --text: #0f172a; --muted: #475569;
+      --bg: #f0f5ff; --text: #0f172a; --muted: #475569;
       --accent: #0891b2; --accent2: #2563eb;
-      --border: rgba(0,0,0,0.1); --btn-bg: rgba(0,0,0,0.05);
-      --btn-hover: rgba(0,0,0,0.1);
+      --border: rgba(0,0,0,0.1); --hover: rgba(0,0,0,0.08);
     }
-    html, body { width: 340px; height: 100%; overflow: hidden; background: var(--bg);
-      color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
-      user-select: none; -webkit-user-select: none; }
-    body { display: flex; flex-direction: column; }
 
-    #prog-bar { flex-shrink: 0; width: 100%; height: 3px; background: var(--border);
-      cursor: pointer; position: relative; transition: height 0.12s; }
-    #prog-bar:hover { height: 5px; }
-    #prog-filled { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
-      width: 0%; transition: width 0.15s linear; pointer-events: none; }
-    #prog-thumb { position: absolute; top: 50%; transform: translateY(-50%);
-      width: 10px; height: 10px; border-radius: 50%; background: white;
-      margin-left: -5px; opacity: 0; pointer-events: none; transition: opacity 0.1s; }
-    #prog-bar:hover #prog-thumb { opacity: 1; }
+    html, body {
+      width: 200px; height: 200px; overflow: hidden;
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      user-select: none; -webkit-user-select: none;
+    }
 
-    .time-row { flex-shrink: 0; display: flex; justify-content: space-between;
-      padding: 4px 12px 2px; font-size: 9px; color: var(--muted);
-      font-variant-numeric: tabular-nums; }
+    /* Drag handle: full card is draggable */
+    body { cursor: grab; }
+    body:active { cursor: grabbing; }
 
-    .main { flex: 1; display: flex; align-items: center; gap: 10px;
-      padding: 8px 12px; min-height: 0; }
+    #card {
+      width: 200px; height: 200px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0;
+      padding: 0 14px;
+      position: relative;
+      /* Glass border */
+      border: 1px solid rgba(6,182,212,0.22);
+      border-radius: 0;
+      background: var(--bg);
+      /* Subtle glow */
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
 
-    /* Album art — STATIC, no rotation */
-    #thumb { width: 46px; height: 46px; border-radius: 9px; object-fit: cover;
-      flex-shrink: 0; background: #374151; box-shadow: 0 2px 10px rgba(0,0,0,0.4);
-      transition: transform 0.15s, box-shadow 0.15s; }
-    #thumb:hover { transform: scale(1.04); box-shadow: 0 4px 16px rgba(6,182,212,0.25); }
+    /* Close button — top right corner */
+    #btn-close {
+      position: absolute; top: 7px; right: 7px;
+      width: 20px; height: 20px; border-radius: 50%;
+      background: none; border: none; cursor: pointer;
+      color: var(--muted); display: flex; align-items: center; justify-content: center;
+      transition: color 0.12s, background 0.12s;
+    }
+    #btn-close:hover { color: var(--text); background: var(--hover); }
 
-    .info { flex: 1; min-width: 0; }
-    #song-title { font-size: 12px; font-weight: 600; color: var(--text);
-      overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.35; }
-    #song-artist { font-size: 10px; color: var(--muted); margin-top: 2px;
-      overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 1.35; }
+    /* Song title — marquee scrolling if too long */
+    #song-title {
+      width: 100%; text-align: center;
+      font-size: 13px; font-weight: 700; color: var(--text);
+      overflow: hidden; white-space: nowrap;
+      margin-bottom: 4px;
+    }
+    #song-title .inner {
+      display: inline-block;
+      /* marquee animation applied by JS when text overflows */
+    }
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      20%  { transform: translateX(0); }
+      80%  { transform: translateX(var(--marquee-dist, -50%)); }
+      100% { transform: translateX(var(--marquee-dist, -50%)); }
+    }
+    #song-title.scrolling .inner {
+      animation: marquee 5s linear infinite;
+    }
 
-    .controls { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+    /* Artist */
+    #song-artist {
+      font-size: 10px; color: var(--muted); text-align: center;
+      overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+      width: 100%; margin-bottom: 16px;
+    }
 
-    button { background: none; border: none; cursor: pointer; color: var(--text);
+    /* Controls row */
+    .ctrl-row {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+    }
+
+    button { background: none; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; transition: background 0.12s, transform 0.07s, color 0.12s; outline: none; }
+      border-radius: 50%; transition: background 0.12s, transform 0.08s; outline: none; }
 
-    .ctrl-btn { width: 28px; height: 28px; color: rgba(255,255,255,0.7); }
+    .ctrl-btn { width: 30px; height: 30px; color: rgba(255,255,255,0.65); }
     html.light .ctrl-btn { color: #334155; }
-    .ctrl-btn:hover { background: var(--btn-hover); color: var(--text); }
+    .ctrl-btn:hover { background: var(--hover); color: var(--text); }
     .ctrl-btn:active { transform: scale(0.85); }
 
-    #btn-play { width: 36px; height: 36px;
+    #btn-play {
+      width: 40px; height: 40px;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 50%; color: white; box-shadow: 0 0 12px rgba(6,182,212,0.35);
-      transition: filter 0.12s, transform 0.07s, box-shadow 0.15s; }
-    #btn-play:hover { filter: brightness(1.15); box-shadow: 0 0 20px rgba(6,182,212,0.55); }
+      color: white; box-shadow: 0 0 14px rgba(6,182,212,0.4);
+      transition: filter 0.12s, transform 0.08s, box-shadow 0.15s;
+    }
+    #btn-play:hover { filter: brightness(1.15); box-shadow: 0 0 22px rgba(6,182,212,0.6); }
     #btn-play:active { transform: scale(0.88); }
-    #btn-play.playing { animation: playGlow 2.2s ease-in-out infinite; }
+    #btn-play.playing {
+      animation: playGlow 2.2s ease-in-out infinite;
+    }
     @keyframes playGlow {
       0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.28); }
-      50%      { box-shadow: 0 0 22px rgba(6,182,212,0.65); }
+      50%      { box-shadow: 0 0 24px rgba(6,182,212,0.7); }
     }
 
-    #btn-mode { width: 26px; height: 26px; color: var(--accent); }
-    #btn-mode.inactive { color: var(--muted); }
-    #btn-mode:hover  { background: var(--btn-hover); }
-    #btn-mode:active { transform: scale(0.85); }
+    /* Progress strip — thin line at very bottom */
+    #prog-strip {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+      background: rgba(255,255,255,0.06);
+    }
+    #prog-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      width: 0%; transition: width 0.15s linear;
+    }
 
-    .action-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; flex-shrink: 0; }
-    .action-btn { width: 22px; height: 22px; color: var(--muted); flex-shrink: 0; }
-    .action-btn:hover  { color: var(--text); background: var(--btn-hover); }
-    .action-btn:active { transform: scale(0.85); }
-
-    #kb-hint { flex-shrink: 0; text-align: center; font-size: 8px; color: var(--muted);
-      padding-bottom: 5px; opacity: 0.45; letter-spacing: 0.03em; }
-
+    /* Fallback: no BroadcastChannel */
     #no-bc { display: none; flex-direction: column; align-items: center;
-      justify-content: center; height: 100%; padding: 16px; text-align: center; gap: 8px; }
-    #no-bc .icon { font-size: 28px; }
-    #no-bc p { font-size: 11px; color: var(--muted); line-height: 1.5; }
-
-    body.disconnected #thumb { opacity: 0.35; }
+      justify-content: center; height: 100%; padding: 14px; text-align: center; gap: 6px; }
+    #no-bc p { font-size: 10px; color: var(--muted); line-height: 1.45; }
   </style>
 </head>
 <body>
+<div id="card">
+  <!-- Close -->
+  <button id="btn-close" title="Close (Esc)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11">
+      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+    </svg>
+  </button>
 
-<div id="prog-bar"><div id="prog-filled"></div><div id="prog-thumb"></div></div>
-<div class="time-row"><span id="time-cur">0:00</span><span id="time-tot">0:00</span></div>
+  <!-- Title -->
+  <div id="song-title"><span class="inner">No song playing</span></div>
 
-<div class="main">
-  <img id="thumb"
-    src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23374151' rx='9'/><text x='23' y='30' text-anchor='middle' font-size='20'>🎵</text></svg>"
-    alt="Album art" />
+  <!-- Artist -->
+  <div id="song-artist">–</div>
 
-  <div class="info">
-    <div id="song-title">No song playing</div>
-    <div id="song-artist">–</div>
-  </div>
-
-  <div class="controls">
-    <button id="btn-prev" class="ctrl-btn" title="Previous (←)">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+  <!-- Controls: Prev · Play/Pause · Next -->
+  <div class="ctrl-row">
+    <button id="btn-prev" class="ctrl-btn" title="Previous">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
         <polygon points="19,20 9,12 19,4"/><rect x="4" y="4" width="3" height="16" rx="1.5"/>
       </svg>
     </button>
-    <button id="btn-play" title="Play / Pause (Space)">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
+    <button id="btn-play" title="Play / Pause">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>
     </button>
-    <button id="btn-next" class="ctrl-btn" title="Next (→)">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15">
+    <button id="btn-next" class="ctrl-btn" title="Next">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
         <polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="3" height="16" rx="1.5"/>
       </svg>
     </button>
-    <button id="btn-mode" title="Cycle mode"><!-- icon injected by JS --></button>
-    <div class="action-sep"></div>
-    <button id="btn-close" class="action-btn" title="Close (Esc)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12">
-        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-      </svg>
-    </button>
   </div>
+
+  <!-- Progress strip -->
+  <div id="prog-strip"><div id="prog-fill"></div></div>
 </div>
 
-<div id="kb-hint">Space: play/pause &nbsp;·&nbsp; ← prev &nbsp;·&nbsp; → next &nbsp;·&nbsp; M: mode &nbsp;·&nbsp; Esc: close</div>
-<div id="no-bc"><div class="icon">⚠️</div><p>BroadcastChannel not supported.<br>Use Chrome 54+, Firefox 38+, or Edge 79+.</p></div>
+<div id="no-bc"><p>BroadcastChannel unsupported.<br>Use Chrome 54+ / Firefox 38+ / Edge 79+.</p></div>
 
 <script>
 'use strict';
-const MODE_SVG = {
-  repeat:  '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
-  shuffle: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>',
-  loop:    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="10" y="14" font-size="7" fill="currentColor" stroke="none">1</text></svg>',
-  none:    '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><line x1="3" y1="3" x2="21" y2="21" stroke-width="2.2"/></svg>',
-};
-const MODE_LABEL = { repeat: 'Repeat', shuffle: 'Shuffle', loop: 'Loop One', none: 'Play Once' };
-const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-const PLAY_SVG  = '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>';
+const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+const PLAY_SVG  = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>';
 const $ = id => document.getElementById(id);
-const fmt = s => {
-  if (!s || isNaN(s) || !isFinite(s)) return '0:00';
-  const m = Math.floor(s/60), ss = Math.floor(s%60);
-  return m+':'+String(ss).padStart(2,'0');
-};
+
+// Marquee: if title text is wider than container, apply scrolling
+function applyMarquee() {
+  const wrap = $('song-title');
+  const inner = wrap.querySelector('.inner');
+  if (!inner) return;
+  wrap.classList.remove('scrolling');
+  inner.style.animation = 'none';
+  // Measure
+  const containerW = wrap.offsetWidth;
+  const textW = inner.scrollWidth;
+  if (textW > containerW + 4) {
+    // Set CSS variable for how far to scroll
+    const dist = -(textW - containerW + 10);
+    inner.style.setProperty('--marquee-dist', dist + 'px');
+    void inner.offsetWidth; // reflow
+    inner.style.animation = '';
+    wrap.classList.add('scrolling');
+  }
+}
+
+// Drag the window
+let dragging = false, ox = 0, oy = 0;
+document.addEventListener('mousedown', e => {
+  if (e.target.closest('button')) return;
+  dragging = true; ox = e.screenX - window.screenX; oy = e.screenY - window.screenY;
+});
+document.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  window.moveTo(e.screenX - ox, e.screenY - oy);
+});
+document.addEventListener('mouseup', () => { dragging = false; });
 
 if (!('BroadcastChannel' in window)) {
-  document.querySelector('.main').style.display = 'none';
-  $('prog-bar').style.display = 'none';
-  document.querySelector('.time-row').style.display = 'none';
-  $('kb-hint').style.display = 'none';
+  $('card').style.display = 'none';
   $('no-bc').style.display = 'flex';
 } else {
   const bc = new BroadcastChannel('soundaura_player');
@@ -169,68 +215,45 @@ if (!('BroadcastChannel' in window)) {
     const d = e.data;
     if (d.type !== 'STATE') return;
     document.getElementById('mp-html').className = d.isDark ? '' : 'light';
-    $('song-title').textContent  = d.title  || 'No song playing';
+
+    // Title with marquee
+    const titleInner = $('song-title').querySelector('.inner');
+    if (titleInner) titleInner.textContent = d.title || 'No song playing';
+    document.title = (d.title || 'SoundAura');
+    requestAnimationFrame(applyMarquee);
+
     $('song-artist').textContent = d.artist || '–';
-    document.title = d.title ? (d.playing ? '▶ ' : '⏸ ') + d.title : 'SoundAura Mini Player';
-    const thumb = $('thumb');
-    if (d.thumb && thumb.dataset.src !== d.thumb) {
-      thumb.dataset.src = d.thumb; thumb.src = d.thumb;
-      thumb.onerror = () => { thumb.src = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='46' height='46'><rect width='46' height='46' fill='%23374151' rx='9'/><text x='23' y='30' text-anchor='middle' font-size='20'>🎵</text></svg>"; };
-    }
+
     $('btn-play').innerHTML = d.playing ? PAUSE_SVG : PLAY_SVG;
     $('btn-play').classList.toggle('playing', d.playing);
-    const pct = d.progress || 0;
-    $('prog-filled').style.width = pct + '%';
-    $('prog-thumb').style.left   = pct + '%';
-    $('time-cur').textContent = fmt(d.currentTime);
-    $('time-tot').textContent = fmt(d.duration);
-    const mb = $('btn-mode');
-    mb.innerHTML = MODE_SVG[d.mode] || MODE_SVG.repeat;
-    mb.title     = MODE_LABEL[d.mode] || 'Mode';
-    mb.classList.toggle('inactive', d.mode === 'none');
-    document.body.classList.remove('disconnected');
+
+    // Thin progress strip
+    $('prog-fill').style.width = (d.progress || 0) + '%';
   };
 
   $('btn-play').addEventListener('click', () => bc.postMessage({ type: 'CMD_PLAY' }));
   $('btn-prev').addEventListener('click', () => bc.postMessage({ type: 'CMD_PREV' }));
   $('btn-next').addEventListener('click', () => bc.postMessage({ type: 'CMD_NEXT' }));
-  $('btn-mode').addEventListener('click', () => bc.postMessage({ type: 'CMD_MODE' }));
-  $('btn-close').addEventListener('click', () => { bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close(); });
-
-  let scrubbing = false;
-  const doScrub = x => {
-    const r = $('prog-bar').getBoundingClientRect();
-    const pct = Math.max(0, Math.min(100, (x - r.left) / r.width * 100));
-    $('prog-filled').style.width = pct + '%';
-    $('prog-thumb').style.left   = pct + '%';
-    bc.postMessage({ type: 'CMD_SEEK', pct });
-  };
-  $('prog-bar').addEventListener('click',     e => doScrub(e.clientX));
-  $('prog-bar').addEventListener('mousedown', e => { scrubbing = true; doScrub(e.clientX); e.preventDefault(); });
-  document.addEventListener('mousemove', e => { if (scrubbing) doScrub(e.clientX); });
-  document.addEventListener('mouseup',   ()  => { scrubbing = false; });
+  $('btn-close').addEventListener('click', () => {
+    bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close();
+  });
 
   document.addEventListener('keydown', e => {
-    if (e.target.tagName === 'INPUT') return;
     if (e.code === 'Space')      { e.preventDefault(); bc.postMessage({ type: 'CMD_PLAY' }); }
     else if (e.code === 'ArrowLeft')  bc.postMessage({ type: 'CMD_PREV' });
     else if (e.code === 'ArrowRight') bc.postMessage({ type: 'CMD_NEXT' });
-    else if (e.code === 'KeyM')       bc.postMessage({ type: 'CMD_MODE' });
     else if (e.code === 'Escape')   { bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close(); }
   });
 
   bc.postMessage({ type: 'POPUP_READY' });
 
-  let deadTimer = setTimeout(() => {
-    document.body.classList.add('disconnected');
-    $('song-title').textContent  = 'Waiting for SoundAura…';
-    $('song-artist').textContent = 'Keep the main window open';
-    document.title = 'SoundAura — Connecting…';
+  // Disconnect detection
+  let dead = setTimeout(() => {
+    $('song-title').querySelector('.inner').textContent = 'Waiting…';
+    $('song-artist').textContent = 'Open SoundAura';
+    document.title = 'SoundAura';
   }, 8000);
-  bc.addEventListener('message', () => {
-    clearTimeout(deadTimer);
-    deadTimer = setTimeout(() => document.body.classList.add('disconnected'), 8000);
-  });
+  bc.addEventListener('message', () => { clearTimeout(dead); dead = setTimeout(() => {}, 8000); });
 }
 </script>
 </body>

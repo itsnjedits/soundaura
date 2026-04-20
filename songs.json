@@ -7545,5 +7545,45 @@
     "image": "thumbnails/pritam, shafqat amanat ali - tu hi mera (lyrics) [d2qdszqd3p8]_thumbnail.jpg",
     "store": "store1",
     "mood": ["romantic", "sad", "nostalgia"]
+  },
+  {
+    "title": "Bewajah",
+    "artist": ["Himesh Reshammiya"],
+    "file": "audio/Bewajah - Full Video Song _ Sanam Teri Kasam _ Harshvardhan Rane _ Himesh Reshammiya.mp3",
+    "image": "thumbnails/Bewajah - Full Video Song _ Sanam Teri Kasam _ Harshvardhan Rane _ Himesh Reshammiya_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["romantic, sad, hindi-new"]
+  },
+  {
+    "title": "Chahun Main Ya Na - Lo-Fi Mix",
+    "artist": ["Arijit Singh, Palak Muchhal"],
+    "file": "audio/Chahun Main Ya Naa Lo-Fi Mix _ DJ ANIK8 _ Arijit Singh, Palak Muchhal _ Aashiqui 2 _ Bhushan K.mp3",
+    "image": "thumbnails/Chahun Main Ya Naa Lo-Fi Mix _ DJ ANIK8 _ Arijit Singh, Palak Muchhal _ Aashiqui 2 _ Bhushan K_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["romantic, slowed-reverb"]
+  },
+  {
+    "title": "Sanam Teri Kasam",
+    "artist": ["Ankit Tiwari"],
+    "file": "audio/Sanam Teri Kasam - Title Song _ Himesh Reshammiya _ Ankit Tiwari, Palak Muchhal.mp3",
+    "image": "thumbnails/Sanam Teri Kasam - Title Song _ Himesh Reshammiya _ Ankit Tiwari, Palak Muchhal_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["romantic, sad, hindi-new"]
+  },
+  {
+    "title": "Tose Naina Lage - Slowed And Reverb",
+    "artist": ["Shilpa Rao"],
+    "file": "audio/shilpa rao, kshitij tarey - tose naina lage (slowed & reverb).mp3",
+    "image": "thumbnails/shilpa rao, kshitij tarey - tose naina lage (slowed & reverb)_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["slowed-reverb, hindi-new, romantic"]
+  },
+  {
+    "title": "TUM HO - [SLOWED & REVERB]",
+    "artist": ["Mohit Chauhan"],
+    "file": "audio/TUM HO - MOHIT CHAUHAN [SLOWED].mp3",
+    "image": "thumbnails/TUM HO - MOHIT CHAUHAN [SLOWED]_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["slowed-reverb, hindi-new, romantic"]
   }
 ]

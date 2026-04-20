@@ -65,8 +65,8 @@
  * ─────────────────────────────────────────────────────────────
  */
 
-const CACHE_NAME   = 'soundaura-v6';  // ← bump this on every deploy
-const AUDIO_CACHE  = 'soundaura-audio-v5';
+const CACHE_NAME   = 'soundaura-v7';  // ← bump this on every deploy
+const AUDIO_CACHE  = 'soundaura-audio-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

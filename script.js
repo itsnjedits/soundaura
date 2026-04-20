@@ -1456,13 +1456,54 @@ const UI = {
   /** Initialize drag & drop for user playlist reordering */
   initDragDrop(container) {
     const items = container.querySelectorAll('[draggable="true"]');
+    let autoScrollRAF = null;
+
+    // Auto-scroll helper: fires during dragover on the container
+    const songList = document.getElementById('song-list');
+    const EDGE = 80; // px from top/bottom edge to trigger scroll
+    let dragClientY = 0;
+
+    const doAutoScroll = () => {
+      if (!songList) return;
+      const rect = songList.getBoundingClientRect();
+      const distTop    = dragClientY - rect.top;
+      const distBottom = rect.bottom - dragClientY;
+      let speed = 0;
+      if (distTop < EDGE && distTop > 0) {
+        speed = -Math.ceil((EDGE - distTop) / EDGE * 12);
+      } else if (distBottom < EDGE && distBottom > 0) {
+        speed = Math.ceil((EDGE - distBottom) / EDGE * 12);
+      }
+      if (speed !== 0) {
+        songList.scrollTop += speed;
+        autoScrollRAF = requestAnimationFrame(doAutoScroll);
+      } else {
+        autoScrollRAF = null;
+      }
+    };
+
+    // Listen on the container for dragover to track cursor position
+    container.addEventListener('dragover', (e) => {
+      dragClientY = e.clientY;
+      if (!autoScrollRAF) autoScrollRAF = requestAnimationFrame(doAutoScroll);
+    });
+    container.addEventListener('dragleave', () => {
+      if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+    });
+    container.addEventListener('drop', () => {
+      if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+    });
+
     items.forEach(item => {
       item.addEventListener('dragstart', (e) => {
         state.dragSrcIndex = parseInt(item.dataset.dragIndex);
         item.classList.add('opacity-50');
         e.dataTransfer.effectAllowed = 'move';
       });
-      item.addEventListener('dragend', () => item.classList.remove('opacity-50'));
+      item.addEventListener('dragend', () => {
+        item.classList.remove('opacity-50');
+        if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
+      });
       item.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
@@ -1479,7 +1520,6 @@ const UI = {
           playlist.splice(destIdx, 0, moved);
           state.currentPlaylist = [...playlist];
           Storage.save('playlists', state.userPlaylists);
-          // ── Resync currentSongIndex so highlight stays with the correct song ──
           if (state.currentSongId) {
             state.currentSongIndex = state.currentPlaylist.findIndex(
               s => songId(s) === state.currentSongId
@@ -1970,93 +2010,94 @@ const EQPanel = {
     const existing = document.getElementById('eq-expanded-modal');
     if (existing) { existing.remove(); return; }
 
-    // Read current slider values
     const currentVals = EQ_BANDS.map((_, i) => {
       const s = document.getElementById(`eq-band-${i}`);
       return s ? parseFloat(s.value) : 0;
     });
 
-    const freqLabels = ['31 Hz','62 Hz','125 Hz','250 Hz','500 Hz','1 kHz','2 kHz','4 kHz','8 kHz','16 kHz'];
-    const groupLabels = ['Sub','Bass','Low-Mid','Mid','High-Mid','Presence','Air'];
-    // Map of which band index belongs to which group for visual grouping
-    const groups = [
-      { label: 'SUB BASS', bands: [0,1], color: '#8b5cf6' },
-      { label: 'BASS',     bands: [2,3], color: '#06b6d4' },
-      { label: 'MID',      bands: [4,5,6], color: '#10b981' },
-      { label: 'HIGH',     bands: [7,8,9], color: '#f59e0b' },
-    ];
-
     const modal = document.createElement('div');
     modal.id = 'eq-expanded-modal';
     modal.className = 'fixed inset-0 z-[80] flex items-end sm:items-center justify-center modal-backdrop bg-black/80 p-0 sm:p-4';
     modal.innerHTML = `
-      <div class="w-full sm:max-w-2xl bg-gray-950 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden"
-           style="max-height:92dvh;display:flex;flex-direction:column;">
-        <!-- Header -->
-        <div class="flex items-center justify-between px-5 py-4 border-b border-white/5 flex-shrink-0">
+      <div class="w-full sm:max-w-2xl bg-gray-950 border border-white/10 rounded-t-2xl sm:rounded-2xl shadow-2xl"
+           style="max-height:92dvh;display:flex;flex-direction:column;overflow:hidden;">
+
+        <!-- Header — icon-only action buttons -->
+        <div class="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
           <div class="flex items-center gap-2">
-            <span class="text-lg">🎛️</span>
-            <h2 class="font-display font-700 text-white">Equalizer</h2>
+            <span class="text-base">🎛️</span>
+            <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;color:white;font-size:1rem;">Equalizer</h2>
           </div>
-          <div class="flex items-center gap-2">
-            <button id="eq-exp-reset" class="text-xs px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-cyan-400 transition-colors">Reset All</button>
-            <button id="eq-exp-save"  class="text-xs px-3 py-1 rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 transition-colors">💾 Save Preset</button>
-            <button id="eq-exp-close" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 transition-colors">
+          <div class="flex items-center gap-1.5">
+            <!-- Reset All — icon only -->
+            <button id="eq-exp-reset" title="Reset All"
+              class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/12 text-gray-400 hover:text-cyan-400 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </button>
+            <!-- Save Preset — icon only -->
+            <button id="eq-exp-save" title="Save Preset"
+              class="w-8 h-8 flex items-center justify-center rounded-full bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 transition-colors">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            </button>
+            <!-- Close -->
+            <button id="eq-exp-close"
+              class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
         </div>
 
-        <!-- EQ sliders — scrollable -->
-        <div class="flex-1 overflow-y-auto p-4" style="min-height:0;">
-          <!-- Frequency sliders — taller to fill available space -->
-          <div class="flex items-end justify-between gap-1" style="height:min(220px,40vh);">
+        <!-- Scrollable content -->
+        <div style="flex:1;overflow-y:auto;min-height:0;padding:1rem;">
+
+          <!-- EQ Bands: taller, responsive height, no group labels -->
+          <div class="flex items-end justify-between gap-0" style="height:clamp(160px,45vw,260px);margin-bottom:0.5rem;">
             ${EQ_BANDS.map((band, i) => {
               const val = currentVals[i];
               return `
-              <div class="flex flex-col items-center gap-1.5 flex-1" data-band="${i}">
-                <span class="eq-exp-val text-xs font-mono text-gray-400 tabular-nums" style="min-width:28px;text-align:center;font-size:10px">${val > 0 ? '+' : ''}${val}</span>
+              <div class="flex flex-col items-center gap-1 flex-1 min-w-0" data-band="${i}">
+                <span class="eq-exp-val tabular-nums" style="font-size:9px;color:#6b7fa0;min-width:24px;text-align:center;">${val > 0 ? '+' : ''}${val}</span>
                 <input type="range" class="eq-exp-slider" data-band="${i}"
                   min="-12" max="12" step="0.5" value="${val}"
-                  style="writing-mode:vertical-lr;direction:rtl;width:28px;height:calc(min(220px,40vh) - 52px);cursor:pointer;accent-color:#06b6d4;" />
-                <span class="text-gray-500" style="font-size:9px">${band.label}</span>
+                  style="writing-mode:vertical-lr;direction:rtl;width:24px;height:calc(clamp(160px,45vw,260px) - 42px);cursor:pointer;accent-color:#06b6d4;flex-shrink:0;" />
+                <span style="font-size:8px;color:#4b5563;margin-top:1px;">${band.label}</span>
               </div>`;
             }).join('')}
           </div>
 
-          <!-- Group labels bar -->
-          <div class="flex gap-1 mt-3 mb-4">
-            ${groups.map(g => `
-              <div class="flex-none rounded-full px-2.5 py-0.5 text-xs font-medium"
-                   style="background:${g.color}20;color:${g.color};flex:${g.bands.length};">
-                ${g.label}
-              </div>`).join('')}
-          </div>
-
           <!-- Built-in presets -->
-          <div class="border-t border-white/5 pt-4">
-            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider">Built-in Presets</p>
-            <div class="flex gap-2 flex-wrap">
-              <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="flat">Flat</button>
-              <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="bass">Bass Boost</button>
-              <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="vocal">Vocal</button>
-              <button class="eq-exp-preset text-xs px-3 py-1.5 rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-400 transition-colors" data-preset="treble">Treble</button>
+          <div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:0.75rem;margin-top:0.75rem;">
+            <p style="font-size:10px;color:#6b7fa0;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;">Presets</p>
+            <div class="flex gap-1.5 flex-wrap">
+              <button class="eq-exp-preset" data-preset="flat">Flat</button>
+              <button class="eq-exp-preset" data-preset="bass">Bass Boost</button>
+              <button class="eq-exp-preset" data-preset="vocal">Vocal</button>
+              <button class="eq-exp-preset" data-preset="treble">Treble</button>
             </div>
           </div>
 
-          <!-- User-saved presets (always visible) -->
-          <div class="border-t border-white/5 pt-4 mt-3" id="eq-exp-custom-presets">
-            <p class="text-xs text-gray-500 mb-2 uppercase tracking-wider">My Presets</p>
-            <div class="eq-exp-custom-list flex flex-wrap gap-2">
-              <span class="text-xs text-gray-600 italic">No saved presets yet</span>
+          <!-- User-saved presets -->
+          <div id="eq-exp-custom-presets" style="border-top:1px solid rgba(255,255,255,0.05);padding-top:0.75rem;margin-top:0.75rem;">
+            <p style="font-size:10px;color:#6b7fa0;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.5rem;">My Presets</p>
+            <div class="eq-exp-custom-list flex flex-wrap gap-1.5">
+              <span style="font-size:11px;color:#374151;font-style:italic;">No saved presets yet</span>
             </div>
           </div>
         </div>
-      </div>`;
+      </div>
+
+      <style>
+        .eq-exp-preset {
+          font-size: 11px; padding: 4px 12px; border-radius: 999px;
+          background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+          color: #9ca3af; cursor: pointer; transition: background 0.12s, color 0.12s;
+        }
+        .eq-exp-preset:hover { background: rgba(6,182,212,0.2); color: #06b6d4; border-color: rgba(6,182,212,0.35); }
+        .eq-exp-preset:active { transform: scale(0.95); }
+      </style>`;
 
     document.body.appendChild(modal);
 
-    // Close handlers
     const close = () => modal.remove();
     modal.querySelector('#eq-exp-close').addEventListener('click', close);
     modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
@@ -2064,21 +2105,18 @@ const EQPanel = {
       if (e.key === 'Escape') { close(); document.removeEventListener('keydown', esc); }
     });
 
-    // Slider input — sync to main panel + audio engine
+    // Slider sync
     modal.querySelectorAll('.eq-exp-slider').forEach(slider => {
       slider.addEventListener('input', () => {
         const i = parseInt(slider.dataset.band);
         const val = parseFloat(slider.value);
-        // Update the value display
         const valEl = slider.closest('[data-band]').querySelector('.eq-exp-val');
         if (valEl) valEl.textContent = (val > 0 ? '+' : '') + val;
-        // Sync to compact panel
         const compact = document.getElementById(`eq-band-${i}`);
         if (compact) {
           compact.value = val;
           compact.parentElement.querySelector('.eq-value').textContent = val;
         }
-        // Apply to audio
         AudioEngine.init();
         AudioEngine.setEQBand(i, val);
       });
@@ -2097,7 +2135,11 @@ const EQPanel = {
     // Save preset
     modal.querySelector('#eq-exp-save').addEventListener('click', () => {
       const name = prompt('Preset name:');
-      if (name) AudioEngine.saveCurrentPreset(name);
+      if (name) {
+        AudioEngine.saveCurrentPreset(name);
+        // Refresh user preset section
+        EQPanel._renderCustomPresetsInModal(modal);
+      }
     });
 
     // Built-in presets
@@ -2116,34 +2158,40 @@ const EQPanel = {
       });
     });
 
-    // User-saved presets — load from storage and render into #eq-exp-custom-presets
+    // User-saved presets
+    EQPanel._renderCustomPresetsInModal(modal);
+  },
+
+  /** Render (or refresh) user presets inside the expanded EQ modal */
+  _renderCustomPresetsInModal(modal) {
     const customPresets = Storage.loadCustomPresets();
-    const customList = modal.querySelector('.eq-exp-custom-list');
-    if (customList) {
-      const names = Object.keys(customPresets);
-      if (names.length === 0) {
-        customList.innerHTML = '<span class="text-xs text-gray-600 italic">No saved presets yet</span>';
-      } else {
-        customList.innerHTML = names.map(name => `
-          <button class="eq-exp-custom-preset text-xs px-3 py-1.5 rounded-full bg-cyan-500/10
-            hover:bg-cyan-500/25 text-cyan-400 transition-colors border border-cyan-500/20"
-            data-preset-name="${name.replace(/"/g, '&quot;')}">${name}</button>
-        `).join('');
-        customList.querySelectorAll('.eq-exp-custom-preset').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const vals = customPresets[btn.dataset.presetName];
-            if (!vals) return;
-            modal.querySelectorAll('.eq-exp-slider').forEach((slider, i) => {
-              slider.value = vals[i] ?? 0;
-              const valEl = slider.closest('[data-band]').querySelector('.eq-exp-val');
-              if (valEl) valEl.textContent = ((vals[i] ?? 0) > 0 ? '+' : '') + (vals[i] ?? 0);
-            });
-            AudioEngine.init();
-            AudioEngine.applyPreset(vals);
-          });
-        });
-      }
+    const listEl = modal?.querySelector('.eq-exp-custom-list');
+    if (!listEl) return;
+    const names = Object.keys(customPresets);
+    if (!names.length) {
+      listEl.innerHTML = '<span style="font-size:11px;color:#374151;font-style:italic;">No saved presets yet</span>';
+      return;
     }
+    listEl.innerHTML = names.map(name => `
+      <button class="eq-exp-custom-preset" data-name="${name.replace(/"/g,'&quot;')}"
+        style="font-size:11px;padding:4px 12px;border-radius:999px;
+          background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25);
+          color:#06b6d4;cursor:pointer;transition:background 0.12s;">
+        ${name}
+      </button>`).join('');
+    listEl.querySelectorAll('.eq-exp-custom-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const vals = customPresets[btn.dataset.name];
+        if (!vals) return;
+        modal.querySelectorAll('.eq-exp-slider').forEach((slider, i) => {
+          slider.value = vals[i] ?? 0;
+          const valEl = slider.closest('[data-band]').querySelector('.eq-exp-val');
+          if (valEl) valEl.textContent = ((vals[i]??0) > 0 ? '+' : '') + (vals[i]??0);
+        });
+        AudioEngine.init();
+        AudioEngine.applyPreset(vals);
+      });
+    });
   },
 
   /** Make the EQ panel draggable, clamped to viewport */
@@ -2651,45 +2699,77 @@ const SongModal = {
 // ═══════════════════════════════════════════════════════════
 
 const Toast = {
-  _timer: null,
+  _timer:   null,
   _current: null,
+  _touchStartX: 0,
 
   show(message, type = 'info') {
     const colors = {
-      success: 'bg-emerald-500/90',
-      error:   'bg-red-500/90',
-      warning: 'bg-amber-500/90',
-      info:    'bg-blue-500/90'
+      success: 'background:rgba(16,185,129,0.92)',
+      error:   'background:rgba(239,68,68,0.92)',
+      warning: 'background:rgba(245,158,11,0.92)',
+      info:    'background:rgba(59,130,246,0.92)',
     };
 
-    // Remove any existing toast immediately
-    if (Toast._current) {
-      Toast._current.remove();
-      Toast._current = null;
-    }
-    if (Toast._timer) {
-      clearTimeout(Toast._timer);
-      Toast._timer = null;
-    }
+    // Tear down any existing toast immediately
+    Toast._destroy();
 
     const toast = document.createElement('div');
     toast.id = 'soundaura-toast';
-    toast.className = `fixed bottom-28 right-4 z-[200] px-4 py-3 rounded-xl text-white text-sm
-      font-medium shadow-xl ${colors[type] || colors.info} backdrop-blur-sm
-      transform transition-all duration-250 translate-x-full`;
-    toast.textContent = message;
+    toast.style.cssText = `
+      position:fixed; bottom:calc(var(--player-h) + 0.6rem); right:1rem;
+      z-index:250; max-width:300px; min-width:180px;
+      ${colors[type] || colors.info};
+      border-radius:12px; padding:10px 14px 10px 14px;
+      color:white; font-size:13px; font-weight:500;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);
+      display:flex; align-items:center; gap:8px;
+      backdrop-filter:blur(10px);
+      transform:translateX(110%);
+      transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
+      cursor:default;
+    `;
+    toast.innerHTML = `
+      <span style="flex:1;line-height:1.4">${message}</span>
+      <button style="background:none;border:none;color:rgba(255,255,255,0.7);
+        cursor:pointer;padding:0;font-size:15px;line-height:1;flex-shrink:0;
+        transition:color 0.1s" onmouseenter="this.style.color='white'"
+        onmouseleave="this.style.color='rgba(255,255,255,0.7)'"
+        aria-label="Close">✕</button>`;
+
     document.body.appendChild(toast);
     Toast._current = toast;
 
+    // Close button
+    toast.querySelector('button').addEventListener('click', () => Toast._destroy());
+
+    // Swipe-to-dismiss (mobile)
+    toast.addEventListener('touchstart', (e) => {
+      Toast._touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+    toast.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - Toast._touchStartX;
+      if (dx > 60) Toast._destroy(); // swipe right → dismiss
+    }, { passive: true });
+
+    // Animate in
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      toast.classList.remove('translate-x-full');
+      toast.style.transform = 'translateX(0)';
     }));
 
-    Toast._timer = setTimeout(() => {
-      toast.classList.add('translate-x-full');
-      setTimeout(() => { toast.remove(); Toast._current = null; }, 280);
-      Toast._timer = null;
-    }, 2400);
+    // Always auto-dismiss — guaranteed, no way to get stuck
+    Toast._timer = setTimeout(Toast._destroy, 3500);
+  },
+
+  _destroy() {
+    if (Toast._timer) { clearTimeout(Toast._timer); Toast._timer = null; }
+    if (Toast._current) {
+      const el = Toast._current;
+      Toast._current = null;
+      el.style.transform = 'translateX(110%)';
+      // Remove after animation completes — guarded timeout
+      setTimeout(() => { if (el.parentNode) el.remove(); }, 300);
+    }
   }
 };
 
@@ -3057,14 +3137,12 @@ const About = {
   open() {
     const existing = document.getElementById('about-modal');
     if (existing) {
-      // Animate out then remove
       existing.style.opacity = '0';
       existing.style.transition = 'opacity 0.15s ease';
       setTimeout(() => existing.remove(), 150);
       return;
     }
 
-    // Use same logo path as navbar (theme-aware)
     const logoSrc = (typeof state !== 'undefined' && !state.isDarkMode)
       ? '/soundaura/navbar_icon/light.png'
       : '/soundaura/navbar_icon/dark.png';
@@ -3074,76 +3152,112 @@ const About = {
     modal.className = 'fixed inset-0 z-[80] flex items-center justify-center modal-backdrop bg-black/70 p-4';
     modal.style.cssText = 'opacity:0;transition:opacity 0.2s ease;';
     modal.innerHTML = `
-      <div class="bg-gray-900 border border-white/10 rounded-3xl p-7 w-full max-w-sm shadow-2xl text-center
-                  transform scale-95"
-           style="transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;">
+      <div class="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl transform scale-95"
+           style="transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;max-height:88dvh;overflow-y:auto;">
 
-        <!-- Theme-aware logo — identical to navbar -->
-        <div class="flex justify-center mb-3">
-          <img
-            id="about-modal-logo"
-            src="${logoSrc}"
-            alt="SoundAura logo"
-            class="h-14 w-auto object-contain"
-            style="filter:drop-shadow(0 2px 12px rgba(6,182,212,0.4));pointer-events:none;"
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"
-          />
-          <!-- Fallback if image fails to load -->
-          <div style="display:none" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-lg">
-            <svg viewBox="0 0 32 32" class="w-8 h-8"><polygon points="10,8 10,24 24,16" fill="white" opacity="0.95"/></svg>
+        <!-- Header -->
+        <div class="sticky top-0 bg-gray-900 px-6 pt-6 pb-4 border-b border-white/5 text-center rounded-t-3xl">
+          <div class="flex justify-center mb-2">
+            <img src="${logoSrc}" alt="SoundAura" class="h-12 w-auto object-contain"
+              style="filter:drop-shadow(0 2px 12px rgba(6,182,212,0.4));pointer-events:none;"
+              onerror="this.style.display='none'"/>
           </div>
+          <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.35rem;
+            background:linear-gradient(110deg,#67e8f9 0%,#38bdf8 40%,#818cf8 100%);
+            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+            SoundAura
+          </h2>
+          <p class="text-gray-500 text-xs mt-0.5">Emotion-driven music streaming</p>
         </div>
 
-        <!-- Title: exact same gradient + font as #navbar-title -->
-        <h2 class="font-display leading-none tracking-wide mb-1"
-            style="font-weight:800;font-size:1.5rem;
-                   background:linear-gradient(110deg,#67e8f9 0%,#38bdf8 40%,#818cf8 100%);
-                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
-                   background-clip:text;">
-          SoundAura
-        </h2>
-        <p class="text-gray-500 text-xs mb-5">Emotion-driven music, always.</p>
+        <!-- Content -->
+        <div class="px-6 py-5 space-y-5 text-sm">
 
-        <div class="space-y-3 text-left text-sm text-gray-300">
-          <div class="flex gap-3 items-start">
-            <span class="text-xl mt-0.5">🎭</span>
-            <div><p class="text-white font-medium">Mood-based discovery</p><p class="text-gray-500 text-xs">Browse music by emotion — sad, romantic, party, spiritual and more.</p></div>
-          </div>
-          <div class="flex gap-3 items-start">
-            <span class="text-xl mt-0.5">🎛️</span>
-            <div><p class="text-white font-medium">10-band Equalizer</p><p class="text-gray-500 text-xs">Real-time Web Audio API processing for studio-quality sound.</p></div>
-          </div>
-          <div class="flex gap-3 items-start">
-            <span class="text-xl mt-0.5">📂</span>
-            <div><p class="text-white font-medium">Playlists & Favorites</p><p class="text-gray-500 text-xs">Create, share, and import playlists. Heart songs you love.</p></div>
-          </div>
-          <div class="flex gap-3 items-start">
-            <span class="text-xl mt-0.5">📶</span>
-            <div><p class="text-white font-medium">Works offline</p><p class="text-gray-500 text-xs">Service Worker caches assets for seamless listening anywhere.</p></div>
-          </div>
+          <!-- Quick Start -->
+          <section>
+            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+              <span>🚀</span> Quick Start
+            </h3>
+            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
+              <p>• Tap any song to play it immediately with live loading feedback.</p>
+              <p>• Press <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">Space</kbd> to play/pause, <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">N</kbd> next, <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">P</kbd> prev.</p>
+              <p>• Use <strong class="text-gray-300">Explore</strong> to browse by mood or artist. Find songs by emotion.</p>
+              <p>• Hit 🎲 for a random song anytime.</p>
+            </div>
+          </section>
+
+          <!-- Playlists -->
+          <section>
+            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+              <span>📂</span> Playlists & Favorites
+            </h3>
+            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
+              <p>• Create playlists with <strong class="text-gray-300">+</strong> in the sidebar. Drag rows to reorder songs.</p>
+              <p>• ❤️ Heart any song to add it to Favorites — always one tap away.</p>
+              <p>• <strong class="text-gray-300">Export</strong> a playlist as JSON, share the file, friends can <strong class="text-gray-300">Import</strong> it.</p>
+              <p>• Tap 3-dot (⋮) on a song in a playlist to add it to another playlist or remove it.</p>
+            </div>
+          </section>
+
+          <!-- Equalizer -->
+          <section>
+            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+              <span>🎛️</span> 10-Band Equalizer
+            </h3>
+            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
+              <p>• Open EQ from the ⋮ menu. Sliders update audio in real time.</p>
+              <p>• Expand (⤢) for a full-screen view with taller sliders.</p>
+              <p>• Choose built-in presets (Bass Boost, Vocal, Treble, Flat).</p>
+              <p>• Save your own presets — they appear as one-tap buttons.</p>
+            </div>
+          </section>
+
+          <!-- Mini Player & Compact -->
+          <section>
+            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+              <span>🪟</span> Mini Player & Compact Mode
+            </h3>
+            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
+              <p>• Desktop: click the ⤢ icon in the player bar to open a draggable popup window.</p>
+              <p>• Mobile / compact: tap the compress icon (⊡) to enter a focused now-playing view.</p>
+              <p>• Tap <strong class="text-gray-300">Expand View</strong> to return to the full interface.</p>
+            </div>
+          </section>
+
+          <!-- Offline & PWA -->
+          <section>
+            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
+              <span>📶</span> Offline & Install
+            </h3>
+            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
+              <p>• Songs are cached after first play — they work offline afterward.</p>
+              <p>• Install SoundAura to your home screen for a native-app feel.</p>
+              <p>• Screen-off playback works — next song preloads in background.</p>
+            </div>
+          </section>
+
         </div>
 
-        <div class="mt-6 pt-4 border-t border-white/5 text-xs text-gray-500">
-          Built with ❤️ using Vanilla JS · Web Audio API · Tailwind CSS
+        <!-- Footer -->
+        <div class="px-6 pb-6 pt-2">
+          <div class="text-center text-xs text-gray-600 mb-3">
+            Built with ❤️ using Vanilla JS · Web Audio API · Tailwind CSS
+          </div>
+          <button id="close-about"
+            class="w-full py-2.5 rounded-xl text-cyan-400 text-sm font-medium transition-all"
+            style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(59,130,246,0.15));
+              border:1px solid rgba(6,182,212,0.25);">
+            Got it — Let's listen 🎵
+          </button>
         </div>
-        <button id="close-about"
-          class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400
-                 hover:from-cyan-500/30 hover:to-blue-500/30 text-sm font-medium transition-all">
-          Close
-        </button>
       </div>`;
 
     document.body.appendChild(modal);
 
-    // Animate in (double rAF so transition fires after paint)
     requestAnimationFrame(() => requestAnimationFrame(() => {
       modal.style.opacity = '1';
-      const card = modal.querySelector('[style*="scale-95"]') ||
-                   modal.querySelector('.bg-gray-900');
-      if (card) {
-        card.style.transform = 'scale(1)';
-        card.style.opacity   = '1';
-      }
+      const card = modal.querySelector('.bg-gray-900');
+      if (card) { card.style.transform = 'scale(1)'; card.style.opacity = '1'; }
     }));
 
     const close = () => {
@@ -3238,8 +3352,8 @@ const PopupMiniPlayer = {
       return;
     }
 
-    // Calculate position: near top-right corner of screen
-    const W = 370, H = 145;
+    // Calculate position: top-right corner, small square
+    const W = 200, H = 200;
     const left = Math.max(0, screen.width  - W - 20);
     const top  = Math.max(0, 60);
 
@@ -3353,10 +3467,14 @@ const CompactMode = {
   disable() {
     if (!this._active) return;
     this._active = false;
+    // Remove compact class first so all display:none reversals happen immediately
     document.body.classList.remove('compact-mode');
     Storage.save('compactMode', false);
     const btn = document.getElementById('compact-mode-toggle');
     if (btn) btn.textContent = '⬇ Compact Mode';
+    // Force layout recalculation so the song list re-appears without flicker
+    const layout = document.getElementById('layout-wrapper');
+    if (layout) { layout.style.display = 'none'; requestAnimationFrame(() => { layout.style.display = ''; }); }
   },
 
   toggle() {
