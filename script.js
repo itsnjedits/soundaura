@@ -3152,111 +3152,61 @@ const About = {
     modal.className = 'fixed inset-0 z-[80] flex items-center justify-center modal-backdrop bg-black/70 p-4';
     modal.style.cssText = 'opacity:0;transition:opacity 0.2s ease;';
     modal.innerHTML = `
-      <div class="bg-gray-900 border border-white/10 rounded-3xl w-full max-w-md shadow-2xl transform scale-95"
-           style="transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;max-height:88dvh;overflow-y:auto;">
+      <div class="bg-gray-900 border border-white/10 rounded-3xl p-7 w-full max-w-sm shadow-2xl text-center
+                  transform scale-95"
+           style="transition:transform 0.28s cubic-bezier(0.34,1.56,0.64,1),opacity 0.2s ease;opacity:0;">
 
-        <!-- Header -->
-        <div class="sticky top-0 bg-gray-900 px-6 pt-6 pb-4 border-b border-white/5 text-center rounded-t-3xl">
-          <div class="flex justify-center mb-2">
-            <img src="${logoSrc}" alt="SoundAura" class="h-12 w-auto object-contain"
-              style="filter:drop-shadow(0 2px 12px rgba(6,182,212,0.4));pointer-events:none;"
-              onerror="this.style.display='none'"/>
+        <div class="flex justify-center mb-3">
+          <img src="${logoSrc}" alt="SoundAura" class="h-14 w-auto object-contain"
+            style="filter:drop-shadow(0 2px 12px rgba(6,182,212,0.4));pointer-events:none;"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+          <div style="display:none" class="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-lg">
+            <svg viewBox="0 0 32 32" class="w-8 h-8"><polygon points="10,8 10,24 24,16" fill="white" opacity="0.95"/></svg>
           </div>
-          <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:1.35rem;
-            background:linear-gradient(110deg,#67e8f9 0%,#38bdf8 40%,#818cf8 100%);
-            -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
-            SoundAura
-          </h2>
-          <p class="text-gray-500 text-xs mt-0.5">Emotion-driven music streaming</p>
         </div>
 
-        <!-- Content -->
-        <div class="px-6 py-5 space-y-5 text-sm">
+        <h2 class="font-display leading-none tracking-wide mb-1"
+            style="font-weight:800;font-size:1.5rem;
+                   background:linear-gradient(110deg,#67e8f9 0%,#38bdf8 40%,#818cf8 100%);
+                   -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">
+          SoundAura
+        </h2>
+        <p class="text-gray-500 text-xs mb-5">Emotion-driven music, always.</p>
 
-          <!-- Quick Start -->
-          <section>
-            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
-              <span>🚀</span> Quick Start
-            </h3>
-            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
-              <p>• Tap any song to play it immediately with live loading feedback.</p>
-              <p>• Press <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">Space</kbd> to play/pause, <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">N</kbd> next, <kbd class="px-1.5 py-0.5 rounded bg-white/10 text-gray-300 font-mono">P</kbd> prev.</p>
-              <p>• Use <strong class="text-gray-300">Explore</strong> to browse by mood or artist. Find songs by emotion.</p>
-              <p>• Hit 🎲 for a random song anytime.</p>
-            </div>
-          </section>
-
-          <!-- Playlists -->
-          <section>
-            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
-              <span>📂</span> Playlists & Favorites
-            </h3>
-            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
-              <p>• Create playlists with <strong class="text-gray-300">+</strong> in the sidebar. Drag rows to reorder songs.</p>
-              <p>• ❤️ Heart any song to add it to Favorites — always one tap away.</p>
-              <p>• <strong class="text-gray-300">Export</strong> a playlist as JSON, share the file, friends can <strong class="text-gray-300">Import</strong> it.</p>
-              <p>• Tap 3-dot (⋮) on a song in a playlist to add it to another playlist or remove it.</p>
-            </div>
-          </section>
-
-          <!-- Equalizer -->
-          <section>
-            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
-              <span>🎛️</span> 10-Band Equalizer
-            </h3>
-            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
-              <p>• Open EQ from the ⋮ menu. Sliders update audio in real time.</p>
-              <p>• Expand (⤢) for a full-screen view with taller sliders.</p>
-              <p>• Choose built-in presets (Bass Boost, Vocal, Treble, Flat).</p>
-              <p>• Save your own presets — they appear as one-tap buttons.</p>
-            </div>
-          </section>
-
-          <!-- Mini Player & Compact -->
-          <section>
-            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
-              <span>🪟</span> Mini Player & Compact Mode
-            </h3>
-            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
-              <p>• Desktop: click the ⤢ icon in the player bar to open a draggable popup window.</p>
-              <p>• Mobile / compact: tap the compress icon (⊡) to enter a focused now-playing view.</p>
-              <p>• Tap <strong class="text-gray-300">Expand View</strong> to return to the full interface.</p>
-            </div>
-          </section>
-
-          <!-- Offline & PWA -->
-          <section>
-            <h3 class="text-white font-semibold mb-2 flex items-center gap-2">
-              <span>📶</span> Offline & Install
-            </h3>
-            <div class="space-y-1.5 text-gray-400 text-xs leading-relaxed">
-              <p>• Songs are cached after first play — they work offline afterward.</p>
-              <p>• Install SoundAura to your home screen for a native-app feel.</p>
-              <p>• Screen-off playback works — next song preloads in background.</p>
-            </div>
-          </section>
-
-        </div>
-
-        <!-- Footer -->
-        <div class="px-6 pb-6 pt-2">
-          <div class="text-center text-xs text-gray-600 mb-3">
-            Built with ❤️ using Vanilla JS · Web Audio API · Tailwind CSS
+        <div class="space-y-3 text-left text-sm text-gray-300">
+          <div class="flex gap-3 items-start">
+            <span class="text-xl mt-0.5">🎭</span>
+            <div><p class="text-white font-medium">Mood-based discovery</p><p class="text-gray-500 text-xs">Browse music by emotion — sad, romantic, party, spiritual and more.</p></div>
           </div>
-          <button id="close-about"
-            class="w-full py-2.5 rounded-xl text-cyan-400 text-sm font-medium transition-all"
-            style="background:linear-gradient(135deg,rgba(6,182,212,0.15),rgba(59,130,246,0.15));
-              border:1px solid rgba(6,182,212,0.25);">
-            Got it — Let's listen 🎵
-          </button>
+          <div class="flex gap-3 items-start">
+            <span class="text-xl mt-0.5">🎛️</span>
+            <div><p class="text-white font-medium">10-band Equalizer</p><p class="text-gray-500 text-xs">Real-time Web Audio API processing for studio-quality sound.</p></div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <span class="text-xl mt-0.5">📂</span>
+            <div><p class="text-white font-medium">Playlists & Favorites</p><p class="text-gray-500 text-xs">Create, share, and import playlists. Heart songs you love.</p></div>
+          </div>
+          <div class="flex gap-3 items-start">
+            <span class="text-xl mt-0.5">📶</span>
+            <div><p class="text-white font-medium">Works offline</p><p class="text-gray-500 text-xs">Service Worker caches assets for seamless listening anywhere.</p></div>
+          </div>
         </div>
+
+        <div class="mt-6 pt-4 border-t border-white/5 text-xs text-gray-500">
+          Built with ❤️ using Vanilla JS · Web Audio API · Tailwind CSS
+        </div>
+        <button id="close-about"
+          class="mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-400
+                 hover:from-cyan-500/30 hover:to-blue-500/30 text-sm font-medium transition-all">
+          Close
+        </button>
       </div>`;
 
     document.body.appendChild(modal);
 
     requestAnimationFrame(() => requestAnimationFrame(() => {
       modal.style.opacity = '1';
-      const card = modal.querySelector('.bg-gray-900');
+      const card = modal.querySelector('[style*="scale-95"]') || modal.querySelector('.bg-gray-900');
       if (card) { card.style.transform = 'scale(1)'; card.style.opacity = '1'; }
     }));
 
@@ -3467,14 +3417,15 @@ const CompactMode = {
   disable() {
     if (!this._active) return;
     this._active = false;
-    // Remove compact class first so all display:none reversals happen immediately
     document.body.classList.remove('compact-mode');
     Storage.save('compactMode', false);
     const btn = document.getElementById('compact-mode-toggle');
     if (btn) btn.textContent = '⬇ Compact Mode';
-    // Force layout recalculation so the song list re-appears without flicker
+    // Restore layout — clear any inline display override that may have been set
     const layout = document.getElementById('layout-wrapper');
-    if (layout) { layout.style.display = 'none'; requestAnimationFrame(() => { layout.style.display = ''; }); }
+    if (layout) layout.style.display = '';
+    const navbar = document.querySelector('.navbar');
+    if (navbar) navbar.style.display = '';
   },
 
   toggle() {
@@ -3508,17 +3459,15 @@ const CompactMode = {
   },
 
   init() {
-    // Expand button inside the compact screen
-    document.getElementById('compact-expand-btn')?.addEventListener('click', CompactMode.disable);
+    // Expand button inside the compact screen — arrow fn preserves context
+    document.getElementById('compact-expand-btn')?.addEventListener('click', () => CompactMode.disable());
 
     // Compact toggle buttons inside the player bar (mobile + desktop)
     ['compact-toggle-mobile', 'compact-toggle-desktop'].forEach(id => {
-      document.getElementById(id)?.addEventListener('click', () => {
-        CompactMode.toggle();
-      });
+      document.getElementById(id)?.addEventListener('click', () => CompactMode.toggle());
     });
 
-    // Legacy menu toggle (kept for compatibility, menu item still exists for desktop)
+    // Legacy menu toggle
     document.getElementById('compact-mode-toggle')?.addEventListener('click', (e) => {
       e.stopPropagation();
       document.getElementById('menu-panel')?.classList.add('hidden');
@@ -3842,6 +3791,118 @@ const MiniPlayer = {
 // 14. EVENT LISTENERS
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+// 13i. FUZZY SEARCH ENGINE
+//
+//  Scores songs against a query using multiple signals:
+//  • Exact substring match (highest score)
+//  • Word-level partial matches (each query word vs song fields)
+//  • Typo tolerance via bigram similarity
+//  • Multi-field: title + artist + filename
+//  • Mixed artist+title queries, e.g. "tum mohit" → correct song
+//
+//  Returns songs sorted best-first, threshold-filtered.
+// ═══════════════════════════════════════════════════════════
+
+const FuzzySearch = {
+  /** Normalise a string: lowercase, remove punctuation, collapse spaces */
+  _norm(s) {
+    return (s || '').toLowerCase().replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  },
+
+  /** Bigram set of a string */
+  _bigrams(s) {
+    const set = new Set();
+    for (let i = 0; i < s.length - 1; i++) set.add(s[i] + s[i+1]);
+    return set;
+  },
+
+  /** Dice coefficient similarity between two strings (0-1) */
+  _similarity(a, b) {
+    if (!a || !b) return 0;
+    if (a === b) return 1;
+    const ba = FuzzySearch._bigrams(a);
+    const bb = FuzzySearch._bigrams(b);
+    if (!ba.size || !bb.size) return 0;
+    let inter = 0;
+    ba.forEach(g => { if (bb.has(g)) inter++; });
+    return (2 * inter) / (ba.size + bb.size);
+  },
+
+  /**
+   * Score a single song against the query.
+   * Returns a number 0–100; 0 means "don't show".
+   */
+  _score(song, queryNorm, queryWords) {
+    const titleN  = FuzzySearch._norm(song.title);
+    const artistN = FuzzySearch._norm(
+      Array.isArray(song.artist) ? song.artist.join(' ') : (song.artist || '')
+    );
+    const fileN   = FuzzySearch._norm(song.file || '');
+    const combined = `${titleN} ${artistN}`;
+
+    let score = 0;
+
+    // ── 1. Exact substring in title (very high weight) ──────
+    if (titleN.includes(queryNorm)) score += 60;
+    else if (artistN.includes(queryNorm)) score += 50;
+    else if (combined.includes(queryNorm)) score += 45;
+
+    // ── 2. Word-level partial matches ──────────────────────
+    // Each query word earns points for matching any field
+    let wordScore = 0;
+    queryWords.forEach(w => {
+      if (w.length < 2) return;
+      if (titleN.includes(w))  wordScore += 12;
+      if (artistN.includes(w)) wordScore += 10;
+      if (fileN.includes(w))   wordScore += 4;
+    });
+    score += Math.min(wordScore, 40); // cap word bonus
+
+    // ── 3. Typo tolerance via bigram similarity ──────────────
+    // Only run if no exact match found yet
+    if (score < 20) {
+      const simTitle  = FuzzySearch._similarity(queryNorm, titleN) * 30;
+      const simArtist = FuzzySearch._similarity(queryNorm, artistN) * 24;
+      // Also compare query against individual title words
+      const titleWords = titleN.split(' ');
+      let maxWordSim = 0;
+      queryWords.forEach(qw => {
+        titleWords.forEach(tw => {
+          if (qw.length >= 3 && tw.length >= 3) {
+            maxWordSim = Math.max(maxWordSim, FuzzySearch._similarity(qw, tw) * 20);
+          }
+        });
+      });
+      score += Math.max(simTitle, simArtist, maxWordSim);
+    }
+
+    // ── 4. Starts-with bonus ───────────────────────────────
+    if (titleN.startsWith(queryNorm) || titleN.startsWith(queryWords[0] || ''))
+      score += 10;
+
+    return score;
+  },
+
+  /**
+   * Filter and rank songs against a query.
+   * Returns the sorted results (threshold: score ≥ 8).
+   */
+  rank(songs, query) {
+    const q = FuzzySearch._norm(query);
+    if (!q) return songs;
+    const words = q.split(' ').filter(w => w.length > 0);
+
+    const scored = songs
+      .map(song => ({ song, score: FuzzySearch._score(song, q, words) }))
+      .filter(x => x.score >= 8)
+      .sort((a, b) => b.score - a.score);
+
+    return scored.map(x => x.song);
+  }
+};
+
+
 function bindEvents() {
   // ── Smart Scroll Buttons (Feature 1) ──────────────────────
   // Attach to the song list container, not the page.
@@ -4073,24 +4134,21 @@ function bindEvents() {
     Favorites.openView();
   });
 
-  // ── Search ──
+  // ── Search (fuzzy, intent-aware) ──
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
     let searchTimer;
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => {
-        const q = searchInput.value.trim().toLowerCase();
-        if (!q) {
+        const raw = searchInput.value.trim();
+        if (!raw) {
           UI.renderSongList(state.currentPlaylist);
           return;
         }
-        const filtered = state.currentPlaylist.filter(s =>
-          s.title.toLowerCase().includes(q) ||
-          (Array.isArray(s.artist) ? s.artist.join(' ') : s.artist).toLowerCase().includes(q)
-        );
-        UI.renderSongList(filtered);
-      }, 200);
+        const results = FuzzySearch.rank(state.currentPlaylist, raw);
+        UI.renderSongList(results);
+      }, 150);
     });
   }
 
@@ -4241,6 +4299,8 @@ function registerServiceWorker() {
       document.getElementById('sw-refresh-btn')?.addEventListener('click', () => {
         // Tell the waiting SW to take control immediately
         reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+        // If controllerchange doesn't fire within 3s (edge case), reload anyway
+        setTimeout(() => window.location.reload(), 3000);
       });
     };
 

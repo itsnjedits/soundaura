@@ -8,114 +8,184 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #060d1b; --text: #f0f6ff; --muted: #6b7fa0;
+      --text: #f0f6ff; --muted: rgba(240,246,255,0.55);
       --accent: #06b6d4; --accent2: #3b82f6;
-      --border: rgba(255,255,255,0.1); --hover: rgba(255,255,255,0.12);
+      --hover: rgba(255,255,255,0.14);
+      --bg-base: #060d1b;
     }
     html.light {
-      --bg: #f0f5ff; --text: #0f172a; --muted: #475569;
+      --text: #0f172a; --muted: rgba(15,23,42,0.5);
       --accent: #0891b2; --accent2: #2563eb;
-      --border: rgba(0,0,0,0.1); --hover: rgba(0,0,0,0.08);
+      --hover: rgba(0,0,0,0.1);
+      --bg-base: #f0f5ff;
     }
 
-    html, body {
-      width: 200px; height: 200px; overflow: hidden;
-      background: var(--bg); color: var(--text);
+    /* ─── STRICT fixed size — no resize ever ─── */
+    html {
+      width: 200px !important; height: 200px !important;
+      max-width: 200px !important; max-height: 200px !important;
+      overflow: hidden !important;
+    }
+    body {
+      width: 200px !important; height: 200px !important;
+      max-width: 200px !important; max-height: 200px !important;
+      overflow: hidden !important;
+      background: var(--bg-base);
+      color: var(--text);
       font-family: 'Segoe UI', system-ui, sans-serif;
       user-select: none; -webkit-user-select: none;
+      position: fixed; top: 0; left: 0;
     }
 
-    /* Drag handle: full card is draggable */
-    body { cursor: grab; }
-    body:active { cursor: grabbing; }
-
+    /* ─── Card: exactly 200×200, no scroll, no flex-grow ─── */
     #card {
+      position: absolute;
+      top: 0; left: 0;
       width: 200px; height: 200px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    /* ─── Blurred album art background ─── */
+    #bg-art {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      filter: blur(10px) saturate(1.4);
+      transform: scale(1.12); /* prevent blur edge artifacts */
+      opacity: 0.28;
+      transition: background-image 0.6s ease, opacity 0.4s ease;
+      will-change: filter;
+      pointer-events: none;
+    }
+    /* Dark overlay over the blur */
+    #bg-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(
+        180deg,
+        rgba(6,13,27,0.55) 0%,
+        rgba(6,13,27,0.72) 100%
+      );
+      pointer-events: none;
+    }
+    html.light #bg-overlay {
+      background: linear-gradient(
+        180deg,
+        rgba(240,245,255,0.55) 0%,
+        rgba(240,245,255,0.72) 100%
+      );
+    }
+
+    /* ─── Content layer ─── */
+    #content {
+      position: relative; /* above bg-art + bg-overlay */
+      width: 100%; height: 100%;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
+      padding: 16px 14px 12px;
       gap: 0;
-      padding: 0 14px;
-      position: relative;
-      /* Glass border */
-      border: 1px solid rgba(6,182,212,0.22);
-      border-radius: 0;
-      background: var(--bg);
-      /* Subtle glow */
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
     }
 
-    /* Close button — top right corner */
+    /* Close button */
     #btn-close {
-      position: absolute; top: 7px; right: 7px;
-      width: 20px; height: 20px; border-radius: 50%;
+      position: absolute; top: 8px; right: 8px;
+      width: 22px; height: 22px; border-radius: 50%;
       background: none; border: none; cursor: pointer;
-      color: var(--muted); display: flex; align-items: center; justify-content: center;
+      color: var(--muted);
+      display: flex; align-items: center; justify-content: center;
       transition: color 0.12s, background 0.12s;
+      flex-shrink: 0;
     }
     #btn-close:hover { color: var(--text); background: var(--hover); }
 
-    /* Song title — marquee scrolling if too long */
+    /* Drag cursor on non-button areas */
+    #content { cursor: grab; }
+    #content:active { cursor: grabbing; }
+
+    /* ─── Title — marquee ─── */
     #song-title {
-      width: 100%; text-align: center;
-      font-size: 13px; font-weight: 700; color: var(--text);
+      width: 164px; /* card width minus padding */
+      text-align: center;
+      font-size: 13px; font-weight: 700;
+      color: var(--text);
       overflow: hidden; white-space: nowrap;
-      margin-bottom: 4px;
+      margin-bottom: 5px;
+      flex-shrink: 0;
     }
     #song-title .inner {
       display: inline-block;
-      /* marquee animation applied by JS when text overflows */
+      padding: 0 4px;
     }
     @keyframes marquee {
-      0%   { transform: translateX(0); }
-      20%  { transform: translateX(0); }
-      80%  { transform: translateX(var(--marquee-dist, -50%)); }
-      100% { transform: translateX(var(--marquee-dist, -50%)); }
+      0%,15%  { transform: translateX(0); }
+      85%,100%{ transform: translateX(var(--md, 0px)); }
     }
     #song-title.scrolling .inner {
-      animation: marquee 5s linear infinite;
+      animation: marquee 6s ease-in-out infinite alternate;
+    }
+    /* Pause on hover (desktop) */
+    #song-title.scrolling:hover .inner {
+      animation-play-state: paused;
     }
 
-    /* Artist */
+    /* ─── Artist ─── */
     #song-artist {
-      font-size: 10px; color: var(--muted); text-align: center;
+      font-size: 10px; color: var(--muted);
+      text-align: center;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-      width: 100%; margin-bottom: 16px;
+      width: 164px;
+      margin-bottom: 18px;
+      flex-shrink: 0;
     }
 
-    /* Controls row */
+    /* ─── Controls ─── */
     .ctrl-row {
-      display: flex; align-items: center; justify-content: center; gap: 10px;
+      display: flex; align-items: center; justify-content: center;
+      gap: 8px; flex-shrink: 0;
     }
 
-    button { background: none; border: none; cursor: pointer;
+    button {
+      background: none; border: none; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      border-radius: 50%; transition: background 0.12s, transform 0.08s; outline: none; }
+      border-radius: 50%;
+      transition: background 0.12s, transform 0.07s, color 0.12s;
+      outline: none; flex-shrink: 0;
+    }
 
-    .ctrl-btn { width: 30px; height: 30px; color: rgba(255,255,255,0.65); }
-    html.light .ctrl-btn { color: #334155; }
+    .ctrl-btn {
+      width: 30px; height: 30px;
+      color: rgba(255,255,255,0.7);
+    }
+    html.light .ctrl-btn { color: rgba(15,23,42,0.7); }
     .ctrl-btn:hover { background: var(--hover); color: var(--text); }
     .ctrl-btn:active { transform: scale(0.85); }
 
     #btn-play {
-      width: 40px; height: 40px;
+      width: 42px; height: 42px;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: white; box-shadow: 0 0 14px rgba(6,182,212,0.4);
-      transition: filter 0.12s, transform 0.08s, box-shadow 0.15s;
+      color: white;
+      box-shadow: 0 0 16px rgba(6,182,212,0.45);
+      transition: filter 0.12s, transform 0.07s, box-shadow 0.15s;
     }
-    #btn-play:hover { filter: brightness(1.15); box-shadow: 0 0 22px rgba(6,182,212,0.6); }
+    #btn-play:hover { filter: brightness(1.18); box-shadow: 0 0 24px rgba(6,182,212,0.65); }
     #btn-play:active { transform: scale(0.88); }
-    #btn-play.playing {
-      animation: playGlow 2.2s ease-in-out infinite;
-    }
+    #btn-play.playing { animation: playGlow 2.2s ease-in-out infinite; }
     @keyframes playGlow {
       0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.28); }
-      50%      { box-shadow: 0 0 24px rgba(6,182,212,0.7); }
+      50%      { box-shadow: 0 0 26px rgba(6,182,212,0.7); }
     }
 
-    /* Progress strip — thin line at very bottom */
+    /* ─── Progress strip (bottom) ─── */
     #prog-strip {
       position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(255,255,255,0.08);
+      pointer-events: none;
     }
     #prog-fill {
       height: 100%;
@@ -123,49 +193,53 @@
       width: 0%; transition: width 0.15s linear;
     }
 
-    /* Fallback: no BroadcastChannel */
-    #no-bc { display: none; flex-direction: column; align-items: center;
-      justify-content: center; height: 100%; padding: 14px; text-align: center; gap: 6px; }
+    /* ─── No-BC fallback ─── */
+    #no-bc {
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 200px; height: 200px; padding: 14px; text-align: center; gap: 6px;
+      background: var(--bg-base);
+    }
     #no-bc p { font-size: 10px; color: var(--muted); line-height: 1.45; }
   </style>
 </head>
 <body>
+
 <div id="card">
-  <!-- Close -->
-  <button id="btn-close" title="Close (Esc)">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11">
-      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-    </svg>
-  </button>
+  <div id="bg-art"></div>
+  <div id="bg-overlay"></div>
 
-  <!-- Title -->
-  <div id="song-title"><span class="inner">No song playing</span></div>
-
-  <!-- Artist -->
-  <div id="song-artist">–</div>
-
-  <!-- Controls: Prev · Play/Pause · Next -->
-  <div class="ctrl-row">
-    <button id="btn-prev" class="ctrl-btn" title="Previous">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-        <polygon points="19,20 9,12 19,4"/><rect x="4" y="4" width="3" height="16" rx="1.5"/>
+  <div id="content">
+    <button id="btn-close" title="Close (Esc)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
-    <button id="btn-play" title="Play / Pause">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>
-    </button>
-    <button id="btn-next" class="ctrl-btn" title="Next">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-        <polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="3" height="16" rx="1.5"/>
-      </svg>
-    </button>
+
+    <div id="song-title"><span class="inner">No song playing</span></div>
+    <div id="song-artist">–</div>
+
+    <div class="ctrl-row">
+      <button id="btn-prev" class="ctrl-btn" title="Previous">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <polygon points="19,20 9,12 19,4"/><rect x="4" y="4" width="3" height="16" rx="1.5"/>
+        </svg>
+      </button>
+      <button id="btn-play" title="Play / Pause">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>
+      </button>
+      <button id="btn-next" class="ctrl-btn" title="Next">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+          <polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="3" height="16" rx="1.5"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
-  <!-- Progress strip -->
   <div id="prog-strip"><div id="prog-fill"></div></div>
 </div>
 
-<div id="no-bc"><p>BroadcastChannel unsupported.<br>Use Chrome 54+ / Firefox 38+ / Edge 79+.</p></div>
+<div id="no-bc"><p>BroadcastChannel not supported.<br>Use Chrome 54+ / Firefox 38+ / Edge 79+.</p></div>
 
 <script>
 'use strict';
@@ -173,31 +247,38 @@ const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" heigh
 const PLAY_SVG  = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>';
 const $ = id => document.getElementById(id);
 
-// Marquee: if title text is wider than container, apply scrolling
+// ── Marquee: smooth alternate scroll if title overflows ───────
+let lastTitle = '';
 function applyMarquee() {
-  const wrap = $('song-title');
+  const wrap  = $('song-title');
   const inner = wrap.querySelector('.inner');
   if (!inner) return;
+
+  // Reset first
   wrap.classList.remove('scrolling');
   inner.style.animation = 'none';
-  // Measure
-  const containerW = wrap.offsetWidth;
+  void inner.offsetWidth; // reflow
+
+  const containerW = 164; // matches CSS width
   const textW = inner.scrollWidth;
-  if (textW > containerW + 4) {
-    // Set CSS variable for how far to scroll
-    const dist = -(textW - containerW + 10);
-    inner.style.setProperty('--marquee-dist', dist + 'px');
-    void inner.offsetWidth; // reflow
+  const overflow = textW - containerW;
+
+  if (overflow > 4) {
+    inner.style.setProperty('--md', `-${overflow + 8}px`);
     inner.style.animation = '';
     wrap.classList.add('scrolling');
   }
 }
 
-// Drag the window
+// ── Window drag via window.moveTo ─────────────────────────────
 let dragging = false, ox = 0, oy = 0;
-document.addEventListener('mousedown', e => {
+const content = $('content');
+content.addEventListener('mousedown', e => {
   if (e.target.closest('button')) return;
-  dragging = true; ox = e.screenX - window.screenX; oy = e.screenY - window.screenY;
+  dragging = true;
+  ox = e.screenX - window.screenX;
+  oy = e.screenY - window.screenY;
+  e.preventDefault();
 });
 document.addEventListener('mousemove', e => {
   if (!dragging) return;
@@ -205,6 +286,7 @@ document.addEventListener('mousemove', e => {
 });
 document.addEventListener('mouseup', () => { dragging = false; });
 
+// ── BroadcastChannel ──────────────────────────────────────────
 if (!('BroadcastChannel' in window)) {
   $('card').style.display = 'none';
   $('no-bc').style.display = 'flex';
@@ -214,20 +296,37 @@ if (!('BroadcastChannel' in window)) {
   bc.onmessage = e => {
     const d = e.data;
     if (d.type !== 'STATE') return;
+
+    // Theme
     document.getElementById('mp-html').className = d.isDark ? '' : 'light';
 
-    // Title with marquee
-    const titleInner = $('song-title').querySelector('.inner');
-    if (titleInner) titleInner.textContent = d.title || 'No song playing';
-    document.title = (d.title || 'SoundAura');
-    requestAnimationFrame(applyMarquee);
+    // Background blur art
+    if (d.thumb) {
+      $('bg-art').style.backgroundImage = `url('${d.thumb}')`;
+      $('bg-art').style.opacity = '0.28';
+    } else {
+      $('bg-art').style.opacity = '0';
+    }
 
+    // Title with marquee
+    const titleWrap = $('song-title');
+    const inner = titleWrap.querySelector('.inner');
+    const newTitle = d.title || 'No song playing';
+    if (newTitle !== lastTitle) {
+      lastTitle = newTitle;
+      if (inner) inner.textContent = newTitle;
+      document.title = newTitle;
+      requestAnimationFrame(applyMarquee);
+    }
+
+    // Artist
     $('song-artist').textContent = d.artist || '–';
 
+    // Play/pause
     $('btn-play').innerHTML = d.playing ? PAUSE_SVG : PLAY_SVG;
     $('btn-play').classList.toggle('playing', d.playing);
 
-    // Thin progress strip
+    // Progress strip
     $('prog-fill').style.width = (d.progress || 0) + '%';
   };
 
@@ -235,25 +334,35 @@ if (!('BroadcastChannel' in window)) {
   $('btn-prev').addEventListener('click', () => bc.postMessage({ type: 'CMD_PREV' }));
   $('btn-next').addEventListener('click', () => bc.postMessage({ type: 'CMD_NEXT' }));
   $('btn-close').addEventListener('click', () => {
-    bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close();
+    bc.postMessage({ type: 'POPUP_CLOSED' });
+    bc.close();
+    window.close();
   });
 
   document.addEventListener('keydown', e => {
     if (e.code === 'Space')      { e.preventDefault(); bc.postMessage({ type: 'CMD_PLAY' }); }
     else if (e.code === 'ArrowLeft')  bc.postMessage({ type: 'CMD_PREV' });
     else if (e.code === 'ArrowRight') bc.postMessage({ type: 'CMD_NEXT' });
-    else if (e.code === 'Escape')   { bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close(); }
+    else if (e.code === 'Escape') {
+      bc.postMessage({ type: 'POPUP_CLOSED' });
+      bc.close(); window.close();
+    }
   });
 
   bc.postMessage({ type: 'POPUP_READY' });
 
   // Disconnect detection
   let dead = setTimeout(() => {
-    $('song-title').querySelector('.inner').textContent = 'Waiting…';
-    $('song-artist').textContent = 'Open SoundAura';
-    document.title = 'SoundAura';
+    const inner = $('song-title').querySelector('.inner');
+    if (inner) inner.textContent = 'Waiting for SoundAura…';
+    $('song-artist').textContent = 'Keep the main window open';
+    $('bg-art').style.opacity = '0';
+    lastTitle = '';
   }, 8000);
-  bc.addEventListener('message', () => { clearTimeout(dead); dead = setTimeout(() => {}, 8000); });
+  bc.addEventListener('message', () => {
+    clearTimeout(dead);
+    dead = setTimeout(() => {}, 8000);
+  });
 }
 </script>
 </body>
