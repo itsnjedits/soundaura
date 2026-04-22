@@ -2783,17 +2783,25 @@ const Toast = {
 // ═══════════════════════════════════════════════════════════
 
 const LoadingToast = {
-  _el:       null,
-  _bar:      null,
-  _label:    null,
-  _raf:      null,
-  _start:    0,
-  _duration: 2500,  // ms to reach 90%
-  _pct:      0,
+  _el:        null,
+  _bar:       null,
+  _label:     null,
+  _pctEl:     null,
+  _raf:       null,
+  _maxTimer:  null,   // safety: force-dismiss after MAX_LIFE ms no matter what
+  _dimTimer:  null,   // dismiss delay timers (complete/error)
+  _start:     0,
+  _duration:  2500,   // ms to reach 90%
+  _pct:       0,
+  MAX_LIFE:   8000,   // absolute max toast lifetime (ms)
 
-  /** Show loading toast for a song. Starts pseudo-progress immediately. */
+  /** Show loading toast for a song. Always clears any previous toast from DOM first. */
   show(songTitle) {
-    LoadingToast._clear();
+    // ── CRITICAL: always nuke existing DOM element immediately ──
+    // _clear() only nulls JS refs — it does NOT remove the DOM node.
+    // We must remove it here so old toasts never get orphaned.
+    LoadingToast._forceRemoveDom();
+    LoadingToast._clearTimers();
 
     const el = document.createElement('div');
     el.id = 'loading-toast';
@@ -2809,7 +2817,7 @@ const LoadingToast = {
 
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
-        <div style="width:14px;height:14px;border:2px solid rgba(6,182,212,0.3);
+        <div id="lt-spinner" style="width:14px;height:14px;border:2px solid rgba(6,182,212,0.3);
           border-top-color:#06b6d4;border-radius:50%;
           animation:ltSpin 0.75s linear infinite;flex-shrink:0;"></div>
         <span id="lt-label" style="font-size:11px;font-weight:600;color:#f0f6ff;
@@ -2817,7 +2825,10 @@ const LoadingToast = {
           Loading…
         </span>
         <span id="lt-pct" style="font-size:10px;color:#06b6d4;font-variant-numeric:tabular-nums;
-          font-weight:700;flex-shrink:0;">0%</span>
+          font-weight:700;flex-shrink:0;margin-right:4px;">0%</span>
+        <button id="lt-close" style="background:none;border:none;color:rgba(255,255,255,0.5);
+          cursor:pointer;padding:0;font-size:13px;line-height:1;flex-shrink:0;
+          transition:color 0.1s" aria-label="Dismiss">✕</button>
       </div>
       <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;">
         <div id="lt-bar" style="height:100%;width:0%;border-radius:999px;
@@ -2830,6 +2841,9 @@ const LoadingToast = {
     LoadingToast._bar   = el.querySelector('#lt-bar');
     LoadingToast._label = el.querySelector('#lt-label');
     LoadingToast._pctEl = el.querySelector('#lt-pct');
+
+    // Close button — always lets user dismiss manually
+    el.querySelector('#lt-close')?.addEventListener('click', () => LoadingToast._dismiss());
 
     // Shorten title to fit
     const shortTitle = songTitle && songTitle.length > 28
@@ -2846,13 +2860,16 @@ const LoadingToast = {
     LoadingToast._pct   = 0;
     LoadingToast._start = performance.now();
     LoadingToast._tick();
+
+    // Safety net: no matter what, dismiss after MAX_LIFE ms
+    // Handles cases where complete()/error() never fire (e.g. song switch mid-load)
+    LoadingToast._maxTimer = setTimeout(() => LoadingToast._dismiss(), LoadingToast.MAX_LIFE);
   },
 
   /** Animate pseudo-progress from 0 → 90% over _duration ms */
   _tick() {
     if (!LoadingToast._el) return;
     const elapsed = performance.now() - LoadingToast._start;
-    // Ease-out curve: fast start, slows near 90%
     const raw = Math.min(elapsed / LoadingToast._duration, 1);
     const pct  = Math.round(90 * (1 - Math.pow(1 - raw, 2.4)));
     LoadingToast._setBar(pct);
@@ -2869,11 +2886,13 @@ const LoadingToast = {
 
   /** Called when audio actually starts playing — jump to 100% and auto-dismiss */
   complete() {
-    if (!LoadingToast._el) return;
+    const el = LoadingToast._el;
+    if (!el) return;
     cancelAnimationFrame(LoadingToast._raf);
+    LoadingToast._raf = null;
     LoadingToast._setBar(100);
     // Swap spinner for checkmark
-    const spinner = LoadingToast._el.querySelector('[style*="ltSpin"]');
+    const spinner = el.querySelector('#lt-spinner');
     if (spinner) {
       spinner.style.animation = 'none';
       spinner.style.border    = '2px solid #10b981';
@@ -2883,35 +2902,56 @@ const LoadingToast = {
       spinner.style.justifyContent = 'center';
     }
     if (LoadingToast._label) LoadingToast._label.style.color = '#10b981';
-    // Dismiss after a brief moment so the green flash registers
-    setTimeout(() => LoadingToast._dismiss(), 450);
+    LoadingToast._dimTimer = setTimeout(() => LoadingToast._dismiss(), 450);
   },
 
-  /** Called on load error — show red state */
+  /** Called on load error — show red state then dismiss */
   error() {
-    if (!LoadingToast._el) return;
+    const el = LoadingToast._el;
+    if (!el) return;
     cancelAnimationFrame(LoadingToast._raf);
+    LoadingToast._raf = null;
     LoadingToast._setBar(LoadingToast._pct); // freeze where it is
     if (LoadingToast._label) {
       LoadingToast._label.textContent = 'Load failed';
       LoadingToast._label.style.color = '#f87171';
     }
     if (LoadingToast._pctEl) LoadingToast._pctEl.textContent = '✕';
-    setTimeout(() => LoadingToast._dismiss(), 900);
+    LoadingToast._dimTimer = setTimeout(() => LoadingToast._dismiss(), 1200);
   },
 
+  /**
+   * _dismiss — always works even if refs were cleared.
+   * Finds the DOM element by ID as fallback so it ALWAYS gets removed.
+   */
   _dismiss() {
-    const el = LoadingToast._el;
+    LoadingToast._clearTimers();
+    // Prefer stored ref; fall back to DOM lookup so orphaned toasts are caught too
+    const el = LoadingToast._el || document.getElementById('loading-toast');
+    LoadingToast._el = LoadingToast._bar = LoadingToast._label = LoadingToast._pctEl = null;
     if (!el) return;
     el.style.transform = 'translateX(110%)';
-    setTimeout(() => { el.remove(); }, 280);
-    LoadingToast._clear();
+    setTimeout(() => { if (el.parentNode) el.remove(); }, 280);
   },
 
-  _clear() {
+  /** Remove any loading-toast DOM node that may be orphaned */
+  _forceRemoveDom() {
+    const existing = document.getElementById('loading-toast');
+    if (existing) existing.remove();
+  },
+
+  /** Cancel all pending timers + RAF */
+  _clearTimers() {
     cancelAnimationFrame(LoadingToast._raf);
-    LoadingToast._el = LoadingToast._bar = LoadingToast._label = LoadingToast._pctEl = null;
     LoadingToast._raf = null;
+    if (LoadingToast._maxTimer) { clearTimeout(LoadingToast._maxTimer); LoadingToast._maxTimer = null; }
+    if (LoadingToast._dimTimer) { clearTimeout(LoadingToast._dimTimer); LoadingToast._dimTimer = null; }
+  },
+
+  /** Legacy alias used in some paths */
+  _clear() {
+    LoadingToast._clearTimers();
+    LoadingToast._el = LoadingToast._bar = LoadingToast._label = LoadingToast._pctEl = null;
   }
 };
 
@@ -3303,7 +3343,7 @@ const PopupMiniPlayer = {
     }
 
     // Calculate position: top-right corner, small square
-    const W = 200, H = 200;
+    const W = 170, H = 170;
     const left = Math.max(0, screen.width  - W - 20);
     const top  = Math.max(0, 60);
 

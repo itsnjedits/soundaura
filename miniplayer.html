@@ -20,15 +20,15 @@
       --bg-base: #f0f5ff;
     }
 
-    /* ─── STRICT fixed size — no resize ever ─── */
+    /* ─── STRICT fixed 170×170 ─── */
     html {
-      width: 200px !important; height: 200px !important;
-      max-width: 200px !important; max-height: 200px !important;
+      width: 170px !important; height: 170px !important;
+      max-width: 170px !important; max-height: 170px !important;
       overflow: hidden !important;
     }
     body {
-      width: 200px !important; height: 200px !important;
-      max-width: 200px !important; max-height: 200px !important;
+      width: 170px !important; height: 170px !important;
+      max-width: 170px !important; max-height: 170px !important;
       overflow: hidden !important;
       background: var(--bg-base);
       color: var(--text);
@@ -37,117 +37,74 @@
       position: fixed; top: 0; left: 0;
     }
 
-    /* ─── Card: exactly 200×200, no scroll, no flex-grow ─── */
     #card {
-      position: absolute;
-      top: 0; left: 0;
-      width: 200px; height: 200px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      padding: 0;
+      position: absolute; top: 0; left: 0;
+      width: 170px; height: 170px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       overflow: hidden;
     }
 
-    /* ─── Blurred album art background ─── */
     #bg-art {
-      position: absolute;
-      inset: 0;
-      background-size: cover;
-      background-position: center;
+      position: absolute; inset: 0;
+      background-size: cover; background-position: center;
       filter: blur(10px) saturate(1.4);
-      transform: scale(1.12); /* prevent blur edge artifacts */
+      transform: scale(1.12);
       opacity: 0.28;
       transition: background-image 0.6s ease, opacity 0.4s ease;
-      will-change: filter;
       pointer-events: none;
     }
-    /* Dark overlay over the blur */
     #bg-overlay {
       position: absolute; inset: 0;
-      background: linear-gradient(
-        180deg,
-        rgba(6,13,27,0.55) 0%,
-        rgba(6,13,27,0.72) 100%
-      );
+      background: linear-gradient(180deg,rgba(6,13,27,0.55) 0%,rgba(6,13,27,0.72) 100%);
       pointer-events: none;
     }
     html.light #bg-overlay {
-      background: linear-gradient(
-        180deg,
-        rgba(240,245,255,0.55) 0%,
-        rgba(240,245,255,0.72) 100%
-      );
+      background: linear-gradient(180deg,rgba(240,245,255,0.55) 0%,rgba(240,245,255,0.72) 100%);
     }
 
-    /* ─── Content layer ─── */
     #content {
-      position: relative; /* above bg-art + bg-overlay */
-      width: 100%; height: 100%;
+      position: relative; width: 100%; height: 100%;
       display: flex; flex-direction: column;
       align-items: center; justify-content: center;
-      padding: 16px 14px 12px;
-      gap: 0;
+      padding: 12px 10px 10px; gap: 0;
+      cursor: grab;
     }
+    #content:active { cursor: grabbing; }
 
-    /* Close button */
     #btn-close {
-      position: absolute; top: 8px; right: 8px;
-      width: 22px; height: 22px; border-radius: 50%;
+      position: absolute; top: 6px; right: 6px;
+      width: 20px; height: 20px; border-radius: 50%;
       background: none; border: none; cursor: pointer;
       color: var(--muted);
       display: flex; align-items: center; justify-content: center;
-      transition: color 0.12s, background 0.12s;
-      flex-shrink: 0;
+      transition: color 0.12s, background 0.12s; flex-shrink: 0;
     }
     #btn-close:hover { color: var(--text); background: var(--hover); }
 
-    /* Drag cursor on non-button areas */
-    #content { cursor: grab; }
-    #content:active { cursor: grabbing; }
-
-    /* ─── Title — marquee ─── */
     #song-title {
-      width: 164px; /* card width minus padding */
-      text-align: center;
-      font-size: 13px; font-weight: 700;
-      color: var(--text);
+      width: 140px; text-align: center;
+      font-size: 12px; font-weight: 700; color: var(--text);
       overflow: hidden; white-space: nowrap;
-      margin-bottom: 5px;
-      flex-shrink: 0;
+      margin-bottom: 3px; flex-shrink: 0;
     }
-    #song-title .inner {
-      display: inline-block;
-      padding: 0 4px;
-    }
+    #song-title .inner { display: inline-block; padding: 0 4px; }
     @keyframes marquee {
       0%,15%  { transform: translateX(0); }
       85%,100%{ transform: translateX(var(--md, 0px)); }
     }
-    #song-title.scrolling .inner {
-      animation: marquee 6s ease-in-out infinite alternate;
-    }
-    /* Pause on hover (desktop) */
-    #song-title.scrolling:hover .inner {
-      animation-play-state: paused;
-    }
+    #song-title.scrolling .inner { animation: marquee 6s ease-in-out infinite alternate; }
+    #song-title.scrolling:hover .inner { animation-play-state: paused; }
 
-    /* ─── Artist ─── */
     #song-artist {
-      font-size: 10px; color: var(--muted);
-      text-align: center;
+      font-size: 9px; color: var(--muted); text-align: center;
       overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-      width: 164px;
-      margin-bottom: 18px;
-      flex-shrink: 0;
+      width: 140px; margin-bottom: 14px; flex-shrink: 0;
     }
 
-    /* ─── Controls ─── */
     .ctrl-row {
       display: flex; align-items: center; justify-content: center;
-      gap: 8px; flex-shrink: 0;
+      gap: 6px; flex-shrink: 0;
     }
 
     button {
@@ -157,35 +114,28 @@
       transition: background 0.12s, transform 0.07s, color 0.12s;
       outline: none; flex-shrink: 0;
     }
-
-    .ctrl-btn {
-      width: 30px; height: 30px;
-      color: rgba(255,255,255,0.7);
-    }
+    .ctrl-btn { width: 26px; height: 26px; color: rgba(255,255,255,0.7); }
     html.light .ctrl-btn { color: rgba(15,23,42,0.7); }
     .ctrl-btn:hover { background: var(--hover); color: var(--text); }
     .ctrl-btn:active { transform: scale(0.85); }
 
     #btn-play {
-      width: 42px; height: 42px;
+      width: 36px; height: 36px;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: white;
-      box-shadow: 0 0 16px rgba(6,182,212,0.45);
+      color: white; box-shadow: 0 0 14px rgba(6,182,212,0.45);
       transition: filter 0.12s, transform 0.07s, box-shadow 0.15s;
     }
-    #btn-play:hover { filter: brightness(1.18); box-shadow: 0 0 24px rgba(6,182,212,0.65); }
+    #btn-play:hover { filter: brightness(1.18); box-shadow: 0 0 20px rgba(6,182,212,0.65); }
     #btn-play:active { transform: scale(0.88); }
     #btn-play.playing { animation: playGlow 2.2s ease-in-out infinite; }
     @keyframes playGlow {
-      0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.28); }
-      50%      { box-shadow: 0 0 26px rgba(6,182,212,0.7); }
+      0%,100% { box-shadow: 0 0 8px rgba(6,182,212,0.28); }
+      50%      { box-shadow: 0 0 22px rgba(6,182,212,0.7); }
     }
 
-    /* ─── Progress strip (bottom) ─── */
     #prog-strip {
       position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
-      background: rgba(255,255,255,0.08);
-      pointer-events: none;
+      background: rgba(255,255,255,0.08); pointer-events: none;
     }
     #prog-fill {
       height: 100%;
@@ -193,11 +143,10 @@
       width: 0%; transition: width 0.15s linear;
     }
 
-    /* ─── No-BC fallback ─── */
     #no-bc {
       display: none; flex-direction: column;
       align-items: center; justify-content: center;
-      width: 200px; height: 200px; padding: 14px; text-align: center; gap: 6px;
+      width: 170px; height: 170px; padding: 12px; text-align: center; gap: 6px;
       background: var(--bg-base);
     }
     #no-bc p { font-size: 10px; color: var(--muted); line-height: 1.45; }
@@ -208,34 +157,30 @@
 <div id="card">
   <div id="bg-art"></div>
   <div id="bg-overlay"></div>
-
   <div id="content">
     <button id="btn-close" title="Close (Esc)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="11" height="11">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="10" height="10">
         <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
       </svg>
     </button>
-
     <div id="song-title"><span class="inner">No song playing</span></div>
     <div id="song-artist">–</div>
-
     <div class="ctrl-row">
       <button id="btn-prev" class="ctrl-btn" title="Previous">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
           <polygon points="19,20 9,12 19,4"/><rect x="4" y="4" width="3" height="16" rx="1.5"/>
         </svg>
       </button>
       <button id="btn-play" title="Play / Pause">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>
       </button>
       <button id="btn-next" class="ctrl-btn" title="Next">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
           <polygon points="5,4 15,12 5,20"/><rect x="17" y="4" width="3" height="16" rx="1.5"/>
         </svg>
       </button>
     </div>
   </div>
-
   <div id="prog-strip"><div id="prog-fill"></div></div>
 </div>
 
@@ -243,26 +188,32 @@
 
 <script>
 'use strict';
-const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-const PLAY_SVG  = '<svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><polygon points="5,3 19,12 5,21"/></svg>';
+// Window size constants — match CSS exactly
+const WIN_W = 170, WIN_H = 170;
+
+const PAUSE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+const PLAY_SVG  = '<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><polygon points="5,3 19,12 5,21"/></svg>';
 const $ = id => document.getElementById(id);
 
-// ── Marquee: smooth alternate scroll if title overflows ───────
+// ── Lock window size (some browsers ignore resizable=no) ────────
+function lockSize() {
+  if (window.outerWidth !== WIN_W || window.outerHeight !== WIN_H) {
+    try { window.resizeTo(WIN_W, WIN_H); } catch(e) {}
+  }
+}
+lockSize();
+setInterval(lockSize, 2000);
+
+// ── Marquee ─────────────────────────────────────────────────────
 let lastTitle = '';
 function applyMarquee() {
   const wrap  = $('song-title');
   const inner = wrap.querySelector('.inner');
   if (!inner) return;
-
-  // Reset first
   wrap.classList.remove('scrolling');
   inner.style.animation = 'none';
-  void inner.offsetWidth; // reflow
-
-  const containerW = 164; // matches CSS width
-  const textW = inner.scrollWidth;
-  const overflow = textW - containerW;
-
+  void inner.offsetWidth;
+  const overflow = inner.scrollWidth - 140;
   if (overflow > 4) {
     inner.style.setProperty('--md', `-${overflow + 8}px`);
     inner.style.animation = '';
@@ -270,10 +221,9 @@ function applyMarquee() {
   }
 }
 
-// ── Window drag via window.moveTo ─────────────────────────────
+// ── Window drag — re-lock size after every move to prevent expansion ──
 let dragging = false, ox = 0, oy = 0;
-const content = $('content');
-content.addEventListener('mousedown', e => {
+$('content').addEventListener('mousedown', e => {
   if (e.target.closest('button')) return;
   dragging = true;
   ox = e.screenX - window.screenX;
@@ -282,11 +232,19 @@ content.addEventListener('mousedown', e => {
 });
 document.addEventListener('mousemove', e => {
   if (!dragging) return;
-  window.moveTo(e.screenX - ox, e.screenY - oy);
+  try {
+    window.moveTo(e.screenX - ox, e.screenY - oy);
+    window.resizeTo(WIN_W, WIN_H); // re-lock after every move
+  } catch(e) {}
 });
-document.addEventListener('mouseup', () => { dragging = false; });
+document.addEventListener('mouseup', () => {
+  if (dragging) {
+    dragging = false;
+    try { window.resizeTo(WIN_W, WIN_H); } catch(e) {}
+  }
+});
 
-// ── BroadcastChannel ──────────────────────────────────────────
+// ── BroadcastChannel ─────────────────────────────────────────────
 if (!('BroadcastChannel' in window)) {
   $('card').style.display = 'none';
   $('no-bc').style.display = 'flex';
@@ -297,10 +255,8 @@ if (!('BroadcastChannel' in window)) {
     const d = e.data;
     if (d.type !== 'STATE') return;
 
-    // Theme
     document.getElementById('mp-html').className = d.isDark ? '' : 'light';
 
-    // Background blur art
     if (d.thumb) {
       $('bg-art').style.backgroundImage = `url('${d.thumb}')`;
       $('bg-art').style.opacity = '0.28';
@@ -308,9 +264,7 @@ if (!('BroadcastChannel' in window)) {
       $('bg-art').style.opacity = '0';
     }
 
-    // Title with marquee
-    const titleWrap = $('song-title');
-    const inner = titleWrap.querySelector('.inner');
+    const inner = $('song-title').querySelector('.inner');
     const newTitle = d.title || 'No song playing';
     if (newTitle !== lastTitle) {
       lastTitle = newTitle;
@@ -319,14 +273,9 @@ if (!('BroadcastChannel' in window)) {
       requestAnimationFrame(applyMarquee);
     }
 
-    // Artist
     $('song-artist').textContent = d.artist || '–';
-
-    // Play/pause
     $('btn-play').innerHTML = d.playing ? PAUSE_SVG : PLAY_SVG;
     $('btn-play').classList.toggle('playing', d.playing);
-
-    // Progress strip
     $('prog-fill').style.width = (d.progress || 0) + '%';
   };
 
@@ -334,19 +283,14 @@ if (!('BroadcastChannel' in window)) {
   $('btn-prev').addEventListener('click', () => bc.postMessage({ type: 'CMD_PREV' }));
   $('btn-next').addEventListener('click', () => bc.postMessage({ type: 'CMD_NEXT' }));
   $('btn-close').addEventListener('click', () => {
-    bc.postMessage({ type: 'POPUP_CLOSED' });
-    bc.close();
-    window.close();
+    bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close();
   });
 
   document.addEventListener('keydown', e => {
-    if (e.code === 'Space')      { e.preventDefault(); bc.postMessage({ type: 'CMD_PLAY' }); }
+    if (e.code === 'Space')           { e.preventDefault(); bc.postMessage({ type: 'CMD_PLAY' }); }
     else if (e.code === 'ArrowLeft')  bc.postMessage({ type: 'CMD_PREV' });
     else if (e.code === 'ArrowRight') bc.postMessage({ type: 'CMD_NEXT' });
-    else if (e.code === 'Escape') {
-      bc.postMessage({ type: 'POPUP_CLOSED' });
-      bc.close(); window.close();
-    }
+    else if (e.code === 'Escape') { bc.postMessage({ type: 'POPUP_CLOSED' }); bc.close(); window.close(); }
   });
 
   bc.postMessage({ type: 'POPUP_READY' });
