@@ -309,6 +309,20 @@ audioEl.preload = 'auto';
 // Error handler — logs to FailureLog and surfaces in UI
 audioEl.onerror = () => {
   const song = state.currentSongIndex >= 0 ? state.currentPlaylist[state.currentSongIndex] : null;
+
+  // ── [FIX P-1] Stale-load guard ───────────────────────────────
+  // When loadAndPlay() is called rapidly, the browser aborts the
+  // previous in-flight request.  onerror can fire for that OLD,
+  // now-irrelevant load.  We compare audioEl.src (which by this
+  // point already holds the NEW url) against what the CURRENT song
+  // expects.  A mismatch means this error belongs to an aborted
+  // load — silently ignore it so no false "Load Failed" appears.
+  const intendedUrl = song ? DataLoader.getAudioUrl(song) : '';
+  if (intendedUrl && audioEl.src !== intendedUrl) {
+    console.warn('[Player] Stale onerror suppressed — belongs to an aborted load');
+    return;
+  }
+
   const reason = audioEl.error ? `MediaError code ${audioEl.error.code}` : 'Unknown error';
   console.error('[Player] Audio failed to load:', audioEl.src, reason);
   FailureLog.add(song, reason);
@@ -642,11 +656,25 @@ const Playlist = {
   /** Pick a random song, highlight and scroll to it */
   playRandom() {
     if (!state.currentPlaylist.length) return;
+
+    // ── [FIX P-3] Throttle rapid clicks ─────────────────────────
+    // Each click that gets through triggers one full load cycle.
+    // We lock for 650 ms — enough to cover the dice animation
+    // (450 ms) plus one extra tick so the previous load can settle.
+    // This prevents stacking multiple parallel loads that cause
+    // AbortError cascades and false "Load Failed" messages.
+    if (Playlist._randomBusy) return;
+    Playlist._randomBusy = true;
+    setTimeout(() => { Playlist._randomBusy = false; }, 650);
+
     const idx = Math.floor(Math.random() * state.currentPlaylist.length);
     Playlist.playAt(idx);
     UI.scrollToSong(idx);
     Toast.show(`🎲 Playing: ${state.currentPlaylist[idx].title}`, 'info');
-  }
+  },
+
+  // Throttle flag — shared with the dice button event handler
+  _randomBusy: false
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -688,6 +716,16 @@ const Player = {
           setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
         })
         .catch(e => {
+          // ── [FIX P-2] AbortError guard ──────────────────────────
+          // When the user rapidly clicks random/next/prev, the browser
+          // cancels the in-flight play() call and rejects the promise
+          // with DOMException { name: 'AbortError' }.  This is NOT a
+          // playback failure — the NEW song will play correctly.
+          // Never surface "Load Failed" for an abort.
+          if (e && e.name === 'AbortError') {
+            console.info('[Player] play() aborted by a newer load — not an error');
+            return;
+          }
           console.warn('[Player] Playback blocked:', e);
           state.isPlaying = false;
           UI.setPlayPauseIcon(false);
@@ -1968,19 +2006,25 @@ const Explore = {
       if (tabMoodActive) singerSection?.classList.add('hidden');
     });
 
-    // Live search
+    // ── [FIX P-6] Live search — FuzzySearch for typo-tolerance ──
+    // The main search bar uses FuzzySearch; the add-songs modal was
+    // using a basic .includes() filter.  Replace with FuzzySearch so
+    // both surfaces behave identically: case-insensitive, partial
+    // match, typo-tolerant, best matches ranked first.
     sel.querySelector('#sel-search')?.addEventListener('input', (e) => {
-      const q = e.target.value.trim().toLowerCase();
-      const filtered = q
-        ? songs.filter(s =>
-            s.title.toLowerCase().includes(q) ||
-            (Array.isArray(s.artist) ? s.artist.join(' ') : s.artist || '').toLowerCase().includes(q)
-          )
-        : songs;
+      const q = e.target.value.trim();
+      // FuzzySearch.rank returns the full songs array when q is empty.
+      const filtered = q ? FuzzySearch.rank(songs, q) : songs;
       renderList(filtered);
+
+      // [FIX P-6] Scroll results to top so best matches are visible
+      // immediately — same behaviour as the main search.
+      const listEl = sel.querySelector('#sel-song-list');
+      if (listEl) listEl.scrollTop = 0;
     });
 
-    // Select All button
+    // Select All button — operates on the VISIBLE (filtered) subset
+    // so selecting all while searching only checks the matched songs.
     sel.querySelector('#sel-all-btn')?.addEventListener('click', () => {
       const allChecked = songs.every(s => state.selectedSongs.has(DataLoader.getAudioUrl(s)));
       songs.forEach(s => {
@@ -1988,8 +2032,10 @@ const Explore = {
         if (allChecked) state.selectedSongs.delete(url);
         else state.selectedSongs.add(url);
       });
-      const q = sel.querySelector('#sel-search')?.value.trim().toLowerCase() || '';
-      const filtered = q ? songs.filter(s => s.title.toLowerCase().includes(q)) : songs;
+      // [FIX P-6b] Re-use FuzzySearch so the re-rendered list matches
+      // what the search input is currently showing.
+      const q = sel.querySelector('#sel-search')?.value.trim() || '';
+      const filtered = q ? FuzzySearch.rank(songs, q) : songs;
       renderList(filtered);
       Explore.updateSelectionCount();
     });
@@ -4079,8 +4125,29 @@ function bindEvents() {
   wireProgressBar('progress-bar', 'progress-filled', 'progress-thumb');
   wireProgressBar('progress-bar-desktop', 'progress-filled-desktop', 'progress-thumb-desktop');
 
-  // ── Dice (Random) Button ──
-  document.getElementById('dice-btn')?.addEventListener('click', Playlist.playRandom);
+  // ── Dice (Random) Button — roll animation + throttle ──────────
+  // The _randomBusy flag is set inside Playlist.playRandom() for
+  // 650 ms so rapid clicks are ignored while a load is in progress.
+  // The CSS class 'dice-rolling' drives a 450 ms keyframe animation
+  // defined in index.html <style>.
+  document.getElementById('dice-btn')?.addEventListener('click', () => {
+    // Guard: if a load is already in progress, swallow the click.
+    if (Playlist._randomBusy) return;
+
+    const btn = document.getElementById('dice-btn');
+    if (btn) {
+      // Trigger roll animation immediately for instant visual feedback.
+      btn.classList.add('dice-rolling');
+      btn.addEventListener('animationend', () => {
+        btn.classList.remove('dice-rolling');
+      }, { once: true });
+    }
+
+    // Slight delay (300 ms) lets the animation play before the player
+    // UI updates — prevents the icon from changing mid-animation and
+    // feeling like a glitch.
+    setTimeout(() => Playlist.playRandom(), 300);
+  });
 
   // ── Explore Modal ──
   document.getElementById('explore-btn')?.addEventListener('click', () => Explore.open(false));
@@ -4177,6 +4244,7 @@ function bindEvents() {
   // ── Search (fuzzy, intent-aware) ──
   const searchInput = document.getElementById('search-input');
   if (searchInput) {
+    const songListEl = document.getElementById('song-list');
     let searchTimer;
     searchInput.addEventListener('input', () => {
       clearTimeout(searchTimer);
@@ -4184,10 +4252,35 @@ function bindEvents() {
         const raw = searchInput.value.trim();
         if (!raw) {
           UI.renderSongList(state.currentPlaylist);
-          return;
+        } else {
+          // [FIX P-4] Use FuzzySearch for ranking — already correct here.
+          const results = FuzzySearch.rank(state.currentPlaylist, raw);
+          UI.renderSongList(results);
         }
-        const results = FuzzySearch.rank(state.currentPlaylist, raw);
-        UI.renderSongList(results);
+        // [FIX P-4] Always scroll to top after render so best matches
+        // are visible immediately, regardless of prior scroll position.
+        if (songListEl) songListEl.scrollTop = 0;
+      }, 150);
+    });
+  }
+
+  // ── Mobile Search (parity with desktop search) ──
+  const mobileSearchInput = document.getElementById('search-input-mobile');
+  if (mobileSearchInput) {
+    const songListEl = document.getElementById('song-list');
+    let mobileSearchTimer;
+    mobileSearchInput.addEventListener('input', () => {
+      clearTimeout(mobileSearchTimer);
+      mobileSearchTimer = setTimeout(() => {
+        const raw = mobileSearchInput.value.trim();
+        if (!raw) {
+          UI.renderSongList(state.currentPlaylist);
+        } else {
+          const results = FuzzySearch.rank(state.currentPlaylist, raw);
+          UI.renderSongList(results);
+        }
+        // [FIX P-4b] Scroll to top on mobile search too
+        if (songListEl) songListEl.scrollTop = 0;
       }, 150);
     });
   }
@@ -4240,7 +4333,7 @@ function bindEvents() {
       case 'KeyN':       Player.next(); break;
       case 'KeyP':       Player.prev(); break;
       case 'KeyM':       PlaybackMode.cycle(); break;
-      case 'KeyR':       Playlist.playRandom(); break;
+      case 'KeyR':       if (!Playlist._randomBusy) Playlist.playRandom(); break;
     }
   });
 

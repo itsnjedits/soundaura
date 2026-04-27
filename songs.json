@@ -7372,8 +7372,8 @@
   {
     "title": "Tera Chehra Jab Nazar Aaye",
     "artist": ["Kishore Kumar"],
-    "file": "audio/tera chehra kishore kumar ｜ aditya kalway ｜ anshuman sharma ｜ ai version #lofiworldwide.mp3",
-    "image": "thumbnails/tera chehra kishore kumar ｜ aditya kalway ｜ anshuman sharma ｜ ai version #lofiworldwide_thumbnail.jpg",
+    "file": "audio/tera chehra kishore kumar.mp3",
+    "image": "thumbnails/tera chehra kishore kumar_thumbnail.jpg",
     "store": "store2",
     "mood": ["entermood"]
   },
@@ -7585,5 +7585,173 @@
     "image": "thumbnails/TUM HO - MOHIT CHAUHAN [SLOWED]_thumbnail.jpg",
     "store": "store3",
     "mood": ["slowed-reverb, hindi-new, romantic"]
+  },
+  {
+    "title": "Ae Meri Zohra Jabeen",
+    "artist": ["Mann Dey"],
+    "file": "audio/Ae Meri Zohra Jabeen _ Manna Dey _ Waqt _ Raj Kumar _ Classic Old Hindi Romantic Song.mp3",
+    "image": "thumbnails/Ae Meri Zohra Jabeen _ Manna Dey _ Waqt _ Raj Kumar _ Classic Old Hindi Romantic Song_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["hindi-old, romantic"]
+  },
+  {
+    "title": "art of science",
+    "artist": ["art of science"],
+    "file": "audio/art of science.mp3",
+    "image": "thumbnails/art of science_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "BEQARAR KARKE HUME YUN NA JAIYE",
+    "artist": ["Hemant Kumar"],
+    "file": "audio/BEQARAR KARKE HUME YUN NA JAIYE HD - Hemant Kumar - Biswajeet, Waheeda Rehman - Bees Saal Baad Song (1).mp3",
+    "image": "thumbnails/BEQARAR KARKE HUME YUN NA JAIYE HD - Hemant Kumar - Biswajeet, Waheeda Rehman - Bees Saal Baad Song (1)_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["hindi-old, romantic, happy"]
+  },
+  {
+    "title": "Wildflower (slowed)",
+    "artist": ["Billie Eilish"],
+    "file": "audio/Billie Eilish - Wildflower (slowed) (lyrics) [EvssIz5IL0o].mp3",
+    "image": "thumbnails/Billie Eilish - Wildflower (slowed) (lyrics) [EvssIz5IL0o]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Cry",
+    "artist": ["cigarettes after sex"],
+    "file": "audio/Cry [ENZZOh12tZ8].mp3",
+    "image": "thumbnails/Cry [ENZZOh12tZ8]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Fallen Down - Slowed + Reverb",
+    "artist": ["Toby Fox"],
+    "file": "audio/Fallen Down - Slowed + Reverb (Campfire Version) [Tb2nfUvEw8A].mp3",
+    "image": "thumbnails/Fallen Down - Slowed + Reverb (Campfire Version) [Tb2nfUvEw8A]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Sailor Song (Slowed & Reverb)",
+    "artist": ["Gigi Perez"],
+    "file": "audio/Gigi Perez - Sailor Song (Slowed & Reverb) [aFf1kLo9SZ4].mp3",
+    "image": "thumbnails/Gigi Perez - Sailor Song (Slowed & Reverb) [aFf1kLo9SZ4]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Hai Apna Dil To Awara",
+    "artist": ["Hemant Kumar"],
+    "file": "audio/Hai Apna Dil To Awara Na Jaane Kispe Aayega Video Song _ Hemant Kumar _ Dev Anand, Waheeda Rehman.mp3",
+    "image": "thumbnails/Hai Apna Dil To Awara Na Jaane Kispe Aayega Video Song _ Hemant Kumar _ Dev Anand, Waheeda Rehman_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["hindi-old, romantic"]
+  },
+  {
+    "title": "Works Out In The End instrumental + Slowed + Reverb",
+    "artist": ["Kodaline"],
+    "file": "audio/Kodaline - Works Out In The End instrumental, Slowed And Reverb [mbcjtX2oUfs].mp3",
+    "image": "thumbnails/Kodaline - Works Out In The End instrumental, Slowed And Reverb [mbcjtX2oUfs]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Last Leaves of Autumn (Slowed Down)",
+    "artist": ["Zleepyfred"],
+    "file": "audio/Last Leaves of Autumn (Slowed Down) [OBXCyOb8TPM].mp3",
+    "image": "thumbnails/Last Leaves of Autumn (Slowed Down) [OBXCyOb8TPM]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Lilith (slowed + reverb)",
+    "artist": ["saint avangeline"],
+    "file": "audio/Lilith - saint avangeline (slowed + reverb) [DRGKIP_8ZFk].mp3",
+    "image": "thumbnails/Lilith - saint avangeline (slowed + reverb) [DRGKIP_8ZFk]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "On The Nature of Daylight (Slowed + Reverb)",
+    "artist": ["Max Richter"],
+    "file": "audio/Max Richter - On The Nature of Daylight (Slowed + Reverb) [7iqCizXq_SM].mp3",
+    "image": "thumbnails/Max Richter - On The Nature of Daylight (Slowed + Reverb) [7iqCizXq_SM]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "New Home (Slowed)",
+    "artist": ["TuneCore"],
+    "file": "audio/New Home (Slowed) [17PqoC-ImfM].mp3",
+    "image": "thumbnails/New Home (Slowed) [17PqoC-ImfM]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Stop Waiting",
+    "artist": ["cigarettes after sex"],
+    "file": "audio/Stop Waiting [IY5XmmXtz4Y].mp3",
+    "image": "thumbnails/Stop Waiting [IY5XmmXtz4Y]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Sweater Weather (slowed + reverb)",
+    "artist": ["The Neighbourhood"],
+    "file": "audio/The Neighbourhood - Sweater Weather (slowed + reverb) [VYSc1h8qkgg].mp3",
+    "image": "thumbnails/The Neighbourhood - Sweater Weather (slowed + reverb) [VYSc1h8qkgg]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "The Night We Met",
+    "artist": ["Lord Huron"],
+    "file": "audio/The Night We Met [90DKXLbzLto].mp3",
+    "image": "thumbnails/The Night We Met [90DKXLbzLto]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "Tu pyar ka sagar hai",
+    "artist": ["Manna Dey"],
+    "file": "audio/tu pyar ka sagar hai teri ek boond ke _Seema1955_ Nutan&BalrajSahni_ Manna Dey_Shailendra _SJ_a trib (1).mp3",
+    "image": "thumbnails/tu pyar ka sagar hai teri ek boond ke _Seema1955_ Nutan&BalrajSahni_ Manna Dey_Shailendra _SJ_a trib (1)_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["hindi-old, nostalgia"]
+  },
+  {
+    "title": "Ethereal (Ultra Slowed - Reverb)",
+    "artist": ["Txmy"],
+    "file": "audio/Txmy - Ethereal (Ultra Slowed - Reverb) [HdDzWTyaRJY].mp3",
+    "image": "thumbnails/Txmy - Ethereal (Ultra Slowed - Reverb) [HdDzWTyaRJY]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "vertigo (super slowed)",
+    "artist": ["Irish band U2"],
+    "file": "audio/vertigo (super slowed) [YxlqSKHhiv8].mp3",
+    "image": "thumbnails/vertigo (super slowed) [YxlqSKHhiv8]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "where is my mind (slowed + reverb) (piano Version)",
+    "artist": ["Pixies"],
+    "file": "audio/where is my mind (slowed + reverb) (piano Version) [8QpDSn2agfI].mp3",
+    "image": "thumbnails/where is my mind (slowed + reverb) (piano Version) [8QpDSn2agfI]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
+  },
+  {
+    "title": "who will dry your eyes when you fall apart?",
+    "artist": ["Beach House"],
+    "file": "audio/who will dry your eyes when you fall apart？ (tiktok version) lyrics ｜ Beach House Space Song [I65nQr9SXG0].mp3",
+    "image": "thumbnails/who will dry your eyes when you fall apart？ (tiktok version) lyrics ｜ Beach House Space Song [I65nQr9SXG0]_thumbnail.jpg",
+    "store": "store4",
+    "mood": ["meditation"]
   }
 ]
