@@ -174,6 +174,63 @@ const state = {
 };
 
 // ═══════════════════════════════════════════════════════════
+// 2b. REQUEST MANAGER — cancels stale audio loads instantly
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Monotonically-increasing token system.
+ * Every call to loadAndPlay() calls RequestManager.next() which
+ * increments _currentId.  Callbacks check isCurrent(id) before
+ * touching state — if the id is stale it means a newer request
+ * superseded this one, so we bail out silently.
+ *
+ * This guarantees: only the LAST request ever wins.
+ * All previous requests become no-ops the instant the next one starts.
+ */
+const RequestManager = {
+  _currentId: 0,
+
+  /** Issue a new token — invalidates ALL previous tokens instantly */
+  next() {
+    return ++this._currentId;
+  },
+
+  /** Returns true only if this token is still the latest */
+  isCurrent(id) {
+    return id === this._currentId;
+  },
+
+  /** Externally cancel any pending load (e.g. on stop) */
+  cancel() {
+    this._currentId++;
+  }
+};
+
+// ═══════════════════════════════════════════════════════════
+// 2c. NAV THROTTLE — prevents next/prev flooding
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Shared throttle for next / prev / random.
+ * Different from RequestManager: this prevents the UI calls
+ * (highlight, scroll) from also stacking — RequestManager
+ * handles the async load race; this handles the sync UI race.
+ * 250 ms is enough to feel instant but stop button-mashing storms.
+ */
+const NavThrottle = (() => {
+  let _last = 0;
+  return {
+    ok(minMs = 250) {
+      const now = Date.now();
+      if (now - _last < minMs) return false;
+      _last = now;
+      return true;
+    },
+    reset() { _last = 0; }
+  };
+})();
+
+// ═══════════════════════════════════════════════════════════
 // 3. LOCAL STORAGE PERSISTENCE
 // ═══════════════════════════════════════════════════════════
 
@@ -682,11 +739,29 @@ const Playlist = {
 // ═══════════════════════════════════════════════════════════
 
 const Player = {
-  /** Load a song into audio element and play */
+  /** Load a song into audio element and play.
+   *
+   * ── REQUEST CANCELLATION DESIGN ────────────────────────────
+   * Each call issues a new RequestManager token BEFORE touching
+   * the audio element.  The token from a previous call is
+   * immediately invalidated — all its async callbacks become
+   * no-ops.  This ensures:
+   *   • Only the LAST click/keypress survives
+   *   • Zero stale-response overwrites
+   *   • Zero audio desync or double-play
+   *   • No toast errors for aborted loads
+   */
   loadAndPlay(song, autoplay = true) {
+    // Issue new token — kills every previous pending load
+    const reqId = RequestManager.next();
+
     const url = DataLoader.getAudioUrl(song);
-    console.log('[Player] Loading:', song.title);
-    console.log('[Player] URL:', url);
+
+    // Clean up any preloaded audio immediately
+    if (state.nextAudio) {
+      state.nextAudio.src = '';
+      state.nextAudio = null;
+    }
 
     // Stop and reset before loading new source
     audioEl.pause();
@@ -694,15 +769,21 @@ const Player = {
     audioEl.load();
 
     // ── SPEED SYNC FIX ──────────────────────────────────────
-    // Some browsers (Chrome, Safari) silently reset playbackRate to 1.0 when
-    // audioEl.src changes or audioEl.load() is called.
-    // Re-apply the saved speed immediately so the NEXT song plays at the
-    // correct rate without any desync between UI and audio.
+    // Re-apply speed — Chrome/Safari reset it on src change.
     audioEl.playbackRate = SpeedControl.current;
 
     if (autoplay) {
       audioEl.play()
         .then(() => {
+          // ── STALE GUARD ──────────────────────────────────
+          // If a newer load started after us, this callback belongs
+          // to a superseded request. Stop immediately — do NOT update
+          // state, do NOT show toasts, do NOT start the visualizer.
+          if (!RequestManager.isCurrent(reqId)) {
+            console.info('[Player] Stale load resolved — discarding (reqId=%d)', reqId);
+            return;
+          }
+
           audioEl.playbackRate = SpeedControl.current;
           state.isPlaying = true;
           UI.setPlayPauseIcon(true);
@@ -711,21 +792,18 @@ const Player = {
           AudioEngine.startVisualizer();
           Player.preloadNext();
           MediaSession.update(song);
-          // Complete the loading toast — shows green checkmark briefly
           LoadingToast.complete();
           setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
         })
         .catch(e => {
-          // ── [FIX P-2] AbortError guard ──────────────────────────
-          // When the user rapidly clicks random/next/prev, the browser
-          // cancels the in-flight play() call and rejects the promise
-          // with DOMException { name: 'AbortError' }.  This is NOT a
-          // playback failure — the NEW song will play correctly.
-          // Never surface "Load Failed" for an abort.
+          // AbortError = browser killed this play() because src changed.
+          // This is expected when rapidly switching songs — not an error.
           if (e && e.name === 'AbortError') {
-            console.info('[Player] play() aborted by a newer load — not an error');
+            console.info('[Player] play() aborted by newer load (reqId=%d)', reqId);
             return;
           }
+          // Only surface real errors for the current request
+          if (!RequestManager.isCurrent(reqId)) return;
           console.warn('[Player] Playback blocked:', e);
           state.isPlaying = false;
           UI.setPlayPauseIcon(false);
@@ -762,8 +840,12 @@ const Player = {
     audioEl.currentTime = Math.min(Math.max(0, audioEl.currentTime + seconds), audioEl.duration || 0);
   },
 
-  /** Play next song */
+  /** Play next song — throttled to prevent request flooding */
   next() {
+    // 200 ms minimum between next-clicks.
+    // RequestManager already kills stale async callbacks; this
+    // prevents the SYNCHRONOUS highlight + scroll storm too.
+    if (!NavThrottle.ok(200)) return;
     const idx = Playlist.getNextIndex();
     if (idx === -1) {
       Player.stop();
@@ -772,8 +854,9 @@ const Player = {
     Playlist.playAt(idx, true);
   },
 
-  /** Play previous song */
+  /** Play previous song — throttled */
   prev() {
+    if (!NavThrottle.ok(200)) return;
     // If >3 seconds in, restart current song
     if (audioEl.currentTime > 3) {
       audioEl.currentTime = 0;
@@ -783,6 +866,7 @@ const Player = {
   },
 
   stop() {
+    RequestManager.cancel(); // kill any pending load
     audioEl.pause();
     audioEl.currentTime = 0;
     state.isPlaying = false;
@@ -797,19 +881,30 @@ const Player = {
     if (btn) btn.textContent = `${rate}x`;
   },
 
-  /** Preload next song for gapless playback */
+  /** Preload next song for near-gapless playback.
+   *  Properly cleans up any previous preloaded element to avoid
+   *  memory leaks and phantom network requests.
+   */
   preloadNext() {
     const nextIdx = Playlist.getNextIndex();
-    if (nextIdx === -1 || nextIdx === state.currentSongIndex) return;
+    if (nextIdx === -1 || nextIdx === state.currentSongIndex) {
+      // Nothing to preload; release any held element
+      if (state.nextAudio) { state.nextAudio.src = ''; state.nextAudio = null; }
+      return;
+    }
     const nextSong = state.currentPlaylist[nextIdx];
     if (!nextSong) return;
+
+    // Release previous preload element before creating a new one
     if (state.nextAudio) {
       state.nextAudio.src = '';
+      state.nextAudio = null;
     }
-    state.nextAudio = new Audio();
-    state.nextAudio.src = DataLoader.getAudioUrl(nextSong);
-    state.nextAudio.preload = 'auto';
-    state.nextAudio.load();
+
+    const next = new Audio();
+    next.preload = 'metadata'; // 'metadata' only — avoids hogging bandwidth
+    next.src = DataLoader.getAudioUrl(nextSong);
+    state.nextAudio = next;
   }
 };
 
