@@ -105,6 +105,69 @@ const SINGERS = [
 ];
 
 const PLAYBACK_MODES = ['repeat', 'shuffle', 'loop', 'none'];
+
+// ═══════════════════════════════════════════════════════════
+// 1c. THEME DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+
+const THEMES = {
+  'ocean-blue': {
+    name: 'Ocean Blue',
+    emoji: '🌊',
+    accent: '#06b6d4',
+    accent2: '#3b82f6',
+    rgb: '6, 182, 212',
+    swatch: 'linear-gradient(135deg, #06b6d4, #3b82f6)',
+  },
+  'mystical-purple': {
+    name: 'Mystical Purple',
+    emoji: '🔮',
+    accent: '#a855f7',
+    accent2: '#7c3aed',
+    rgb: '168, 85, 247',
+    swatch: 'linear-gradient(135deg, #a855f7, #7c3aed)',
+  },
+  'romantic-pink': {
+    name: 'Romantic Pink',
+    emoji: '🌸',
+    accent: '#ec4899',
+    accent2: '#db2777',
+    rgb: '236, 72, 153',
+    swatch: 'linear-gradient(135deg, #ec4899, #db2777)',
+  },
+  'emerald-dream': {
+    name: 'Emerald Dream',
+    emoji: '🌿',
+    accent: '#10b981',
+    accent2: '#059669',
+    rgb: '16, 185, 129',
+    swatch: 'linear-gradient(135deg, #10b981, #059669)',
+  },
+  'solar-gold': {
+    name: 'Solar Gold',
+    emoji: '☀️',
+    accent: '#f59e0b',
+    accent2: '#d97706',
+    rgb: '245, 158, 11',
+    swatch: 'linear-gradient(135deg, #f59e0b, #d97706)',
+  },
+  'crimson-night': {
+    name: 'Crimson Night',
+    emoji: '🔴',
+    accent: '#ef4444',
+    accent2: '#dc2626',
+    rgb: '239, 68, 68',
+    swatch: 'linear-gradient(135deg, #ef4444, #dc2626)',
+  },
+  'midnight-shadow': {
+    name: 'Midnight Shadow',
+    emoji: '🌌',
+    accent: '#6366f1',
+    accent2: '#4f46e5',
+    rgb: '99, 102, 241',
+    swatch: 'linear-gradient(135deg, #6366f1, #4f46e5)',
+  },
+};
 const MODE_ICONS = {
   repeat: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`,
   shuffle: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>`,
@@ -151,6 +214,10 @@ const state = {
   isMuted: false,            // mute toggle
 
   favorites: new Set(),      // Set of songId strings
+
+  // Settings
+  currentTheme: 'ocean-blue',
+  particlesOn: true,
 
   // "Add Songs" selection mode
   addSongsMode: false,
@@ -283,6 +350,10 @@ const Storage = {
     state.isMuted        = Storage.load('muted', false);
     // Restore favorites as a Set of songId strings
     state.favorites = new Set(Storage.load('favorites', []));
+    // Load settings (theme, particles)
+    const settings = Storage.load('settings', {});
+    state.currentTheme   = settings.theme     || 'ocean-blue';
+    state.particlesOn    = settings.particles !== undefined ? settings.particles : true;
   },
 
   /**
@@ -362,6 +433,8 @@ const Storage = {
 const audioEl = new Audio();
 audioEl.crossOrigin = 'anonymous';
 audioEl.preload = 'auto';
+// Expose for AtmosphereEngine expand player progress sync
+window._soundAuraAudio = audioEl;
 
 // Error handler — logs to FailureLog and surfaces in UI
 audioEl.onerror = () => {
@@ -501,21 +574,54 @@ const AudioEngine = {
     const ctx = canvas.getContext('2d');
     const bufLen = state.analyser.frequencyBinCount;
     const dataArr = new Uint8Array(bufLen);
+    const smoothed = new Float32Array(bufLen);
+
+    const getThemeColors = () => {
+      const cs = getComputedStyle(document.documentElement);
+      return {
+        c1: cs.getPropertyValue('--theme-accent').trim() || '#06b6d4',
+        c2: cs.getPropertyValue('--theme-accent2').trim() || '#3b82f6',
+        rgb: cs.getPropertyValue('--theme-accent-rgb').trim() || '6,182,212',
+      };
+    };
 
     const draw = () => {
       state.visualizerFrame = requestAnimationFrame(draw);
       state.analyser.getByteFrequencyData(dataArr);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const barW = (canvas.width / bufLen) * 2.5;
-      let x = 0;
-      for (let i = 0; i < bufLen; i++) {
-        const barH = (dataArr[i] / 255) * canvas.height;
+
+      const { c1, c2, rgb } = getThemeColors();
+      const BARS = Math.min(bufLen, 48);
+      const barW = canvas.width / BARS;
+      const gap = barW > 4 ? 1.5 : 0.8;
+
+      for (let i = 0; i < BARS; i++) {
+        const idx = Math.floor((i / BARS) * bufLen * 0.6);
+        smoothed[i] = smoothed[i] * 0.78 + (dataArr[idx] / 255) * 0.22;
+        const barH = smoothed[i] * canvas.height;
+        if (barH < 0.5) continue;
         const gradient = ctx.createLinearGradient(0, canvas.height - barH, 0, canvas.height);
-        gradient.addColorStop(0, '#06b6d4');
-        gradient.addColorStop(1, '#3b82f6');
+        gradient.addColorStop(0, c1);
+        gradient.addColorStop(1, c2);
         ctx.fillStyle = gradient;
-        ctx.fillRect(x, canvas.height - barH, barW - 1, barH);
-        x += barW + 1;
+        const x = i * barW;
+        const w = barW - gap;
+        const radius = Math.min(w / 2, 2.5);
+        ctx.beginPath();
+        ctx.moveTo(x + radius, canvas.height - barH);
+        ctx.arcTo(x + w, canvas.height - barH, x + w, canvas.height, radius);
+        ctx.arcTo(x + w, canvas.height, x, canvas.height, 0);
+        ctx.arcTo(x, canvas.height, x, canvas.height - barH, 0);
+        ctx.arcTo(x, canvas.height - barH, x + w, canvas.height - barH, radius);
+        ctx.closePath();
+        ctx.fill();
+        // Soft glow on tall bars
+        if (smoothed[i] > 0.5) {
+          ctx.shadowColor = `rgba(${rgb},0.35)`;
+          ctx.shadowBlur = 4;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
       }
     };
     draw();
@@ -557,9 +663,12 @@ const AudioEngine = {
       let x = 0;
       for (let i = 0; i < bufLen; i++) {
         const barH = (data[i] / 255) * canvas.height;
+        const cs = getComputedStyle(document.documentElement);
+        const c1 = cs.getPropertyValue('--theme-accent').trim() || '#06b6d4';
+        const c2 = cs.getPropertyValue('--theme-accent2').trim() || '#3b82f6';
         const grad = ctx.createLinearGradient(0, canvas.height - barH, 0, canvas.height);
-        grad.addColorStop(0, '#06b6d4');
-        grad.addColorStop(1, '#3b82f6');
+        grad.addColorStop(0, c1);
+        grad.addColorStop(1, c2);
         ctx.fillStyle = grad;
         ctx.fillRect(x, canvas.height - barH, barW - 1, barH);
         x += barW + 1;
@@ -574,8 +683,26 @@ const AudioEngine = {
 // ═══════════════════════════════════════════════════════════
 
 const DataLoader = {
+  /** Show skeleton placeholder while songs are loading */
+  _showSkeleton() {
+    const container = document.getElementById('song-list');
+    if (!container) return;
+    const skeletons = Array.from({ length: 8 }, () => `
+      <div class="song-item flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent" style="pointer-events:none">
+        <div class="w-12 h-12 rounded-lg flex-shrink-0 skeleton-shimmer" style="background:rgba(255,255,255,0.07);min-width:48px"></div>
+        <div class="flex-1 min-w-0 space-y-2">
+          <div class="h-3 rounded-full skeleton-shimmer" style="width:${55 + Math.floor(Math.random()*30)}%;background:rgba(255,255,255,0.07)"></div>
+          <div class="h-2 rounded-full skeleton-shimmer" style="width:${30 + Math.floor(Math.random()*25)}%;background:rgba(255,255,255,0.05)"></div>
+        </div>
+      </div>`).join('');
+    container.innerHTML = skeletons;
+    console.log('[Data] Showing skeleton loading state');
+  },
+
   async loadSongs() {
+    DataLoader._showSkeleton();
     try {
+      console.log('[Data] Fetching songs.json...');
       const res = await fetch('songs.json');
       if (!res.ok) throw new Error(`songs.json fetch failed: ${res.status}`);
       const raw = await res.json();
@@ -710,24 +837,35 @@ const Playlist = {
     return state.currentSongIndex <= 0 ? len - 1 : state.currentSongIndex - 1;
   },
 
-  /** Pick a random song, highlight and scroll to it */
+  /** Pick a random song — select & highlight ONLY, do NOT autoplay.
+   *  User must press Play manually. */
   playRandom() {
     if (!state.currentPlaylist.length) return;
 
-    // ── [FIX P-3] Throttle rapid clicks ─────────────────────────
-    // Each click that gets through triggers one full load cycle.
-    // We lock for 650 ms — enough to cover the dice animation
-    // (450 ms) plus one extra tick so the previous load can settle.
-    // This prevents stacking multiple parallel loads that cause
-    // AbortError cascades and false "Load Failed" messages.
+    console.log('[RandomSong] Generate clicked');
+
+    // Throttle rapid clicks for 650 ms (covers the 450 ms dice animation)
     if (Playlist._randomBusy) return;
     Playlist._randomBusy = true;
     setTimeout(() => { Playlist._randomBusy = false; }, 650);
 
     const idx = Math.floor(Math.random() * state.currentPlaylist.length);
-    Playlist.playAt(idx);
+    const song = state.currentPlaylist[idx];
+
+    console.log('[RandomSong] Selected song:', song.title, '| index:', idx);
+
+    // Clear any existing random animation first
+    UI._clearRandomAnim();
+
+    // Re-render the list to show the active highlight
+    UI.renderSongList();
+
+    // Scroll to song and apply persistent orbital animation
     UI.scrollToSong(idx);
-    Toast.show(`🎲 Playing: ${state.currentPlaylist[idx].title}`, 'info');
+    requestAnimationFrame(() => UI.applyRandomHighlight(idx));
+
+    Toast.show(`🎲 ${song.title} — press ▶ to play`, 'info');
+    Storage.saveAll();
   },
 
   // Throttle flag — shared with the dice button event handler
@@ -754,6 +892,9 @@ const Player = {
   loadAndPlay(song, autoplay = true) {
     // Issue new token — kills every previous pending load
     const reqId = RequestManager.next();
+
+    // Clear random-selection animation when user explicitly plays
+    UI._clearRandomAnim?.();
 
     const url = DataLoader.getAudioUrl(song);
 
@@ -790,10 +931,19 @@ const Player = {
           AudioEngine.resume();
           if (!state.audioContext) AudioEngine.init();
           AudioEngine.startVisualizer();
+          // [Atmosphere] Hook analyser now that AudioEngine is live
+          if (typeof AtmosphereEngine !== 'undefined' && state.analyser && !AtmosphereEngine.AudioReactive._analyser) {
+            AtmosphereEngine.AudioReactive.init(state.analyser);
+          }
           Player.preloadNext();
           MediaSession.update(song);
           LoadingToast.complete();
           setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
+          // [Atmosphere] Notify song change → extract palette, update effects
+          if (typeof AtmosphereEngine !== 'undefined') {
+            const playingSong = state.currentPlaylist[state.currentSongIndex];
+            if (playingSong) AtmosphereEngine.onSongChange(playingSong);
+          }
         })
         .catch(e => {
           // AbortError = browser killed this play() because src changed.
@@ -815,6 +965,7 @@ const Player = {
   /** Toggle play / pause */
   togglePlay() {
     if (!state.currentPlaylist.length) return;
+    console.log('[Player] Toggle play, isPlaying:', state.isPlaying);
     // First-time play: no song loaded yet → start from a random song for engagement
     if (state.currentSongIndex < 0) {
       const idx = Math.floor(Math.random() * state.currentPlaylist.length);
@@ -826,12 +977,16 @@ const Player = {
         state.isPlaying = true;
         UI.setPlayPauseIcon(true);
         AudioEngine.startVisualizer();
+        // [Atmosphere] Signal play → start audio reactive
+        if (typeof AtmosphereEngine !== 'undefined') AtmosphereEngine.onPlayStateChange(true);
       });
     } else {
       audioEl.pause();
       state.isPlaying = false;
       UI.setPlayPauseIcon(false);
       AudioEngine.stopVisualizer();
+      // [Atmosphere] Signal pause
+      if (typeof AtmosphereEngine !== 'undefined') AtmosphereEngine.onPlayStateChange(false);
     }
   },
 
@@ -842,6 +997,7 @@ const Player = {
 
   /** Play next song — throttled to prevent request flooding */
   next() {
+    console.log('[Player] Next song');
     // 200 ms minimum between next-clicks.
     // RequestManager already kills stale async callbacks; this
     // prevents the SYNCHRONOUS highlight + scroll storm too.
@@ -856,6 +1012,7 @@ const Player = {
 
   /** Play previous song — throttled */
   prev() {
+    console.log('[Player] Previous song');
     if (!NavThrottle.ok(200)) return;
     // If >3 seconds in, restart current song
     if (audioEl.currentTime > 3) {
@@ -921,8 +1078,6 @@ const Volume = {
     Volume.updateUI();
     Storage.save('volume', state.volume);
     Storage.save('muted', state.isMuted);
-    // Broadcast volume change to popup
-    PopupMiniPlayer.broadcastState();
   },
 
   /** Toggle mute / unmute */
@@ -949,7 +1104,7 @@ const Volume = {
       // Dynamic filled-track: left side cyan, right side gray
       const pct = vol * 100;
       slider.style.background =
-        `linear-gradient(to right, #06b6d4 ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
+        `linear-gradient(to right, var(--theme-accent) ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
     }
     if (icon) icon.innerHTML = Volume.iconSVG(vol);
   },
@@ -1039,7 +1194,7 @@ const SpeedControl = {
     const min = parseFloat(slider.min), max = parseFloat(slider.max);
     const pct = ((parseFloat(slider.value) - min) / (max - min)) * 100;
     slider.style.background =
-      `linear-gradient(to right, #06b6d4 ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
+      `linear-gradient(to right, var(--theme-accent) ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
   },
 
   restore() {
@@ -1146,10 +1301,7 @@ audioEl.addEventListener('timeupdate', () => {
   const dThumb = document.getElementById('progress-thumb-desktop');
   if (dThumb) dThumb.style.left = `${pct}%`;
 
-  // ── Sync mini player progress (same pct, zero extra computation) ──
-  MiniPlayer.syncProgress(pct);
-  // ── Broadcast progress to popup (throttled to 2/s) ──
-  PopupMiniPlayer.broadcastProgress();
+  // [Performance] Mini/Popup player removed
 
   // Throttle-save position every 5 s
   if (!_savePositionTimer) {
@@ -1188,6 +1340,7 @@ const PlaybackMode = {
   cycle() {
     const cur = PLAYBACK_MODES.indexOf(state.playbackMode);
     state.playbackMode = PLAYBACK_MODES[(cur + 1) % PLAYBACK_MODES.length];
+    console.log('[Player] Playback mode changed to:', state.playbackMode);
     PlaybackMode.updateUI();
     Toast.show(`Mode: ${MODE_LABELS[state.playbackMode]}`, 'info');
     Storage.save('playbackMode', state.playbackMode);
@@ -1199,13 +1352,10 @@ const PlaybackMode = {
       if (!btn) return;
       btn.innerHTML = MODE_ICONS[state.playbackMode];
       btn.title = MODE_LABELS[state.playbackMode];
-      btn.classList.toggle('text-cyan-400', state.playbackMode !== 'none');
+      btn.style.color = state.playbackMode !== 'none' ? 'var(--theme-accent)' : '';
       btn.classList.toggle('text-gray-500', state.playbackMode === 'none');
     });
-    // ── Sync mini player ──
-    MiniPlayer.syncMode();
-    // ── Broadcast to popup ──
-    PopupMiniPlayer.broadcastState();
+    // [Performance] Mini/Popup player removed
   }
 };
 
@@ -1250,10 +1400,10 @@ const UI = {
       return `
         <div
           class="song-item flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all duration-200
-            ${isActive ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/10 border border-cyan-500/30 active-song' : 'hover:bg-white/5 border border-transparent'}"
+            ${isActive ? 'active-song border' : 'hover:bg-white/5 border border-transparent'}"
           data-index="${playlistIdx}"
           data-song-id="${id}"
-          ${inUserPlaylist ? `draggable="true" data-drag-index="${i}"` : ''}
+          ${inUserPlaylist ? `data-drag-index="${i}"` : ''}
         >
           ${inUserPlaylist ? `<div class="drag-handle text-gray-600 cursor-grab mr-1 flex-shrink-0" data-drag-index="${i}">⠿</div>` : ''}
           <div class="relative flex-shrink-0">
@@ -1267,14 +1417,14 @@ const UI = {
             ${isActive && state.isPlaying ? `
               <div class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg">
                 <div class="playing-bars flex gap-0.5 items-end h-4">
-                  <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:60%;animation-delay:0s"></span>
-                  <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:100%;animation-delay:0.15s"></span>
-                  <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:70%;animation-delay:0.3s"></span>
+                  <span class="bar w-1 rounded-full animate-bounce" style="height:60%;animation-delay:0s;background:var(--theme-accent)"></span>
+                  <span class="bar w-1 rounded-full animate-bounce" style="height:100%;animation-delay:0.15s;background:var(--theme-accent)"></span>
+                  <span class="bar w-1 rounded-full animate-bounce" style="height:70%;animation-delay:0.3s;background:var(--theme-accent)"></span>
                 </div>
               </div>` : ''}
           </div>
           <div class="flex-1 min-w-0">
-            <p class="song-title font-medium text-sm truncate ${isActive ? 'text-cyan-400' : 'text-white'}">${song.title}</p>
+            <p class="song-title font-medium text-sm truncate ${isActive ? '' : 'text-white'}" style="${isActive ? 'color:var(--theme-accent)' : ''}">${song.title}</p>
             <p class="text-xs text-gray-400 truncate mt-0.5">${artists}</p>
           </div>
           <div class="flex items-center gap-1.5 flex-shrink-0">
@@ -1297,10 +1447,10 @@ const UI = {
                      <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
                    </svg>
                  </button>`
-              : `<button class="add-btn w-7 h-7 rounded-full bg-cyan-500/20 hover:bg-cyan-500/40 text-cyan-400 flex items-center justify-center text-sm transition-colors" data-song='${JSON.stringify(song).replace(/'/g, "&#39;")}' title="Add to playlist">+</button>`
+              : `<button class="add-btn w-7 h-7 rounded-full flex items-center justify-center text-sm transition-colors" style="background:rgba(var(--theme-accent-rgb),0.18);color:var(--theme-accent)" data-song='${JSON.stringify(song).replace(/'/g, "&#39;")}' title="Add to playlist">+</button>`
             }
             <!-- Download button -->
-            <button class="dl-btn w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:text-cyan-400 hover:bg-white/5 transition-all"
+            <button class="dl-btn w-7 h-7 flex items-center justify-center rounded-full text-gray-500 hover:bg-white/5 transition-all" style="--hover-c:var(--theme-accent)"
               data-song='${JSON.stringify(song).replace(/'/g, "&#39;")}'
               title="Download">
               <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1319,21 +1469,26 @@ const UI = {
       });
 
       // ── Long-press (mobile) → open song detail modal ──
+      // ONLY fires when long-pressing the artwork thumbnail image.
+      // Must NOT fire from: row, title, container, or any other area.
       let longPressTimer = null;
-      el.addEventListener('touchstart', (e) => {
-        if (e.target.closest('.add-btn, .remove-btn, .song-ctx-btn, .drag-handle, .fav-btn, .dl-btn')) return;
-        longPressTimer = setTimeout(() => {
-          const idx = parseInt(el.dataset.index);
-          if (idx < 0) return;
-          const song = state.currentPlaylist[idx];
-          if (song) {
-            if (navigator.vibrate) navigator.vibrate(30);
-            SongModal.open(song, idx);
-          }
-        }, 500);
-      }, { passive: true });
-      el.addEventListener('touchend',   () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
-      el.addEventListener('touchmove',  () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
+      const artworkImg = el.querySelector('.relative.flex-shrink-0 img');
+      if (artworkImg) {
+        artworkImg.addEventListener('touchstart', (e) => {
+          longPressTimer = setTimeout(() => {
+            const idx = parseInt(el.dataset.index);
+            if (idx < 0) return;
+            const song = state.currentPlaylist[idx];
+            if (song) {
+              if (navigator.vibrate) navigator.vibrate(30);
+              console.log('[SongModal] Long press on artwork → opening modal:', song.title);
+              SongModal.open(song, idx);
+            }
+          }, 500);
+        }, { passive: true });
+        artworkImg.addEventListener('touchend',  () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
+        artworkImg.addEventListener('touchmove', () => { clearTimeout(longPressTimer); longPressTimer = null; }, { passive: true });
+      }
     });
 
     // Favorite buttons
@@ -1409,16 +1564,18 @@ const UI = {
       const isActive = i === activeIndex;
       // Apply/remove active styling without a full re-render
       el.classList.toggle('bg-gradient-to-r', isActive);
-      el.classList.toggle('from-cyan-500/20', isActive);
-      el.classList.toggle('to-blue-500/10', isActive);
-      el.classList.toggle('border-cyan-500/30', isActive);
+      // Active state background applied via CSS .active-song class (theme-driven)
       el.classList.toggle('active-song', isActive);
       el.classList.toggle('hover:bg-white/5', !isActive);
       el.classList.toggle('border-transparent', !isActive);
       // Update title colour
       const titleEl = el.querySelector('.song-title');
       if (titleEl) {
-        titleEl.classList.toggle('text-cyan-400', isActive);
+        if (isActive) {
+          titleEl.style.color = 'var(--theme-accent)';
+        } else {
+          titleEl.style.color = '';
+        }
         titleEl.classList.toggle('text-white', !isActive);
       }
       // Show/hide playing bars overlay
@@ -1430,9 +1587,9 @@ const UI = {
             const bars = document.createElement('div');
             bars.className = 'playing-bars-overlay absolute inset-0 flex items-center justify-center bg-black/50 rounded-lg';
             bars.innerHTML = `<div class="playing-bars flex gap-0.5 items-end h-4">
-              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:60%;animation-delay:0s"></span>
-              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:100%;animation-delay:0.15s"></span>
-              <span class="bar w-1 bg-cyan-400 rounded-full animate-bounce" style="height:70%;animation-delay:0.3s"></span>
+              <span class="bar w-1 rounded-full animate-bounce" style="height:60%;animation-delay:0s;background:var(--theme-accent)"></span>
+              <span class="bar w-1 rounded-full animate-bounce" style="height:100%;animation-delay:0.15s;background:var(--theme-accent)"></span>
+              <span class="bar w-1 rounded-full animate-bounce" style="height:70%;animation-delay:0.3s;background:var(--theme-accent)"></span>
             </div>`;
             imgWrap.appendChild(bars);
           }
@@ -1444,6 +1601,49 @@ const UI = {
     // Scroll into view
     if (items[activeIndex]) {
       setTimeout(() => items[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    }
+  },
+
+  /** Apply orbital orb animation to the randomly selected song row.
+   *  Animation runs CONTINUOUSLY until user interaction.
+   *  Uses AtmosphereEngine.RandomSongAnim for cinematic orb orbit. */
+  applyRandomHighlight(index) {
+    const container = document.getElementById('song-list');
+    if (!container) return;
+
+    // Remove legacy pulse class from any old items
+    container.querySelectorAll('.random-selected').forEach(el => {
+      el.classList.remove('random-selected');
+    });
+
+    const items = container.querySelectorAll('.song-item');
+    const target = items[index];
+    if (!target) return;
+
+    console.log('[RandomSong] Applying persistent orbital highlight to index', index);
+
+    // Add base glow class (CSS handles the background/border)
+    target.classList.add('random-selected');
+
+    // Attach animated orbital orb via atmosphere engine
+    if (typeof AtmosphereEngine !== 'undefined' && AtmosphereEngine.RandomSongAnim) {
+      AtmosphereEngine.attachRandomAnim(target);
+    }
+
+    // DO NOT auto-remove — animation stays until user interacts
+    // (Cleared in _clearRandomAnim below, called on song play or new random pick)
+  },
+
+  /** Remove the orbital random animation. Called on any user interaction. */
+  _clearRandomAnim() {
+    const container = document.getElementById('song-list');
+    if (container) {
+      container.querySelectorAll('.random-selected').forEach(el => {
+        el.classList.remove('random-selected');
+      });
+    }
+    if (typeof AtmosphereEngine !== 'undefined' && AtmosphereEngine.RandomSongAnim) {
+      AtmosphereEngine.detachRandomAnim();
     }
   },
 
@@ -1474,7 +1674,14 @@ const UI = {
       el.onerror = () => { el.src = fallback; };
       // Clicking thumbnail opens the song card modal
       el.style.cursor = 'pointer';
-      el.onclick = () => SongModal.open(song);
+      el.onclick = () => {
+        // [Atmosphere] Open immersive expand player; fallback to song modal
+        if (typeof AtmosphereEngine !== 'undefined') {
+          AtmosphereEngine.openExpand(song);
+        } else {
+          SongModal.open(song);
+        }
+      };
     };
 
     set('player-title',  song.title);
@@ -1487,10 +1694,7 @@ const UI = {
 
     document.title = `♪ ${song.title} – SoundAura`;
 
-    // ── Sync mini player (shared state, no duplicate audio) ──
-    MiniPlayer.update(song);
-    // ── Broadcast to popup + sync compact strip ──
-    PopupMiniPlayer.broadcastState();
+    // Sync compact strip
     CompactMode.onSongChange(song);
   },
 
@@ -1533,14 +1737,12 @@ const UI = {
       const btn = document.getElementById(id);
       if (btn) btn.innerHTML = icon;
     });
-    // ── Sync mini player (shared state, no duplicate audio) ──
-    MiniPlayer.syncPlayState(playing);
-    // ── Broadcast to popup mini player ──
-    PopupMiniPlayer.broadcastState();
+    // [Performance] Mini/Popup player removed
   },
 
   /** Toggle dark / light theme */
   toggleTheme() {
+    console.log('[Theme] Switching to', state.isDarkMode ? 'light' : 'dark');
     state.isDarkMode = !state.isDarkMode;
     document.documentElement.classList.toggle('dark', state.isDarkMode);
     document.body.classList.toggle('light-mode', !state.isDarkMode);
@@ -1548,7 +1750,11 @@ const UI = {
     if (btn) btn.textContent = state.isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
     Storage.save('darkMode', state.isDarkMode);
     UI.updateFavicon();
+    // Sync settings panel appearance buttons
+    Settings._updateModeUI(state.isDarkMode);
     console.log('[Theme] Switched to', state.isDarkMode ? 'dark' : 'light');
+    // [Atmosphere] Re-sync theme palette
+    if (typeof AtmosphereEngine !== 'undefined') { AtmosphereEngine.ThemeSync?.refresh(); AtmosphereEngine.onThemeChange(); }
   },
 
   /** Dynamically update favicon AND navbar logo based on current theme.
@@ -1586,71 +1792,166 @@ const UI = {
     }
   },
 
-  /** Initialize drag & drop for user playlist reordering */
+  /** Initialize drag & drop for user playlist reordering.
+   *  Uses Pointer Events API for instant, ghost-based drag on both desktop and touch.
+   *  No long-press required — drag begins immediately from the handle.
+   */
   initDragDrop(container) {
-    const items = container.querySelectorAll('[draggable="true"]');
-    let autoScrollRAF = null;
-
-    // Auto-scroll helper: fires during dragover on the container
     const songList = document.getElementById('song-list');
-    const EDGE = 80; // px from top/bottom edge to trigger scroll
-    let dragClientY = 0;
+    const SCROLL_EDGE = 80;
 
-    const doAutoScroll = () => {
-      if (!songList) return;
-      const rect = songList.getBoundingClientRect();
-      const distTop    = dragClientY - rect.top;
-      const distBottom = rect.bottom - dragClientY;
-      let speed = 0;
-      if (distTop < EDGE && distTop > 0) {
-        speed = -Math.ceil((EDGE - distTop) / EDGE * 12);
-      } else if (distBottom < EDGE && distBottom > 0) {
-        speed = Math.ceil((EDGE - distBottom) / EDGE * 12);
+    let dragState   = null;   // active drag session
+    let ghost       = null;   // floating clone element
+    let insertLine  = null;   // visual insertion indicator
+    let scrollRAF   = null;   // auto-scroll animation frame
+
+    // ── Ghost: a styled clone of the dragged row ──────────────────
+    function createGhost(sourceEl, clientX, clientY) {
+      const rect = sourceEl.getBoundingClientRect();
+      const g    = sourceEl.cloneNode(true);
+      g.id       = 'drag-ghost';
+      // Remove drag-handle cursor from ghost so it looks clean
+      const handle = g.querySelector('.drag-handle');
+      if (handle) handle.style.cursor = 'grabbing';
+      Object.assign(g.style, {
+        position:     'fixed',
+        left:         `${rect.left}px`,
+        top:          `${rect.top}px`,
+        width:        `${rect.width}px`,
+        height:       `${rect.height}px`,
+        zIndex:       '9999',
+        pointerEvents:'none',
+        opacity:      '0.92',
+        boxShadow:    '0 20px 56px rgba(0,0,0,0.65), 0 0 0 2px rgba(var(--theme-accent-rgb),0.5)',
+        borderRadius: '12px',
+        background:   'rgba(13,26,45,0.97)',
+        border:       '1px solid rgba(var(--theme-accent-rgb),0.4)',
+        transform:    'scale(1.025) rotate(0.4deg)',
+        transition:   'box-shadow 0.1s ease',
+        willChange:   'transform',
+        backdropFilter:'blur(12px)',
+      });
+      document.body.appendChild(g);
+      return g;
+    }
+
+    // ── Insertion line: a glowing line showing drop position ──────
+    function createInsertLine() {
+      const line = document.createElement('div');
+      line.id    = 'drag-insert-line';
+      Object.assign(line.style, {
+        position:     'absolute',
+        left:         '12px',
+        right:        '12px',
+        height:       '2px',
+        background:   'linear-gradient(90deg, transparent, var(--theme-accent), transparent)',
+        borderRadius: '999px',
+        zIndex:       '100',
+        pointerEvents:'none',
+        boxShadow:    '0 0 10px rgba(var(--theme-accent-rgb),0.7)',
+        display:      'none',
+        transition:   'top 0.06s ease',
+      });
+      // container must be position:relative for absolute child to work
+      if (getComputedStyle(container).position === 'static') {
+        container.style.position = 'relative';
       }
+      container.appendChild(line);
+      return line;
+    }
+
+    // ── Find which index to insert at, given cursor Y ─────────────
+    function getInsertIndex(clientY, allItems, srcIdx) {
+      for (let i = 0; i < allItems.length; i++) {
+        if (i === srcIdx) continue;
+        const rect = allItems[i].getBoundingClientRect();
+        if (clientY < rect.top + rect.height / 2) return i;
+      }
+      return allItems.length; // after last item
+    }
+
+    // ── Position the insertion line ───────────────────────────────
+    function positionInsertLine(insertIdx, allItems) {
+      if (!insertLine) return;
+      const containerRect = container.getBoundingClientRect();
+      let topPx;
+      if (insertIdx >= allItems.length) {
+        const last = allItems[allItems.length - 1];
+        if (!last) { insertLine.style.display = 'none'; return; }
+        topPx = last.getBoundingClientRect().bottom - containerRect.top;
+      } else {
+        topPx = allItems[insertIdx].getBoundingClientRect().top - containerRect.top;
+      }
+      insertLine.style.top     = `${topPx - 1}px`;
+      insertLine.style.display = 'block';
+    }
+
+    // ── Auto-scroll when ghost near top/bottom edges ─────────────
+    function autoScroll(clientY) {
+      if (!songList || !dragState) return;
+      const rect        = songList.getBoundingClientRect();
+      const distTop     = clientY - rect.top;
+      const distBottom  = rect.bottom - clientY;
+      let   speed       = 0;
+      if      (distTop    < SCROLL_EDGE && distTop    > 0) speed = -Math.ceil((SCROLL_EDGE - distTop)    / SCROLL_EDGE * 14);
+      else if (distBottom < SCROLL_EDGE && distBottom > 0) speed =  Math.ceil((SCROLL_EDGE - distBottom) / SCROLL_EDGE * 14);
       if (speed !== 0) {
         songList.scrollTop += speed;
-        autoScrollRAF = requestAnimationFrame(doAutoScroll);
+        scrollRAF = requestAnimationFrame(() => autoScroll(dragState.lastY));
       } else {
-        autoScrollRAF = null;
+        scrollRAF = null;
       }
-    };
+    }
 
-    // Listen on the container for dragover to track cursor position
-    container.addEventListener('dragover', (e) => {
-      dragClientY = e.clientY;
-      if (!autoScrollRAF) autoScrollRAF = requestAnimationFrame(doAutoScroll);
-    });
-    container.addEventListener('dragleave', () => {
-      if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
-    });
-    container.addEventListener('drop', () => {
-      if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
-    });
+    // ── Cleanup everything after drag ends ───────────────────────
+    function cleanup() {
+      if (ghost)       { ghost.remove();       ghost       = null; }
+      if (insertLine)  { insertLine.remove();   insertLine  = null; }
+      if (scrollRAF)   { cancelAnimationFrame(scrollRAF);  scrollRAF = null; }
+      if (dragState?.sourceEl) {
+        dragState.sourceEl.style.opacity    = '';
+        dragState.sourceEl.style.transition = '';
+      }
+      dragState = null;
+      document.removeEventListener('pointermove',   onMove);
+      document.removeEventListener('pointerup',     onUp);
+      document.removeEventListener('pointercancel', onUp);
+    }
 
-    items.forEach(item => {
-      item.addEventListener('dragstart', (e) => {
-        state.dragSrcIndex = parseInt(item.dataset.dragIndex);
-        item.classList.add('opacity-50');
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      item.addEventListener('dragend', () => {
-        item.classList.remove('opacity-50');
-        if (autoScrollRAF) { cancelAnimationFrame(autoScrollRAF); autoScrollRAF = null; }
-      });
-      item.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        item.classList.add('ring-1', 'ring-cyan-400');
-      });
-      item.addEventListener('dragleave', () => item.classList.remove('ring-1', 'ring-cyan-400'));
-      item.addEventListener('drop', (e) => {
-        e.preventDefault();
-        item.classList.remove('ring-1', 'ring-cyan-400');
-        const destIdx = parseInt(item.dataset.dragIndex);
-        if (state.dragSrcIndex !== null && state.dragSrcIndex !== destIdx) {
-          const playlist = state.userPlaylists[state.activePlaylistName];
-          const moved = playlist.splice(state.dragSrcIndex, 1)[0];
-          playlist.splice(destIdx, 0, moved);
+    // ── Pointer move handler ──────────────────────────────────────
+    function onMove(e) {
+      if (!dragState) return;
+      e.preventDefault();
+      const { clientX, clientY } = e;
+      dragState.lastY = clientY;
+
+      // Move ghost with cursor
+      if (ghost) {
+        ghost.style.left = `${clientX - dragState.offX}px`;
+        ghost.style.top  = `${clientY - dragState.offY}px`;
+      }
+
+      // Compute insertion point + update visual indicator
+      const allItems = Array.from(container.querySelectorAll('.song-item'));
+      const insIdx   = getInsertIndex(clientY, allItems, dragState.srcIdx);
+      dragState.insIdx = insIdx;
+      positionInsertLine(insIdx, allItems);
+
+      // Trigger auto-scroll
+      if (!scrollRAF) scrollRAF = requestAnimationFrame(() => autoScroll(clientY));
+    }
+
+    // ── Pointer up / cancel handler ───────────────────────────────
+    function onUp() {
+      if (!dragState) return;
+      const { srcIdx, insIdx } = dragState;
+
+      if (srcIdx !== null && insIdx !== null && insIdx !== srcIdx && insIdx !== srcIdx + 1) {
+        const playlist = state.userPlaylists[state.activePlaylistName];
+        if (playlist) {
+          const moved     = playlist.splice(srcIdx, 1)[0];
+          const adjIdx    = insIdx > srcIdx ? insIdx - 1 : insIdx;
+          playlist.splice(adjIdx, 0, moved);
           state.currentPlaylist = [...playlist];
           Storage.save('playlists', state.userPlaylists);
           if (state.currentSongId) {
@@ -1658,9 +1959,54 @@ const UI = {
               s => songId(s) === state.currentSongId
             );
           }
+          console.log('[DragDrop] Drop completed: moved', srcIdx, '→', adjIdx);
+          Toast.show('↕ Reordered', 'info');
+          cleanup();
           UI.renderSongList();
+          return;
         }
-        state.dragSrcIndex = null;
+      }
+      cleanup();
+    }
+
+    // ── Attach pointerdown to every drag handle ───────────────────
+    container.querySelectorAll('.drag-handle').forEach(handle => {
+      handle.style.touchAction = 'none'; // prevent scroll steal on mobile
+
+      handle.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const item    = handle.closest('.song-item');
+        if (!item) return;
+        const srcIdx  = parseInt(item.dataset.dragIndex ?? handle.dataset.dragIndex);
+        if (isNaN(srcIdx)) return;
+
+        console.log('[DragDrop] Drag started at index', srcIdx);
+
+        const rect = item.getBoundingClientRect();
+        ghost      = createGhost(item, e.clientX, e.clientY);
+        insertLine = createInsertLine();
+
+        // Dim the source item with a smooth transition
+        item.style.transition = 'opacity 0.15s ease';
+        item.style.opacity    = '0.3';
+
+        dragState = {
+          sourceEl: item,
+          srcIdx,
+          insIdx:   srcIdx,
+          offX:     e.clientX - rect.left,
+          offY:     e.clientY - rect.top,
+          lastY:    e.clientY,
+        };
+
+        // Capture so subsequent events still fire on this element even if pointer leaves
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+
+        document.addEventListener('pointermove',   onMove, { passive: false });
+        document.addEventListener('pointerup',     onUp);
+        document.addEventListener('pointercancel', onUp);
       });
     });
   },
@@ -1729,7 +2075,7 @@ const UI = {
     }
     container.innerHTML = names.map(name => `
       <div class="playlist-item group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer hover:bg-white/5 transition-colors
-        ${state.activePlaylistName === name ? 'bg-cyan-500/10 text-cyan-400' : 'text-gray-300'}"
+        ${state.activePlaylistName === name ? 'active-pl' : 'text-gray-300'}"
         data-name="${name}">
         <span class="text-sm truncate flex-1 min-w-0">📂 ${name}</span>
         <!-- 3-dot menu button — always visible (touch-friendly), not hover-only -->
@@ -1839,6 +2185,7 @@ const UI = {
 
 const Explore = {
   open(forAddSongs = false) {
+    console.log('[Explore] Modal opened, addSongsMode:', forAddSongs);
     state.addSongsMode = forAddSongs;
     state.selectedSongs.clear();
     const modal = document.getElementById('explore-modal');
@@ -1859,6 +2206,7 @@ const Explore = {
   },
 
   close() {
+    console.log('[Explore] Modal closed');
     state.addSongsMode = false;
     state.selectedSongs.clear();
     const modal = document.getElementById('explore-modal');
@@ -1990,12 +2338,12 @@ const Explore = {
           class="singer-card flex flex-col items-center gap-2 p-3 rounded-2xl border border-white/10 hover:border-cyan-400/50 bg-white/5 hover:bg-white/10 transition-all duration-200 cursor-pointer group"
           data-singer="${singer}"
         >
-          <div class="w-14 h-14 rounded-full overflow-hidden bg-gradient-to-br from-cyan-500/30 to-blue-500/30 flex items-center justify-center flex-shrink-0">
+          <div class="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0" style="background:linear-gradient(135deg,rgba(var(--theme-accent-rgb),0.3),rgba(var(--theme-accent-rgb),0.15))">
             <img src="${imgPath}" alt="${singer}"
               class="w-full h-full object-cover"
               onerror="this.style.display='none';this.nextSibling.style.display='flex'"
             />
-            <span class="text-sm font-bold text-cyan-400 hidden items-center justify-center w-full h-full">${initials}</span>
+            <span class="text-sm font-bold hidden items-center justify-center w-full h-full" style="color:var(--theme-accent)">${initials}</span>
           </div>
           <span class="text-xs text-gray-300 group-hover:text-white text-center leading-tight">${singer}</span>
         </button>`;
@@ -2066,8 +2414,8 @@ const Explore = {
           else state.selectedSongs.delete(cb.dataset.url);
           const lbl = cb.closest('label');
           if (lbl) {
-            lbl.classList.toggle('bg-cyan-500/15', cb.checked);
-            lbl.classList.toggle('border-cyan-500/30', cb.checked);
+            lbl.style.background = cb.checked ? `rgba(var(--theme-accent-rgb),0.15)` : '';
+            lbl.style.borderColor = cb.checked ? `rgba(var(--theme-accent-rgb),0.3)` : '';
             lbl.classList.toggle('border-transparent', !cb.checked);
           }
           Explore.updateSelectionCount();
@@ -2200,7 +2548,7 @@ const EQPanel = {
                 <span class="eq-exp-val tabular-nums" style="font-size:9px;color:#6b7fa0;min-width:24px;text-align:center;">${val > 0 ? '+' : ''}${val}</span>
                 <input type="range" class="eq-exp-slider" data-band="${i}"
                   min="-12" max="12" step="0.5" value="${val}"
-                  style="writing-mode:vertical-lr;direction:rtl;width:24px;height:calc(clamp(160px,45vw,260px) - 42px);cursor:pointer;accent-color:#06b6d4;flex-shrink:0;" />
+                  style="writing-mode:vertical-lr;direction:rtl;width:24px;height:calc(clamp(160px,45vw,260px) - 42px);cursor:pointer;accent-color:var(--theme-accent);flex-shrink:0;" />
                 <span style="font-size:8px;color:#4b5563;margin-top:1px;">${band.label}</span>
               </div>`;
             }).join('')}
@@ -2233,7 +2581,7 @@ const EQPanel = {
           background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
           color: #9ca3af; cursor: pointer; transition: background 0.12s, color 0.12s;
         }
-        .eq-exp-preset:hover { background: rgba(6,182,212,0.2); color: #06b6d4; border-color: rgba(6,182,212,0.35); }
+        .eq-exp-preset:hover { background: rgba(var(--theme-accent-rgb),0.2); color: var(--theme-accent); border-color: rgba(var(--theme-accent-rgb),0.35); }
         .eq-exp-preset:active { transform: scale(0.95); }
       </style>`;
 
@@ -2317,7 +2665,7 @@ const EQPanel = {
       <button class="eq-exp-custom-preset" data-name="${name.replace(/"/g,'&quot;')}"
         style="font-size:11px;padding:4px 12px;border-radius:999px;
           background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25);
-          color:#06b6d4;cursor:pointer;transition:background 0.12s;">
+          color:var(--theme-accent);cursor:pointer;transition:background 0.12s;">
         ${name}
       </button>`).join('');
     listEl.querySelectorAll('.eq-exp-custom-preset').forEach(btn => {
@@ -2417,6 +2765,135 @@ const EQPanel = {
   }
 };
 
+// ═══════════════════════════════════════════════════════════
+// SETTINGS SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+const Settings = {
+
+  _save(key, value) {
+    const s = Storage.load('settings', {});
+    s[key] = value;
+    Storage.save('settings', s);
+  },
+
+  applyTheme(themeId) {
+    if (!THEMES[themeId]) themeId = 'ocean-blue';
+    console.log('[Settings] Theme changed:', themeId);
+    console.log('[Theme] Applied:', themeId);
+    state.currentTheme = themeId;
+    document.documentElement.setAttribute('data-theme', themeId);
+    const t = THEMES[themeId];
+    const root = document.documentElement;
+    root.style.setProperty('--theme-accent',     t.accent);
+    root.style.setProperty('--theme-accent2',    t.accent2);
+    root.style.setProperty('--theme-accent-rgb', t.rgb);
+    root.style.setProperty('--theme-glow',       `rgba(${t.rgb},0.35)`);
+    root.style.setProperty('--theme-glow-soft',  `rgba(${t.rgb},0.15)`);
+    Settings._save('theme', themeId);
+    Settings._updateThemeUI(themeId);
+    Settings._refreshSpeedSliders();
+    // [Atmosphere] Sync theme accent colors
+    if (typeof AtmosphereEngine !== 'undefined') { AtmosphereEngine.ThemeSync?.refresh(); AtmosphereEngine.onThemeChange(); }
+  },
+
+  _refreshSpeedSliders() {
+    const t = THEMES[state.currentTheme];
+    if (!t) return;
+    ['speed-slider-mobile', 'speed-slider-desktop', 'speed-modal-slider'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        const pct = ((parseFloat(el.value) - 0.5) / 1.5 * 100).toFixed(1);
+        el.style.background = `linear-gradient(to right, ${t.accent} ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
+      }
+    });
+  },
+
+  applyParticles(enabled) {
+    console.log('[Settings] Particles:', enabled ? 'ON' : 'OFF');
+    state.particlesOn = enabled;
+    document.body.classList.toggle('particles-enabled', enabled);
+    Settings._save('particles', enabled);
+    Settings._updateParticlesUI(enabled);
+    // [Atmosphere] Toggle home particle system
+    if (typeof AtmosphereEngine !== 'undefined') AtmosphereEngine.toggleParticles(enabled);
+  },
+
+  open() {
+    console.log('[Settings] Modal opened');
+    Settings._renderThemeGrid();
+    const modal = document.getElementById('settings-modal');
+    if (modal) { modal.classList.remove('hidden'); modal.classList.add('flex'); }
+    Settings._updateModeUI(state.isDarkMode);
+    Settings._updateParticlesUI(state.particlesOn);
+    Settings._updateThemeUI(state.currentTheme);
+  },
+
+  close() {
+    console.log('[Settings] Modal closed');
+    const modal = document.getElementById('settings-modal');
+    if (modal) { modal.classList.add('hidden'); modal.classList.remove('flex'); }
+  },
+
+  _renderThemeGrid() {
+    const grid = document.getElementById('theme-options-grid');
+    if (!grid || grid.dataset.rendered) return;
+    grid.dataset.rendered = '1';
+    grid.innerHTML = Object.entries(THEMES).map(([id, t]) => `
+      <button class="theme-option-btn" data-theme="${id}">
+        <span class="w-5 h-5 rounded-full flex-shrink-0 inline-block"
+              style="background:${t.swatch};box-shadow:0 1px 4px rgba(0,0,0,0.3)"></span>
+        <span>${t.emoji} ${t.name}</span>
+      </button>
+    `).join('');
+    grid.querySelectorAll('.theme-option-btn').forEach(btn => {
+      btn.addEventListener('click', () => Settings.applyTheme(btn.dataset.theme));
+    });
+  },
+
+  _updateModeUI(isDark) {
+    const darkBtn  = document.getElementById('settings-dark-btn');
+    const lightBtn = document.getElementById('settings-light-btn');
+    if (!darkBtn || !lightBtn) return;
+    [darkBtn, lightBtn].forEach(b => b.classList.remove('settings-btn-active','settings-btn-inactive'));
+    darkBtn.classList.add( isDark  ? 'settings-btn-active' : 'settings-btn-inactive');
+    lightBtn.classList.add(!isDark ? 'settings-btn-active' : 'settings-btn-inactive');
+    darkBtn.style.border  = isDark  ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
+    lightBtn.style.border = !isDark ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
+  },
+
+  _updateParticlesUI(enabled) {
+    const onBtn  = document.getElementById('settings-particles-on');
+    const offBtn = document.getElementById('settings-particles-off');
+    if (!onBtn || !offBtn) return;
+    [onBtn, offBtn].forEach(b => b.classList.remove('settings-btn-active','settings-btn-inactive'));
+    onBtn.classList.add( enabled  ? 'settings-btn-active' : 'settings-btn-inactive');
+    offBtn.classList.add(!enabled ? 'settings-btn-active' : 'settings-btn-inactive');
+    onBtn.style.border  = enabled  ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
+    offBtn.style.border = !enabled ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
+  },
+
+  _updateThemeUI(themeId) {
+    document.querySelectorAll('.theme-option-btn').forEach(btn => {
+      const isActive = btn.dataset.theme === themeId;
+      btn.classList.toggle('theme-option-active', isActive);
+      if (isActive) {
+        const t = THEMES[themeId];
+        btn.style.background  = `rgba(${t.rgb},0.12)`;
+        btn.style.borderColor = `rgba(${t.rgb},0.55)`;
+        btn.style.boxShadow   = `0 0 12px rgba(${t.rgb},0.18)`;
+        btn.style.color       = t.accent;
+      } else {
+        btn.style.background  = '';
+        btn.style.borderColor = '';
+        btn.style.boxShadow   = '';
+        btn.style.color       = '';
+      }
+    });
+  }
+};
+
+
 
 
 const UserPlaylists = {
@@ -2434,9 +2911,9 @@ const UserPlaylists = {
         <h3 class="text-white font-semibold text-sm mb-3">Rename Playlist</h3>
         <input id="rename-pl-input" type="text" value="${oldName.replace(/"/g, '&quot;')}"
           class="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm
-                 focus:outline-none focus:border-cyan-500/60 transition-colors mb-3" />
+                 focus:outline-none mb-3" style="focus-color:var(--theme-accent)" />
         <div class="flex gap-2">
-          <button id="rename-pl-confirm" class="flex-1 py-2 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 text-sm font-medium transition-colors">Rename</button>
+          <button id="rename-pl-confirm" class="flex-1 py-2 rounded-lg text-sm font-medium transition-colors" style="background:rgba(var(--theme-accent-rgb),0.18);color:var(--theme-accent)">Rename</button>
           <button id="rename-pl-cancel"  class="flex-1 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 text-sm transition-colors">Cancel</button>
         </div>
         <p id="rename-pl-error" class="text-red-400 text-xs mt-2 hidden"></p>
@@ -2486,6 +2963,7 @@ const UserPlaylists = {
 
   /** Create a new playlist */
   create(name) {
+    console.log('[Playlist] Creating playlist:', name);
     if (!name.trim()) return Toast.show('Enter a playlist name', 'error');
     if (state.userPlaylists[name]) return Toast.show('Playlist already exists', 'error');
     state.userPlaylists[name] = [];
@@ -2726,7 +3204,8 @@ const SongModal = {
         <!-- Artwork -->
         <div class="px-6 pt-8 pb-4 flex justify-center relative">
           <img src="${thumb}" alt="${song.title}"
-            class="w-44 h-44 rounded-2xl object-cover shadow-2xl ring-2 ring-white/10"
+            class="max-w-full max-h-52 rounded-2xl object-contain shadow-2xl ring-2 ring-white/10"
+            style="max-height:208px;width:auto;height:auto;"
             onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22176%22 height=%22176%22><rect width=%22176%22 height=%22176%22 fill=%22%23374151%22 rx=%2216%22/><text x=%2288%22 y=%22108%22 text-anchor=%22middle%22 font-size=%2264%22>🎵</text></svg>'"
           />
         </div>
@@ -2836,81 +3315,147 @@ const SongModal = {
 };
 
 // ═══════════════════════════════════════════════════════════
-// 12. TOAST SYSTEM — single toast at a time
+// 12. TOAST SYSTEM — stacked, animated, swipeable
 // ═══════════════════════════════════════════════════════════
 
 const Toast = {
-  _timer:   null,
-  _current: null,
-  _touchStartX: 0,
+  _queue:   [],     // pending toasts
+  _active:  [],     // currently shown toasts (max 3)
+  _MAX:     3,      // max simultaneous toasts
+  _GAP:     8,      // px gap between stacked toasts
 
+  /** Show a toast notification. Queues if max active. */
   show(message, type = 'info') {
-    const colors = {
-      success: 'background:rgba(16,185,129,0.92)',
-      error:   'background:rgba(239,68,68,0.92)',
-      warning: 'background:rgba(245,158,11,0.92)',
-      info:    'background:rgba(59,130,246,0.92)',
-    };
+    console.log(`[Toast] show [${type}]:`, message);
 
-    // Tear down any existing toast immediately
-    Toast._destroy();
+    const colors = {
+      success: { bg: 'rgba(16,185,129,0.93)',  icon: '✓', border: 'rgba(16,185,129,0.4)' },
+      error:   { bg: 'rgba(239,68,68,0.93)',   icon: '✕', border: 'rgba(239,68,68,0.4)' },
+      warning: { bg: 'rgba(245,158,11,0.93)',  icon: '⚠', border: 'rgba(245,158,11,0.4)' },
+      info:    { bg: 'rgba(59,130,246,0.93)',  icon: 'ℹ', border: 'rgba(59,130,246,0.4)' },
+    };
+    const style = colors[type] || colors.info;
+
+    // Dedup: if an identical toast is already showing, ignore
+    if (Toast._active.some(t => t._meta?.message === message)) return;
+
+    const entry = { message, type, style };
+
+    if (Toast._active.length >= Toast._MAX) {
+      // Queue for later
+      Toast._queue.push(entry);
+      return;
+    }
+
+    Toast._show(entry);
+  },
+
+  _show(entry) {
+    const PLAYER_H   = getComputedStyle(document.documentElement).getPropertyValue('--player-h').trim() || '5.5rem';
+    const TOAST_H    = 48;
+    const stackIdx   = Toast._active.length;     // 0 = bottom, 1 = above, etc.
+    const bottomBase = `calc(${PLAYER_H} + 1rem)`;
 
     const toast = document.createElement('div');
-    toast.id = 'soundaura-toast';
+    toast.className = 'sa-toast';
+    toast._meta = entry;
+
     toast.style.cssText = `
-      position:fixed; bottom:calc(var(--player-h) + 0.6rem); right:1rem;
-      z-index:250; max-width:300px; min-width:180px;
-      ${colors[type] || colors.info};
-      border-radius:12px; padding:10px 14px 10px 14px;
-      color:white; font-size:13px; font-weight:500;
-      box-shadow:0 4px 20px rgba(0,0,0,0.4);
-      display:flex; align-items:center; gap:8px;
-      backdrop-filter:blur(10px);
-      transform:translateX(110%);
-      transition:transform 0.22s cubic-bezier(0.34,1.56,0.64,1);
-      cursor:default;
+      position: fixed;
+      right: 1rem;
+      bottom: calc(${PLAYER_H} + 1rem + ${stackIdx * (TOAST_H + Toast._GAP)}px);
+      z-index: 210;
+      min-width: 200px; max-width: 320px;
+      padding: 11px 14px;
+      border-radius: 12px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 500;
+      color: #fff;
+      background: ${entry.style.bg};
+      border: 1px solid ${entry.style.border};
+      box-shadow: 0 8px 28px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      backdrop-filter: blur(14px);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      transform: translateX(110%) scale(0.95);
+      transition: transform 0.28s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease, bottom 0.2s ease;
+      will-change: transform;
+      cursor: default;
+      overflow: hidden;
     `;
-    toast.innerHTML = `
-      <span style="flex:1;line-height:1.4">${message}</span>
-      <button style="background:none;border:none;color:rgba(255,255,255,0.7);
-        cursor:pointer;padding:0;font-size:15px;line-height:1;flex-shrink:0;
-        transition:color 0.1s" onmouseenter="this.style.color='white'"
-        onmouseleave="this.style.color='rgba(255,255,255,0.7)'"
-        aria-label="Close">✕</button>`;
 
-    document.body.appendChild(toast);
-    Toast._current = toast;
+    // Progress bar at bottom
+    const prog = document.createElement('div');
+    prog.style.cssText = `
+      position: absolute; bottom: 0; left: 0;
+      height: 2px; width: 100%;
+      background: rgba(255,255,255,0.4);
+      border-radius: 0 0 12px 12px;
+      transform-origin: left;
+      animation: toastProgress 3.2s linear forwards;
+    `;
+    toast.innerHTML = `<span style="flex-shrink:0;font-size:14px">${entry.style.icon}</span><span style="flex:1;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${entry.message}</span>`;
+    toast.appendChild(prog);
 
-    // Close button
-    toast.querySelector('button').addEventListener('click', () => Toast._destroy());
-
-    // Swipe-to-dismiss (mobile)
-    toast.addEventListener('touchstart', (e) => {
-      Toast._touchStartX = e.touches[0].clientX;
+    // Swipe-to-dismiss
+    let startX = 0;
+    toast.addEventListener('touchstart', (e) => { startX = e.touches[0].clientX; }, { passive: true });
+    toast.addEventListener('touchmove', (e) => {
+      const dx = e.touches[0].clientX - startX;
+      if (dx > 20) toast.style.transform = `translateX(${dx}px)`;
     }, { passive: true });
     toast.addEventListener('touchend', (e) => {
-      const dx = e.changedTouches[0].clientX - Toast._touchStartX;
-      if (dx > 60) Toast._destroy(); // swipe right → dismiss
+      const dx = e.changedTouches[0].clientX - startX;
+      if (dx > 80) Toast._remove(toast);
+      else { toast.style.transition = 'transform 0.2s ease'; toast.style.transform = 'translateX(0)'; }
     }, { passive: true });
+
+    document.body.appendChild(toast);
+    Toast._active.push(toast);
 
     // Animate in
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      toast.style.transform = 'translateX(0)';
+      toast.style.transform = 'translateX(0) scale(1)';
     }));
 
-    // Always auto-dismiss — guaranteed, no way to get stuck
-    Toast._timer = setTimeout(Toast._destroy, 3500);
+    // Auto-dismiss after 3.4s
+    toast._timer = setTimeout(() => Toast._remove(toast), 3400);
   },
 
+  _remove(toast) {
+    if (!toast || !document.body.contains(toast)) return;
+    clearTimeout(toast._timer);
+    toast.style.transition = 'transform 0.22s ease, opacity 0.18s ease';
+    toast.style.transform  = 'translateX(110%) scale(0.95)';
+    toast.style.opacity    = '0';
+    setTimeout(() => {
+      if (toast.parentNode) toast.remove();
+      Toast._active = Toast._active.filter(t => t !== toast);
+      // Reposition remaining toasts
+      Toast._restack();
+      // Show queued toast if any
+      if (Toast._queue.length > 0 && Toast._active.length < Toast._MAX) {
+        Toast._show(Toast._queue.shift());
+      }
+    }, 250);
+  },
+
+  _restack() {
+    const PLAYER_H = getComputedStyle(document.documentElement).getPropertyValue('--player-h').trim() || '5.5rem';
+    const TOAST_H  = 48;
+    Toast._active.forEach((t, i) => {
+      if (document.body.contains(t)) {
+        t.style.bottom = `calc(${PLAYER_H} + 1rem + ${i * (TOAST_H + Toast._GAP)}px)`;
+      }
+    });
+  },
+
+  /** Legacy compat: _destroy clears everything */
   _destroy() {
-    if (Toast._timer) { clearTimeout(Toast._timer); Toast._timer = null; }
-    if (Toast._current) {
-      const el = Toast._current;
-      Toast._current = null;
-      el.style.transform = 'translateX(110%)';
-      // Remove after animation completes — guarded timeout
-      setTimeout(() => { if (el.parentNode) el.remove(); }, 300);
-    }
+    [...Toast._active].forEach(t => Toast._remove(t));
+    Toast._queue = [];
   }
 };
 
@@ -2959,13 +3504,13 @@ const LoadingToast = {
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:9px;margin-bottom:7px;">
         <div id="lt-spinner" style="width:14px;height:14px;border:2px solid rgba(6,182,212,0.3);
-          border-top-color:#06b6d4;border-radius:50%;
+          border-top-color:var(--theme-accent);border-radius:50%;
           animation:ltSpin 0.75s linear infinite;flex-shrink:0;"></div>
         <span id="lt-label" style="font-size:11px;font-weight:600;color:#f0f6ff;
           overflow:hidden;white-space:nowrap;text-overflow:ellipsis;flex:1;">
           Loading…
         </span>
-        <span id="lt-pct" style="font-size:10px;color:#06b6d4;font-variant-numeric:tabular-nums;
+        <span id="lt-pct" style="font-size:10px;color:var(--theme-accent);font-variant-numeric:tabular-nums;
           font-weight:700;flex-shrink:0;margin-right:4px;">0%</span>
         <button id="lt-close" style="background:none;border:none;color:rgba(255,255,255,0.5);
           cursor:pointer;padding:0;font-size:13px;line-height:1;flex-shrink:0;
@@ -2973,7 +3518,7 @@ const LoadingToast = {
       </div>
       <div style="height:3px;background:rgba(255,255,255,0.08);border-radius:999px;overflow:hidden;">
         <div id="lt-bar" style="height:100%;width:0%;border-radius:999px;
-          background:linear-gradient(90deg,#06b6d4,#3b82f6);
+          background:linear-gradient(90deg,var(--theme-accent),var(--theme-accent2));
           transition:width 0.12s ease;"></div>
       </div>`;
 
@@ -3404,173 +3949,7 @@ const About = {
   }
 };
 
-// ═══════════════════════════════════════════════════════════
-// 13g. POPUP MINI PLAYER  (Primary — desktop only)
-//
-//  Uses window.open() + BroadcastChannel for true OS-level
-//  floating window with bidirectional sync.
-//
-//  Architecture:
-//   Main window → broadcasts STATE on every player event
-//   Popup       → receives STATE, renders UI
-//   Popup       → sends CMD_* back when user clicks controls
-//   Main window → handles CMD_* exactly like keyboard shortcuts
-//
-//  Fallback: if popup is blocked → falls back to in-page
-//  MiniPlayer overlay (which already exists).
-// ═══════════════════════════════════════════════════════════
-
-const PopupMiniPlayer = {
-  _popup:     null,   // reference to the popup window
-  _bc:        null,   // BroadcastChannel instance
-  _poll:      null,   // setInterval handle for popup-closed detection
-  _supported: false,
-
-  // ── Setup ──────────────────────────────────────────────
-
-  init() {
-    if (!('BroadcastChannel' in window)) {
-      console.warn('[PopupMiniPlayer] BroadcastChannel not supported');
-      return;
-    }
-    this._supported = true;
-    this._bc = new BroadcastChannel('soundaura_player');
-
-    this._bc.onmessage = (e) => {
-      const d = e.data;
-      switch (d.type) {
-        case 'POPUP_READY':
-          // Popup just loaded — send it the full current state immediately
-          PopupMiniPlayer.broadcastState();
-          break;
-        case 'POPUP_CLOSED':
-          PopupMiniPlayer._cleanup();
-          break;
-        case 'CMD_PLAY':
-          AudioEngine.init(); Player.togglePlay();
-          break;
-        case 'CMD_NEXT':  Player.next();  break;
-        case 'CMD_PREV':  Player.prev();  break;
-        case 'CMD_MODE':  PlaybackMode.cycle(); break;
-        case 'CMD_SEEK':
-          if (audioEl.duration && typeof d.pct === 'number')
-            audioEl.currentTime = (d.pct / 100) * audioEl.duration;
-          break;
-        case 'CMD_VOLUME': Volume.set(d.volume); break;
-      }
-    };
-
-    console.log('[PopupMiniPlayer] Ready (BroadcastChannel active)');
-  },
-
-  // ── Open popup (or fall back) ───────────────────────────
-
-  open() {
-    // ── Mobile: no popup window — use compact mode instead ──
-    if (window.innerWidth < 768) {
-      CompactMode.enable();
-      return;
-    }
-
-    if (this._popup && !this._popup.closed) {
-      try { this._popup.focus(); } catch (e) {}
-      return;
-    }
-
-    if (!this._supported) {
-      Toast.show('Popup not supported — showing overlay player', 'info');
-      MiniPlayer.show();
-      return;
-    }
-
-    // Calculate position: top-right corner, small square
-    const W = 170, H = 170;
-    const left = Math.max(0, screen.width  - W - 20);
-    const top  = Math.max(0, 60);
-
-    const features = [
-      `width=${W}`, `height=${H}`,
-      `left=${left}`, `top=${top}`,
-      'resizable=no', 'menubar=no', 'toolbar=no',
-      'location=no', 'status=no', 'scrollbars=no',
-    ].join(',');
-
-    const popup = window.open('/soundaura/miniplayer.html', 'SoundAura_MiniPlayer', features);
-
-    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
-      // Popup was blocked
-      Toast.show('Popup blocked — showing overlay player', 'info');
-      MiniPlayer.show();
-      return;
-    }
-
-    this._popup = popup;
-
-    // Poll every second to detect if the popup was closed by the user
-    clearInterval(this._poll);
-    this._poll = setInterval(() => {
-      if (this._popup?.closed) PopupMiniPlayer._cleanup();
-    }, 1000);
-
-    Toast.show('🎵 Mini player opened', 'success');
-    console.log('[PopupMiniPlayer] Popup opened');
-  },
-
-  close() {
-    if (this._popup && !this._popup.closed) {
-      try { this._popup.close(); } catch (e) {}
-    }
-    this._cleanup();
-  },
-
-  _cleanup() {
-    clearInterval(this._poll);
-    this._popup = null;
-    console.log('[PopupMiniPlayer] Cleaned up');
-  },
-
-  isOpen() {
-    return !!this._popup && !this._popup.closed;
-  },
-
-  // ── Broadcast state to popup ─────────────────────────────
-
-  broadcastState() {
-    if (!this._bc) return;
-
-    const song    = state.currentSongId
-      ? state.allSongs.find(s => songId(s) === state.currentSongId)
-      : null;
-    const artists = song
-      ? (Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '—'))
-      : '—';
-    const dur = audioEl.duration || 0;
-
-    this._bc.postMessage({
-      type:        'STATE',
-      title:       song?.title  || 'No song playing',
-      artist:      artists,
-      thumb:       song ? DataLoader.getThumbnailUrl(song) : '',
-      playing:     state.isPlaying,
-      progress:    dur ? (audioEl.currentTime / dur) * 100 : 0,
-      currentTime: audioEl.currentTime || 0,
-      duration:    dur,
-      mode:        state.playbackMode,
-      volume:      state.isMuted ? 0 : state.volume,
-      isDark:      state.isDarkMode,
-    });
-  },
-
-  // Throttled progress-only broadcast — fires on timeupdate
-  _lastProgressBroadcast: 0,
-  broadcastProgress() {
-    if (!this._bc) return;
-    const now = Date.now();
-    if (now - this._lastProgressBroadcast < 500) return; // throttle to 2/s
-    this._lastProgressBroadcast = now;
-    this.broadcastState();
-  },
-};
+// PopupMiniPlayer removed
 
 // ═══════════════════════════════════════════════════════════
 // 13h. COMPACT MODE  (Fallback — same-window mini experience)
@@ -3587,6 +3966,7 @@ const CompactMode = {
     if (this._active) return;
     this._active = true;
     document.body.classList.add('compact-mode');
+    console.log('[Player] Compact mode enabled');
     // Update the now-playing strip with current song
     CompactMode._syncStrip();
     Storage.save('compactMode', true);
@@ -3599,6 +3979,7 @@ const CompactMode = {
     if (!this._active) return;
     this._active = false;
     document.body.classList.remove('compact-mode');
+    console.log('[Player] Compact mode disabled');
     Storage.save('compactMode', false);
     const btn = document.getElementById('compact-mode-toggle');
     if (btn) btn.textContent = '⬇ Compact Mode';
@@ -3663,310 +4044,7 @@ const CompactMode = {
 };
 
 
-//
-//  Architecture: ZERO separate audio. All controls call
-//  existing Player.* methods. Sync is achieved by patching
-//  UI.setPlayPauseIcon, UI.updatePlayerUI, timeupdate,
-//  and PlaybackMode.updateUI — the same hooks that drive
-//  the main player already fire and now also reach here.
-// ═══════════════════════════════════════════════════════════
-
-const MiniPlayer = {
-  _visible: false,
-  _dragging: false,
-  _dragOffX: 0,
-  _dragOffY: 0,
-
-  // ── DOM helpers ────────────────────────────────────────────
-  el()           { return document.getElementById('mini-player'); },
-  isVisible()    { return this._visible; },
-
-  // ── Show / Hide / Toggle ───────────────────────────────────
-
-  show() {
-    const el = this.el();
-    if (!el || this._visible) return;
-    this._visible = true;
-
-    // Ensure position is restored BEFORE making visible so no flash
-    this._restorePosition();
-
-    el.classList.remove('hidden');
-    el.classList.add('mp-entering');
-    el.addEventListener('animationend', () => el.classList.remove('mp-entering'), { once: true });
-
-    // Immediately sync current state
-    const song = state.currentSongId
-      ? state.allSongs.find(s => songId(s) === state.currentSongId)
-      : null;
-    if (song) MiniPlayer.update(song);
-    MiniPlayer.syncPlayState(state.isPlaying);
-    MiniPlayer.syncMode();
-    MiniPlayer._syncCurrentProgress();
-
-    Storage.save('miniPlayerVisible', true);
-    console.log('[MiniPlayer] Shown');
-  },
-
-  hide() {
-    const el = this.el();
-    if (!el || !this._visible) return;
-    this._visible = false;
-
-    el.classList.add('mp-leaving');
-    el.addEventListener('animationend', () => {
-      el.classList.add('hidden');
-      el.classList.remove('mp-leaving');
-    }, { once: true });
-
-    Storage.save('miniPlayerVisible', false);
-    console.log('[MiniPlayer] Hidden');
-  },
-
-  toggle() { this._visible ? MiniPlayer.hide() : MiniPlayer.show(); },
-
-  // ── Sync methods (called from patched UI / audio events) ────
-
-  /** Called from patched UI.updatePlayerUI — updates song art, title, artist */
-  update(song) {
-    if (!song || !this._visible) return;
-    const thumb   = DataLoader.getThumbnailUrl(song);
-    const artists = Array.isArray(song.artist) ? song.artist.join(', ') : (song.artist || '—');
-    const fallback = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>";
-
-    const img = document.getElementById('mini-thumb');
-    if (img) { img.src = thumb; img.onerror = () => { img.src = fallback; }; }
-
-    const titleEl = document.getElementById('mini-title');
-    if (titleEl) titleEl.textContent = song.title;
-
-    const artistEl = document.getElementById('mini-artist');
-    if (artistEl) artistEl.textContent = artists;
-  },
-
-  /** Called from patched UI.setPlayPauseIcon — syncs play/pause button only */
-  syncPlayState(playing) {
-    if (!this._visible) return;
-    const btn = document.getElementById('mini-play-btn');
-    if (!btn) return;
-    const pauseIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
-    const playIcon  = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>`;
-    btn.innerHTML = playing ? pauseIcon : playIcon;
-    btn.classList.toggle('playing', playing);
-    // Playing dot indicator
-    const dot = document.getElementById('mini-playing-dot');
-    if (dot) dot.classList.toggle('hidden', !playing);
-  },
-
-  /** Called from patched timeupdate listener — updates thin progress strip */
-  syncProgress(pct) {
-    if (!this._visible) return;
-    const filled = document.getElementById('mini-progress-filled');
-    if (filled) filled.style.width = `${pct}%`;
-
-    // Move hover-thumb
-    const thumb = document.getElementById('mini-progress-thumb');
-    if (thumb) thumb.style.left = `${pct}%`;
-  },
-
-  /** Read current audio state and push it to the progress bar now */
-  _syncCurrentProgress() {
-    const { currentTime, duration } = audioEl;
-    if (duration) MiniPlayer.syncProgress((currentTime / duration) * 100);
-  },
-
-  /** Called from patched PlaybackMode.updateUI */
-  syncMode() {
-    if (!this._visible) return;
-    const btn = document.getElementById('mini-mode-btn');
-    if (!btn) return;
-    btn.innerHTML = MODE_ICONS[state.playbackMode] || MODE_ICONS.repeat;
-    btn.title = MODE_LABELS[state.playbackMode] || '';
-    btn.classList.toggle('text-cyan-400', state.playbackMode !== 'none');
-    btn.classList.toggle('text-gray-500', state.playbackMode === 'none');
-  },
-
-  // ── Drag & Drop ─────────────────────────────────────────────
-
-  _initDrag() {
-    const el     = this.el();
-    const handle = document.getElementById('mini-player-drag');
-    if (!el || !handle) return;
-
-    /** Clamp el within the viewport */
-    const clampToViewport = () => {
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const rect = el.getBoundingClientRect();
-      let left = Math.max(0, Math.min(rect.left, vw - rect.width));
-      let top  = Math.max(0, Math.min(rect.top,  vh - rect.height));
-      el.style.left   = `${left}px`;
-      el.style.top    = `${top}px`;
-      el.style.right  = 'auto';
-      el.style.bottom = 'auto';
-    };
-
-    const startDrag = (clientX, clientY, e) => {
-      // Don't drag if the user tapped a button
-      if (e && e.target.closest('button, #mini-thumb-click')) return;
-      const rect = el.getBoundingClientRect();
-      MiniPlayer._dragging = true;
-      MiniPlayer._dragOffX = clientX - rect.left;
-      MiniPlayer._dragOffY = clientY - rect.top;
-      // Freeze position: convert right/bottom defaults to left/top px
-      el.style.right  = 'auto';
-      el.style.bottom = 'auto';
-      el.style.left   = `${rect.left}px`;
-      el.style.top    = `${rect.top}px`;
-      el.style.transition = 'none';
-      handle.style.cursor = 'grabbing';
-    };
-
-    const moveDrag = (clientX, clientY) => {
-      if (!MiniPlayer._dragging) return;
-      const vw = window.innerWidth, vh = window.innerHeight;
-      const pw = el.offsetWidth, ph = el.offsetHeight;
-      el.style.left = `${Math.max(0, Math.min(clientX - MiniPlayer._dragOffX, vw - pw))}px`;
-      el.style.top  = `${Math.max(0, Math.min(clientY - MiniPlayer._dragOffY, vh - ph))}px`;
-    };
-
-    const endDrag = () => {
-      if (!MiniPlayer._dragging) return;
-      MiniPlayer._dragging = false;
-      handle.style.cursor = 'grab';
-      el.style.transition = '';
-      MiniPlayer._savePosition();
-    };
-
-    // Mouse
-    handle.addEventListener('mousedown',  (e) => startDrag(e.clientX, e.clientY, e));
-    document.addEventListener('mousemove', (e) => moveDrag(e.clientX, e.clientY));
-    document.addEventListener('mouseup',   endDrag);
-
-    // Touch
-    handle.addEventListener('touchstart', (e) => {
-      const t = e.touches[0];
-      startDrag(t.clientX, t.clientY, e);
-    }, { passive: true });
-    document.addEventListener('touchmove', (e) => {
-      if (!MiniPlayer._dragging) return;
-      e.preventDefault();
-      moveDrag(e.touches[0].clientX, e.touches[0].clientY);
-    }, { passive: false });
-    document.addEventListener('touchend', endDrag);
-
-    // Clamp on resize
-    window.addEventListener('resize', () => { if (MiniPlayer._visible) clampToViewport(); });
-  },
-
-  _savePosition() {
-    const el = this.el();
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    Storage.save('miniPlayerPos', { left: rect.left, top: rect.top });
-  },
-
-  _restorePosition() {
-    const el = this.el();
-    if (!el) return;
-    const saved = Storage.load('miniPlayerPos', null);
-    if (!saved) return; // keep default CSS (bottom+right)
-
-    // Ensure el is briefly visible so offsetWidth/Height are accurate
-    const wasHidden = el.classList.contains('hidden');
-    if (wasHidden) {
-      el.style.visibility = 'hidden';
-      el.classList.remove('hidden');
-    }
-    const vw = window.innerWidth, vh = window.innerHeight;
-    const pw = el.offsetWidth  || 340;
-    const ph = el.offsetHeight || 72;
-    if (wasHidden) {
-      el.classList.add('hidden');
-      el.style.visibility = '';
-    }
-
-    const left = Math.max(0, Math.min(saved.left, vw - pw));
-    const top  = Math.max(0, Math.min(saved.top,  vh - ph));
-    el.style.right  = 'auto';
-    el.style.bottom = 'auto';
-    el.style.left   = `${left}px`;
-    el.style.top    = `${top}px`;
-  },
-
-  // ── Wire buttons ────────────────────────────────────────────
-
-  _wireButtons() {
-    // Play / Pause — calls the SAME Player.togglePlay as the main player
-    document.getElementById('mini-play-btn')?.addEventListener('click', () => {
-      AudioEngine.init();
-      Player.togglePlay();
-    });
-
-    // Prev / Next
-    document.getElementById('mini-prev-btn')?.addEventListener('click', Player.prev);
-    document.getElementById('mini-next-btn')?.addEventListener('click', Player.next);
-
-    // Mode cycle — same as main player
-    document.getElementById('mini-mode-btn')?.addEventListener('click', PlaybackMode.cycle);
-
-    // Reattach: collapse mini player (main player still runs)
-    document.getElementById('mini-attach-btn')?.addEventListener('click', MiniPlayer.hide);
-    document.getElementById('mini-close-btn')?.addEventListener('click', MiniPlayer.hide);
-
-    // Thumbnail click → open song detail modal
-    document.getElementById('mini-thumb-click')?.addEventListener('click', () => {
-      if (!state.currentSongId) return;
-      const song = state.allSongs.find(s => songId(s) === state.currentSongId);
-      if (song) SongModal.open(song);
-    });
-
-    // Progress bar scrub
-    const barWrap = document.getElementById('mini-progress-bar-wrap');
-    if (barWrap) {
-      const scrubTo = (clientX) => {
-        const rect = barWrap.getBoundingClientRect();
-        const pct  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        if (audioEl.duration) audioEl.currentTime = pct * audioEl.duration;
-      };
-      barWrap.addEventListener('click',      (e) => scrubTo(e.clientX));
-      barWrap.addEventListener('touchstart', (e) => {
-        e.stopPropagation();
-        scrubTo(e.touches[0].clientX);
-      }, { passive: true });
-    }
-
-    // Detach buttons in main player bar — popup only on desktop; mobile uses compact mode
-    // mini-detach-btn (mobile) is now compact-toggle-mobile — wired in CompactMode.init()
-    document.getElementById('mini-detach-btn-desktop')?.addEventListener('click', () => {
-      if (!state.currentSongId && state.currentSongIndex < 0) {
-        Toast.show('Play a song first', 'warning');
-        return;
-      }
-      if (PopupMiniPlayer.isOpen()) {
-        try { PopupMiniPlayer._popup?.focus(); } catch (e) {}
-        return;
-      }
-      if (MiniPlayer.isVisible()) MiniPlayer.hide();
-      PopupMiniPlayer.open();
-    });
-  },
-
-  // ── Initialise (called once from app init) ──────────────────
-
-  init() {
-    MiniPlayer._initDrag();
-    MiniPlayer._wireButtons();
-
-    // Restore visibility from last session (only if a song was playing)
-    const wasVisible = Storage.load('miniPlayerVisible', false);
-    if (wasVisible && state.currentSongId) {
-      // Small delay so the DOM is fully rendered before we compute sizes
-      setTimeout(() => MiniPlayer.show(), 300);
-    }
-
-    console.log('[MiniPlayer] Initialized');
-  }
-};
+// MiniPlayer removed
 
 // ═══════════════════════════════════════════════════════════
 // 14. EVENT LISTENERS
@@ -4177,18 +4255,39 @@ function bindEvents() {
 
   // ── Player Controls (mobile IDs are unprefixed; desktop use -desktop suffix) ──
   const wireBtn = (id, handler) => document.getElementById(id)?.addEventListener('click', handler);
-  wireBtn('play-btn',           () => { AudioEngine.init(); Player.togglePlay(); });
-  wireBtn('play-btn-desktop',   () => { AudioEngine.init(); Player.togglePlay(); });
-  wireBtn('next-btn',           Player.next);
-  wireBtn('next-btn-desktop',   Player.next);
-  wireBtn('prev-btn',           Player.prev);
-  wireBtn('prev-btn-desktop',   Player.prev);
-  wireBtn('skip-fwd-btn',       () => Player.skip(10));
-  wireBtn('skip-fwd-btn-desktop', () => Player.skip(10));
-  wireBtn('skip-back-btn',      () => Player.skip(-10));
-  wireBtn('skip-back-btn-desktop', () => Player.skip(-10));
-  wireBtn('mode-btn',           PlaybackMode.cycle);
-  wireBtn('mode-btn-desktop',   PlaybackMode.cycle);
+  wireBtn('play-btn',           () => { console.log('[Player] Play/Pause toggled'); AudioEngine.init(); Player.togglePlay(); });
+  wireBtn('play-btn-desktop',   () => { console.log('[Player] Play/Pause toggled (desktop)'); AudioEngine.init(); Player.togglePlay(); });
+  wireBtn('next-btn',           () => { console.log('[Player] Next song'); Player.next(); });
+  wireBtn('next-btn-desktop',   () => { console.log('[Player] Next song (desktop)'); Player.next(); });
+  wireBtn('prev-btn',           () => { console.log('[Player] Previous song'); Player.prev(); });
+  wireBtn('prev-btn-desktop',   () => { console.log('[Player] Previous song (desktop)'); Player.prev(); });
+  wireBtn('skip-fwd-btn',       () => { console.log('[Player] Skip forward 10s'); Player.skip(10); });
+  wireBtn('skip-fwd-btn-desktop', () => { console.log('[Player] Skip forward 10s (desktop)'); Player.skip(10); });
+  wireBtn('skip-back-btn',      () => { console.log('[Player] Skip back 10s'); Player.skip(-10); });
+  wireBtn('skip-back-btn-desktop', () => { console.log('[Player] Skip back 10s (desktop)'); Player.skip(-10); });
+  wireBtn('mode-btn',           () => { console.log('[Player] Playback mode cycled'); PlaybackMode.cycle(); });
+  wireBtn('mode-btn-desktop',   () => { console.log('[Player] Playback mode cycled (desktop)'); PlaybackMode.cycle(); });
+
+  // ── Expand Mode — Atmosphere Phase 4 ──────────────────────────────
+  // Helper: get currently playing song object
+  const _expandGetSong = () =>
+    state.currentSongId
+      ? (state.allSongs.find(s => songId(s) === state.currentSongId) || null)
+      : (state.currentPlaylist[state.currentSongIndex] || null);
+
+  const _openExpand = () => {
+    if (typeof AtmosphereEngine === 'undefined') return;
+    console.log('[Expand] Expand player opened');
+    // Ensure analyser is hooked before opening
+    if (state.analyser && !AtmosphereEngine.AudioReactive._analyser) {
+      AtmosphereEngine.AudioReactive.init(state.analyser);
+    }
+    AtmosphereEngine.openExpand(_expandGetSong());
+  };
+
+  ['expand-mode-btn', 'expand-mode-btn-desktop'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', _openExpand);
+  });
 
   // ── Progress Bar (mobile + desktop, mouse + touch) ──
   const wireProgressBar = (barId, filledId, thumbId) => {
@@ -4238,17 +4337,18 @@ function bindEvents() {
       }, { once: true });
     }
 
-    // Slight delay (300 ms) lets the animation play before the player
-    // UI updates — prevents the icon from changing mid-animation and
-    // feeling like a glitch.
-    setTimeout(() => Playlist.playRandom(), 300);
+    // Small delay lets animation complete before selection highlight appears
+    setTimeout(() => {
+      console.log('[RandomSong] Dice animation complete, selecting song...');
+      Playlist.playRandom();
+    }, 300);
   });
 
   // ── Explore Modal ──
-  document.getElementById('explore-btn')?.addEventListener('click', () => Explore.open(false));
-  document.getElementById('close-explore')?.addEventListener('click', Explore.close);
+  document.getElementById('explore-btn')?.addEventListener('click', () => { console.log('[Explore] Modal opened'); Explore.open(false); });
+  document.getElementById('close-explore')?.addEventListener('click', () => { console.log('[Explore] Modal closed'); Explore.close(); });
   document.getElementById('explore-modal')?.addEventListener('click', (e) => {
-    if (e.target === document.getElementById('explore-modal')) Explore.close();
+    if (e.target === document.getElementById('explore-modal')) { console.log('[Explore] Modal closed (backdrop)'); Explore.close(); }
   });
   // Confirm add selected songs
   document.getElementById('confirm-add-selection')?.addEventListener('click', Explore.confirmAddSelected);
@@ -4284,17 +4384,6 @@ function bindEvents() {
     document.getElementById('eq-panel')?.classList.add('hidden');
   });
   document.getElementById('eq-reset')?.addEventListener('click', AudioEngine.resetEQ);
-
-  // ── Pop Out Player (popup mini player window) ──
-  document.getElementById('popup-player-btn')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    menuPanel?.classList.add('hidden');
-    if (!state.currentSongId && state.currentSongIndex < 0) {
-      Toast.show('Play a song first', 'warning');
-      return;
-    }
-    PopupMiniPlayer.open();
-  });
 
   // ── EQ Expand (Feature 3) ──
   document.getElementById('eq-expand-btn')?.addEventListener('click', (e) => {
@@ -4345,6 +4434,7 @@ function bindEvents() {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => {
         const raw = searchInput.value.trim();
+        console.log('[Search] Query:', raw || '(cleared)');
         if (!raw) {
           UI.renderSongList(state.currentPlaylist);
         } else {
@@ -4419,6 +4509,14 @@ function bindEvents() {
   // ── Keyboard Shortcuts ──
   document.addEventListener('keydown', (e) => {
     if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
+    // Close settings modal on Escape
+    if (e.key === 'Escape') {
+      const settingsModal = document.getElementById('settings-modal');
+      if (settingsModal && !settingsModal.classList.contains('hidden')) {
+        Settings.close();
+        return;
+      }
+    }
     // Never intercept Ctrl/Meta combos — let browser handle Ctrl+R, Ctrl+L, etc.
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     switch (e.code) {
@@ -4441,6 +4539,37 @@ function bindEvents() {
   document.getElementById('close-help')?.addEventListener('click', () => {
     document.getElementById('help-modal')?.classList.add('hidden');
   });
+
+  // ── Settings Modal ──
+  document.getElementById('settings-btn')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menuPanel?.classList.add('hidden');
+    Settings.open();
+    console.log('[Settings] Opened from menu');
+  });
+  document.getElementById('close-settings')?.addEventListener('click', Settings.close);
+  document.getElementById('settings-modal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('settings-modal')) Settings.close();
+  });
+  // Appearance buttons
+  document.getElementById('settings-dark-btn')?.addEventListener('click', () => {
+    console.log('[Settings] Dark mode selected');
+    if (!state.isDarkMode) {
+      UI.toggleTheme();
+      Settings._updateModeUI(true);
+    }
+  });
+  document.getElementById('settings-light-btn')?.addEventListener('click', () => {
+    console.log('[Settings] Light mode selected');
+    if (state.isDarkMode) {
+      UI.toggleTheme();
+      Settings._updateModeUI(false);
+    }
+  });
+  // Particles buttons
+  document.getElementById('settings-particles-on')?.addEventListener('click', () => Settings.applyParticles(true));
+  document.getElementById('settings-particles-off')?.addEventListener('click', () => Settings.applyParticles(false));
+  // Close settings on Escape key (handled globally below via keyboard handler)
 
   // ── About Modal (logo click) ──
   document.getElementById('logo-area')?.addEventListener('click', About.open);
@@ -4570,6 +4699,12 @@ async function init() {
   const themeBtn = document.getElementById('theme-btn');
   if (themeBtn) themeBtn.textContent = state.isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode';
 
+  // Apply saved accent theme
+  Settings.applyTheme(state.currentTheme);
+
+  // Apply particles setting
+  Settings.applyParticles(state.particlesOn);
+
   // Set favicon for current theme
   UI.updateFavicon();
 
@@ -4604,14 +4739,18 @@ async function init() {
   EQPanel.initDraggable();
   EQPanel.renderCustomPresets();
 
-  // Initialize Mini Player
-  MiniPlayer.init();
-
-  // Initialize Popup Mini Player (BroadcastChannel setup)
-  PopupMiniPlayer.init();
-
   // Initialize Compact Mode
   CompactMode.init();
+
+  // [Atmosphere] Ensure engine is initialised and synced with saved theme/particles
+  if (typeof AtmosphereEngine !== 'undefined') {
+    AtmosphereEngine.init();
+    // Sync particles toggle from persisted setting
+    AtmosphereEngine.toggleParticles(state.particlesOn);
+    // Sync theme palette
+    AtmosphereEngine.onThemeChange();
+    console.log('[Atmosphere] Post-init sync complete');
+  }
 
   // Restore EQ slider display values
   const savedEQ = Storage.load('eqSettings');

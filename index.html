@@ -380,9 +380,9 @@
     }
     #navbar-logo:hover { filter: drop-shadow(0 2px 8px rgba(6,182,212,0.45)); opacity: 0.9; }
 
-    /* ── Brand title — dark mode ── */
+    /* ── Brand title — uses active theme colors ── */
     #navbar-title {
-      background: linear-gradient(110deg, #67e8f9 0%, #38bdf8 40%, #818cf8 100%);
+      background: linear-gradient(110deg, var(--theme-accent) 0%, color-mix(in srgb, var(--theme-accent) 60%, white) 40%, var(--theme-accent2) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -391,9 +391,9 @@
       font-size: 1.2rem;
       line-height: 1;
     }
-    /* ── Brand title — light mode ── */
+    /* ── Brand title — light mode (slightly darker) ── */
     body.light-mode #navbar-title {
-      background: linear-gradient(110deg, #0891b2 0%, #2563eb 55%, #7c3aed 100%);
+      background: linear-gradient(110deg, var(--theme-accent2) 0%, var(--theme-accent) 55%, var(--theme-accent2) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -677,6 +677,347 @@
     /* ── Loading toast spinner keyframe ── */
     @keyframes ltSpin { to { transform: rotate(360deg); } }
 
+    /* ── Toast progress bar shrink animation ── */
+    @keyframes toastProgress {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+
+    /* ── Song list fade-in on load ── */
+    @keyframes listFadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #song-list > .song-item {
+      animation: fadeSlideIn 0.18s ease both;
+    }
+    #song-list > .song-item:nth-child(1)  { animation-delay: 0.00s; }
+    #song-list > .song-item:nth-child(2)  { animation-delay: 0.02s; }
+    #song-list > .song-item:nth-child(3)  { animation-delay: 0.04s; }
+    #song-list > .song-item:nth-child(4)  { animation-delay: 0.06s; }
+    #song-list > .song-item:nth-child(5)  { animation-delay: 0.08s; }
+    #song-list > .song-item:nth-child(n+6) { animation-delay: 0.10s; }
+
+    /* ── Random-song highlight animation ────────────────────────────────
+       Applied when the dice button generates a random song.
+       Glows cyan, pulses 3 times, then fades — elegant, non-intrusive.
+       ─────────────────────────────────────────────────────────────── */
+    @keyframes randomPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(6,182,212,0);     border-color: transparent; }
+      15%  { box-shadow: 0 0 0 4px rgba(6,182,212,0.55), 0 0 20px rgba(6,182,212,0.3);  border-color: rgba(6,182,212,0.8); }
+      35%  { box-shadow: 0 0 0 2px rgba(6,182,212,0.35), 0 0 12px rgba(6,182,212,0.2);  border-color: rgba(6,182,212,0.5); }
+      55%  { box-shadow: 0 0 0 4px rgba(6,182,212,0.5),  0 0 22px rgba(6,182,212,0.28); border-color: rgba(6,182,212,0.75); }
+      75%  { box-shadow: 0 0 0 2px rgba(6,182,212,0.3),  0 0 10px rgba(6,182,212,0.15); border-color: rgba(6,182,212,0.45); }
+      100% { box-shadow: 0 0 0 0 rgba(6,182,212,0);     border-color: transparent; }
+    }
+
+    .song-item.random-selected {
+      animation: randomPulse 3s cubic-bezier(0.4,0,0.6,1) forwards;
+      border-color: rgba(6,182,212,0.5) !important;
+      background: linear-gradient(to right, rgba(6,182,212,0.12), rgba(59,130,246,0.08)) !important;
+      will-change: box-shadow, border-color;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       THEME SYSTEM — 7 accent themes via CSS variables
+       Applied on html[data-theme="X"]
+       ════════════════════════════════════════════════════ */
+    :root {
+      --theme-accent:     #06b6d4;
+      --theme-accent2:    #3b82f6;
+      --theme-accent-rgb: 6, 182, 212;
+      --theme-glow:       rgba(6,182,212,0.35);
+      --theme-glow-soft:  rgba(6,182,212,0.15);
+    }
+    html[data-theme="mystical-purple"] {
+      --theme-accent:     #a855f7;
+      --theme-accent2:    #7c3aed;
+      --theme-accent-rgb: 168, 85, 247;
+      --theme-glow:       rgba(168,85,247,0.35);
+      --theme-glow-soft:  rgba(168,85,247,0.15);
+    }
+    html[data-theme="romantic-pink"] {
+      --theme-accent:     #ec4899;
+      --theme-accent2:    #db2777;
+      --theme-accent-rgb: 236, 72, 153;
+      --theme-glow:       rgba(236,72,153,0.35);
+      --theme-glow-soft:  rgba(236,72,153,0.15);
+    }
+    html[data-theme="ocean-blue"] {
+      --theme-accent:     #06b6d4;
+      --theme-accent2:    #3b82f6;
+      --theme-accent-rgb: 6, 182, 212;
+      --theme-glow:       rgba(6,182,212,0.35);
+      --theme-glow-soft:  rgba(6,182,212,0.15);
+    }
+    html[data-theme="emerald-dream"] {
+      --theme-accent:     #10b981;
+      --theme-accent2:    #059669;
+      --theme-accent-rgb: 16, 185, 129;
+      --theme-glow:       rgba(16,185,129,0.35);
+      --theme-glow-soft:  rgba(16,185,129,0.15);
+    }
+    html[data-theme="solar-gold"] {
+      --theme-accent:     #f59e0b;
+      --theme-accent2:    #d97706;
+      --theme-accent-rgb: 245, 158, 11;
+      --theme-glow:       rgba(245,158,11,0.35);
+      --theme-glow-soft:  rgba(245,158,11,0.15);
+    }
+    html[data-theme="crimson-night"] {
+      --theme-accent:     #ef4444;
+      --theme-accent2:    #dc2626;
+      --theme-accent-rgb: 239, 68, 68;
+      --theme-glow:       rgba(239,68,68,0.35);
+      --theme-glow-soft:  rgba(239,68,68,0.15);
+    }
+    html[data-theme="midnight-shadow"] {
+      --theme-accent:     #6366f1;
+      --theme-accent2:    #4f46e5;
+      --theme-accent-rgb: 99, 102, 241;
+      --theme-glow:       rgba(99,102,241,0.35);
+      --theme-glow-soft:  rgba(99,102,241,0.15);
+    }
+
+    /* ── Theme-driven element overrides ── */
+    /* Progress bar fill */
+    #progress-filled, #progress-filled-desktop {
+      background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent2)) !important;
+    }
+    /* Scrollbar thumb */
+    ::-webkit-scrollbar-thumb {
+      background: rgba(var(--theme-accent-rgb), 0.3) !important;
+    }
+    /* Glow button */
+    .glow-btn {
+      box-shadow: 0 0 18px rgba(var(--theme-accent-rgb), 0.3) !important;
+    }
+    .glow-btn:hover {
+      box-shadow: 0 0 28px rgba(var(--theme-accent-rgb), 0.5) !important;
+    }
+    /* EQ slider accent */
+    .eq-slider { accent-color: var(--theme-accent) !important; }
+    /* Scroll buttons */
+    #scroll-top-btn, #scroll-bottom-btn {
+      background: rgba(var(--theme-accent-rgb), 0.18) !important;
+      border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+      color: var(--theme-accent) !important;
+    }
+    #scroll-top-btn:hover, #scroll-bottom-btn:hover {
+      background: rgba(var(--theme-accent-rgb), 0.32) !important;
+    }
+    /* Compact expand button */
+    #compact-expand-btn {
+      background: rgba(var(--theme-accent-rgb), 0.15) !important;
+      border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+      color: var(--theme-accent) !important;
+    }
+    #compact-expand-btn:hover {
+      background: rgba(var(--theme-accent-rgb), 0.28) !important;
+      box-shadow: 0 0 16px rgba(var(--theme-accent-rgb), 0.25) !important;
+    }
+    /* Playing bars */
+    .playing-bars .bar, .playing-bars-overlay .bar {
+      background-color: var(--theme-accent) !important;
+    }
+    /* Explore tab active */
+    .explore-tab.active {
+      background: linear-gradient(135deg, rgba(var(--theme-accent-rgb),0.2), rgba(var(--theme-accent-rgb),0.15)) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+      color: var(--theme-accent) !important;
+    }
+    /* Active song highlight */
+    .song-item.active-song {
+      background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.18), rgba(var(--theme-accent-rgb),0.06)) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.3) !important;
+    }
+    .song-item.active-song .song-title {
+      color: var(--theme-accent) !important;
+    }
+    /* New playlist + button */
+    #new-playlist-btn {
+      background: rgba(var(--theme-accent-rgb),0.2) !important;
+      color: var(--theme-accent) !important;
+    }
+    #new-playlist-btn:hover {
+      background: rgba(var(--theme-accent-rgb),0.4) !important;
+    }
+    /* Speed slider fill */
+    .speed-slider, .speed-modal-range {
+      background: linear-gradient(to right, var(--theme-accent) 42.9%, rgba(255,255,255,0.15) 42.9%) !important;
+    }
+    /* Random highlight pulse */
+    @keyframes randomPulse {
+      0%   { box-shadow: 0 0 0 0 rgba(var(--theme-accent-rgb),0);     border-color: transparent; }
+      15%  { box-shadow: 0 0 0 4px rgba(var(--theme-accent-rgb),0.55), 0 0 20px rgba(var(--theme-accent-rgb),0.3);  border-color: rgba(var(--theme-accent-rgb),0.8); }
+      35%  { box-shadow: 0 0 0 2px rgba(var(--theme-accent-rgb),0.35), 0 0 12px rgba(var(--theme-accent-rgb),0.2);  border-color: rgba(var(--theme-accent-rgb),0.5); }
+      55%  { box-shadow: 0 0 0 4px rgba(var(--theme-accent-rgb),0.5),  0 0 22px rgba(var(--theme-accent-rgb),0.28); border-color: rgba(var(--theme-accent-rgb),0.75); }
+      75%  { box-shadow: 0 0 0 2px rgba(var(--theme-accent-rgb),0.3),  0 0 10px rgba(var(--theme-accent-rgb),0.15); border-color: rgba(var(--theme-accent-rgb),0.45); }
+      100% { box-shadow: 0 0 0 0 rgba(var(--theme-accent-rgb),0);     border-color: transparent; }
+    }
+    .song-item.random-selected {
+      background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.12), rgba(var(--theme-accent-rgb),0.06)) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+    }
+    /* Explore button */
+    #explore-btn {
+      background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.2), rgba(var(--theme-accent-rgb),0.15)) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.3) !important;
+      color: var(--theme-accent) !important;
+    }
+    #explore-btn:hover {
+      background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.3), rgba(var(--theme-accent-rgb),0.2)) !important;
+    }
+    /* Active playlist item */
+    .playlist-item.active-pl {
+      background: rgba(var(--theme-accent-rgb),0.1) !important;
+      color: var(--theme-accent) !important;
+    }
+    /* Focus states */
+    input:focus, select:focus {
+      border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+      box-shadow: 0 0 0 2px rgba(var(--theme-accent-rgb),0.1) !important;
+    }
+    /* PWA install button */
+    #pwa-install-btn {
+      background: linear-gradient(to right, var(--theme-accent), var(--theme-accent2)) !important;
+    }
+    /* Dice hover */
+    #dice-btn:hover { color: var(--theme-accent) !important; }
+
+    /* ════════════════════════════════════════════════════════
+       SETTINGS MODAL
+       ════════════════════════════════════════════════════ */
+    #settings-modal {
+      animation: none;
+    }
+    #settings-modal.flex .settings-modal-card {
+      animation: settingsSlideIn 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
+    }
+    @keyframes settingsSlideIn {
+      from { opacity: 0; transform: scale(0.94) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    .settings-btn-active {
+      background: linear-gradient(135deg, rgba(var(--theme-accent-rgb),0.28), rgba(var(--theme-accent-rgb),0.18)) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+      color: var(--theme-accent) !important;
+      box-shadow: 0 0 14px rgba(var(--theme-accent-rgb),0.2) !important;
+    }
+    .settings-btn-inactive {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #6b7fa0;
+    }
+    .settings-btn-inactive:hover {
+      background: rgba(255,255,255,0.08);
+      color: #9ca3af;
+    }
+    body.light-mode .settings-btn-inactive {
+      background: rgba(0,0,0,0.04);
+      border-color: rgba(0,0,0,0.1);
+      color: #64748b;
+    }
+    body.light-mode .settings-btn-inactive:hover {
+      background: rgba(0,0,0,0.08);
+    }
+    .theme-option-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.6rem 0.9rem;
+      border-radius: 0.875rem;
+      border: 1.5px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.03);
+      color: #9ca3af;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-align: left;
+    }
+    .theme-option-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      transform: translateY(-1px);
+    }
+    .theme-option-btn.theme-option-active {
+      border-width: 2px;
+      color: #f1f5f9;
+      font-weight: 600;
+      transform: translateY(-1px);
+    }
+    body.light-mode .theme-option-btn {
+      background: rgba(0,0,0,0.03);
+      border-color: rgba(0,0,0,0.1);
+      color: #64748b;
+    }
+    body.light-mode .theme-option-btn:hover {
+      background: rgba(0,0,0,0.06);
+      color: #0f172a;
+    }
+    body.light-mode .theme-option-btn.theme-option-active {
+      color: #0f172a;
+    }
+    /* Settings modal light mode */
+    body.light-mode #settings-modal .settings-modal-card {
+      background: #eef3ff !important;
+      border-color: rgba(0,0,0,0.1) !important;
+    }
+    body.light-mode #settings-modal h2,
+    body.light-mode #settings-modal p { color: #0f172a; }
+    body.light-mode #settings-modal .text-gray-500 { color: #64748b !important; }
+    body.light-mode #settings-modal .border-white\/5 { border-color: rgba(0,0,0,0.07) !important; }
+
+    /* ════════════════════════════════════════════════════════
+       UI POLISH — Hover, focus, transition improvements
+       ════════════════════════════════════════════════════ */
+    /* Button feedback */
+    button { transition: all 0.15s ease; }
+    button:active:not(:disabled) { transform: scale(0.94); }
+    /* Smooth song item hover */
+    .song-item {
+      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      border: 1px solid transparent;
+      border-radius: 0.75rem;
+    }
+    /* Navbar button hover glow */
+    .navbar button:hover {
+      box-shadow: 0 0 10px rgba(var(--theme-accent-rgb),0.12);
+    }
+    /* Menu panel animation */
+    #menu-panel {
+      transform-origin: top right;
+      transition: opacity 0.15s ease, transform 0.15s ease;
+    }
+    #menu-panel:not(.hidden) {
+      animation: menuFadeIn 0.15s ease forwards;
+    }
+    @keyframes menuFadeIn {
+      from { opacity: 0; transform: scale(0.95) translateY(-6px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    /* Modal backdrop transitions */
+    .modal-backdrop { transition: opacity 0.2s ease; }
+    /* Input focus glow */
+    #search-input, #search-input-mobile {
+      transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease !important;
+    }
+    #search-input:focus, #search-input-mobile:focus {
+      box-shadow: 0 0 0 3px rgba(var(--theme-accent-rgb),0.12) !important;
+    }
+    /* Sidebar playlist item */
+    .playlist-item {
+      transition: background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    }
+    /* Player controls hover polish */
+    #player-bar button {
+      transition: all 0.15s ease, box-shadow 0.15s ease;
+    }
+    #player-bar button:hover {
+      box-shadow: 0 0 12px rgba(var(--theme-accent-rgb),0.15);
+    }
+
     /* ── Content protection: disable text selection, drag, context menu ── */
     body, img, .song-item, #song-list, #sidebar, #player-bar, .navbar {
       user-select: none;
@@ -689,10 +1030,259 @@
     .song-item img, .fav-btn, .dl-btn, .add-btn { pointer-events: auto; }
     /* Inputs must stay selectable */
     input, textarea { user-select: text; -webkit-user-select: text; }
+
+    /* ═══════════════════════════════════════════════════════
+       DRAG & DROP SYSTEM — Phase 3
+       Ghost element, insertion line, drag handle polish
+       ═══════════════════════════════════════════════════ */
+
+    /* Drag handle — always visible, grab cursor */
+    .drag-handle {
+      cursor: grab;
+      touch-action: none;
+      color: #4b5563;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: color 0.15s ease, background 0.15s ease;
+      user-select: none;
+    }
+    .drag-handle:hover {
+      color: var(--theme-accent);
+      background: rgba(var(--theme-accent-rgb), 0.1);
+    }
+    .drag-handle:active { cursor: grabbing; }
+
+    /* Ghost element that follows the cursor */
+    #drag-ghost {
+      /* Styles applied inline for precise positioning */
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    #drag-ghost * { pointer-events: none !important; }
+
+    /* Insertion line between items */
+    #drag-insert-line {
+      /* Styles applied inline; just making sure it's always on top */
+    }
+
+    /* Source item dimmed while dragging */
+    .song-item[data-drag-index].dragging {
+      opacity: 0.3 !important;
+      transition: opacity 0.15s ease !important;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       TOAST SYSTEM — Phase 3 improvements
+       Smoother entry/exit, better stacking safety
+       ═══════════════════════════════════════════════════ */
+    .sa-toast {
+      will-change: transform, opacity;
+    }
+
+    /* ═══════════════════════════════════════════════════════
+       LOADING SKELETON — perceived responsiveness
+       ═══════════════════════════════════════════════════ */
+    @keyframes skeletonShimmer {
+      0%   { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(
+        90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.1)  50%,
+        rgba(255,255,255,0.04) 75%
+      );
+      background-size: 800px 100%;
+      animation: skeletonShimmer 1.4s ease-in-out infinite;
+    }
+    body.light-mode .skeleton-shimmer {
+      background: linear-gradient(
+        90deg,
+        rgba(0,0,0,0.04) 25%,
+        rgba(0,0,0,0.09) 50%,
+        rgba(0,0,0,0.04) 75%
+      );
+      background-size: 800px 100%;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ATMOSPHERE v2 ADDITIONS — injected
+       ════════════════════════════════════════════════════ */
+
+    /* Animated ambient blob background layers */
+    @keyframes meshDrift1 {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      33%       { transform: translate(18px,-12px) scale(1.04); }
+      66%       { transform: translate(-10px,15px) scale(0.97); }
+    }
+    @keyframes meshDrift2 {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      40%       { transform: translate(-14px,10px) scale(1.03); }
+      70%       { transform: translate(20px,-8px) scale(0.98); }
+    }
+    @keyframes meshDrift3 {
+      0%, 100% { transform: translate(0,0) scale(1); }
+      50%       { transform: translate(8px,18px) scale(1.02); }
+    }
+    .atm-blob {
+      position: fixed; pointer-events: none;
+      border-radius: 50%; filter: blur(90px);
+      z-index: 0; will-change: transform;
+    }
+    .atm-blob-1 {
+      width:70vw; height:55vw; top:-18vw; left:-18vw;
+      background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb),0.055) 0%, transparent 70%);
+      animation: meshDrift1 24s ease-in-out infinite;
+    }
+    .atm-blob-2 {
+      width:60vw; height:60vw; bottom:-22vw; right:-12vw;
+      background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb),0.045) 0%, transparent 70%);
+      animation: meshDrift2 30s ease-in-out infinite;
+    }
+    .atm-blob-3 {
+      width:45vw; height:45vw; top:28%; left:22%;
+      background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb),0.025) 0%, transparent 70%);
+      animation: meshDrift3 36s ease-in-out infinite;
+    }
+    body.light-mode .atm-blob-1 { opacity:0.5; }
+    body.light-mode .atm-blob-2 { opacity:0.4; }
+    body.light-mode .atm-blob-3 { opacity:0.3; }
+
+    /* Random-selected persistent active state */
+    .song-item.random-selected-active {
+      position: relative;
+      background: linear-gradient(to right,
+        rgba(var(--theme-accent-rgb),0.14),
+        rgba(var(--theme-accent-rgb),0.06)
+      ) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.45) !important;
+      box-shadow:
+        0 0 0 1px rgba(var(--theme-accent-rgb),0.22),
+        0 0 22px rgba(var(--theme-accent-rgb),0.10),
+        inset 0 0 12px rgba(var(--theme-accent-rgb),0.04);
+      overflow: visible !important;
+      z-index: 2;
+    }
+
+    /* Expand player art wrap — visualizer sits outside so no clip */
+    #ep-art-wrap { overflow: visible !important; }
+
+    /* Art inner: actual clip + breathing glow animation */
+    @keyframes artGlowBreathe {
+      0%, 100% { opacity:0.88; }
+      50%       { opacity:1; }
+    }
+    #ep-art-inner {
+      transition: box-shadow 0.5s ease, background 0.3s ease;
+      animation: artGlowBreathe 4.5s ease-in-out infinite;
+    }
+
+    /* Art mode toggle */
+    #ep-art-mode-btn {
+      opacity: 0.6;
+      transition: opacity 0.15s, background 0.15s, color 0.15s;
+    }
+    #ep-art-mode-btn:hover {
+      opacity: 1;
+      background: rgba(var(--theme-accent-rgb),0.22) !important;
+      color: var(--theme-accent) !important;
+    }
+
+    /* Expand player play button */
+    #ep-play {
+      box-shadow: 0 0 32px rgba(var(--theme-accent-rgb),0.35),
+                  0 6px 20px rgba(0,0,0,0.4) !important;
+    }
+    #ep-play:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 44px rgba(var(--theme-accent-rgb),0.5),
+                  0 8px 26px rgba(0,0,0,0.45) !important;
+    }
+    #ep-play:active { transform: scale(0.96); }
+    #ep-close:hover {
+      background: rgba(var(--theme-accent-rgb),0.14) !important;
+      color: var(--theme-accent) !important;
+      border-color: rgba(var(--theme-accent-rgb),0.35) !important;
+    }
+    #ep-prog-fill {
+      background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent2)) !important;
+    }
+    #atm-visualizer-canvas { opacity: 0.85; }
+
+    /* Player bar + navbar ambient glow */
+    #player-bar { box-shadow: 0 -4px 40px rgba(var(--theme-accent-rgb),0.06); }
+    .navbar      { box-shadow: 0 2px 30px rgba(var(--theme-accent-rgb),0.05); }
+
+    /* Active song — richer glow */
+    .song-item.active-song {
+      box-shadow: 0 0 20px rgba(var(--theme-accent-rgb),0.10),
+                  inset 0 0 8px rgba(var(--theme-accent-rgb),0.04) !important;
+    }
+    .playing-bars .bar, .playing-bars-overlay .bar {
+      box-shadow: 0 0 6px rgba(var(--theme-accent-rgb),0.5);
+    }
+    /* Progress glow */
+    #progress-filled, #progress-filled-desktop {
+      box-shadow: 0 0 6px rgba(var(--theme-accent-rgb),0.4);
+    }
+    /* Glow btn */
+    .glow-btn { transition: box-shadow 0.25s ease, transform 0.15s ease; }
+    /* Active playlist item accent bar */
+    .playlist-item.active-pl {
+      box-shadow: inset 2px 0 0 var(--theme-accent);
+    }
+    /* Explore tab active glow */
+    .explore-tab.active {
+      box-shadow: 0 0 14px rgba(var(--theme-accent-rgb),0.15);
+    }
+    /* Settings active glow */
+    .settings-btn-active {
+      box-shadow: 0 0 18px rgba(var(--theme-accent-rgb),0.22) !important;
+    }
+    /* Scrollbar thumb hover */
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(var(--theme-accent-rgb),0.45) !important;
+    }
+    /* PWA install box-shadow */
+    #pwa-install-btn {
+      box-shadow: 0 4px 16px rgba(var(--theme-accent-rgb),0.35) !important;
+    }
+    /* Dice glow */
+    #dice-btn:hover {
+      text-shadow: 0 0 12px rgba(var(--theme-accent-rgb),0.5);
+    }
+    /* Scroll buttons */
+    #scroll-top-btn, #scroll-bottom-btn {
+      backdrop-filter: blur(10px);
+    }
+    #scroll-top-btn:hover, #scroll-bottom-btn:hover {
+      box-shadow: 0 0 14px rgba(var(--theme-accent-rgb),0.2) !important;
+    }
+    /* New playlist btn */
+    #new-playlist-btn:hover {
+      box-shadow: 0 0 14px rgba(var(--theme-accent-rgb),0.18) !important;
+    }
+    /* Explore btn */
+    #explore-btn:hover {
+      box-shadow: 0 0 16px rgba(var(--theme-accent-rgb),0.18) !important;
+    }
+    /* Compact expand */
+    #compact-expand-btn:hover {
+      box-shadow: 0 0 20px rgba(var(--theme-accent-rgb),0.22) !important;
+    }
   </style>
 </head>
 
 <body class="mesh-bg">
+
+<!-- ════ ATMOSPHERE v2: Ambient background blobs ════ -->
+<div class="atm-blob atm-blob-1" aria-hidden="true"></div>
+<div class="atm-blob atm-blob-2" aria-hidden="true"></div>
+<div class="atm-blob atm-blob-3" aria-hidden="true"></div>
+
 
 <!-- ════════════════════════════════════════════════════════
      STICKY NAVBAR
@@ -731,8 +1321,7 @@
   <div class="flex items-center gap-2">
     <!-- Explore -->
     <button
-      id="explore-btn"
-      class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30 text-cyan-400 text-sm font-medium hover:from-cyan-500/30 hover:to-blue-500/30 transition-all"
+      id="explore-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all" style="background:rgba(var(--theme-accent-rgb),0.18);border:1px solid rgba(var(--theme-accent-rgb),0.35);color:var(--theme-accent)"
     >
       <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polygon points="10,8 16,12 10,16"/></svg>
       <span class="hidden sm:inline">Explore</span>
@@ -778,8 +1367,8 @@
         <button id="download-current-btn-menu" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ⬇️ Download Song
         </button>
-        <button id="theme-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
-          ☀️ Light Mode
+        <button id="settings-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
+          ⚙️ Settings
         </button>
         <button id="help-btn" class="w-full text-left px-4 py-3 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors border-t border-white/5">
           ❓ Help
@@ -903,7 +1492,7 @@
     <div id="song-list" class="flex-1 overflow-y-auto px-3 md:px-4 pb-4 space-y-1">
       <!-- Loading state -->
       <div class="flex flex-col items-center justify-center py-20 text-gray-500">
-        <div class="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin mb-4"></div>
+        <div class="w-8 h-8 border-2 rounded-full animate-spin mb-4" style="border-color:rgba(var(--theme-accent-rgb),0.3);border-top-color:var(--theme-accent)"></div>
         <p class="text-sm">Loading songs…</p>
       </div>
     </div>
@@ -955,6 +1544,12 @@
           <p id="player-title" class="text-sm font-semibold text-white leading-snug" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">No song selected</p>
           <p id="player-artist" class="text-xs text-gray-400 leading-snug mt-0.5" style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">–</p>
         </div>
+        <!-- Expand Mode button (mobile) — Atmosphere Phase 4 -->
+        <button id="expand-mode-btn"
+          class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all flex-shrink-0 active:scale-90"
+          title="Expand View — immersive player">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+        </button>
         <!-- Compact mode toggle (mobile only) — collapses to focused player view -->
         <button id="compact-toggle-mobile"
           class="w-8 h-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all flex-shrink-0 active:scale-90"
@@ -986,7 +1581,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
       </button>
       <!-- Play/Pause -->
-      <button id="play-btn" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all flex-shrink-0">
+      <button id="play-btn" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn text-white transition-all flex-shrink-0" style="background:linear-gradient(135deg,var(--theme-accent),var(--theme-accent2))">
         <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
       </button>
       <!-- Next -->
@@ -1041,7 +1636,7 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
         </button>
         <button id="skip-back-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="-10s">-10</button>
-        <button id="play-btn-desktop" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all">
+        <button id="play-btn-desktop" class="w-11 h-11 flex items-center justify-center rounded-full glow-btn text-white transition-all" style="background:linear-gradient(135deg,var(--theme-accent),var(--theme-accent2))">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
         </button>
         <button id="skip-fwd-btn-desktop" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white text-xs transition-all" title="+10s">+10</button>
@@ -1070,11 +1665,12 @@
           title="Compact Mode">
           <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
         </button>
-        <!-- Pop Out Player (desktop only) — opens popup window -->
-        <button id="mini-detach-btn-desktop"
+        <!-- Pop Out Player removed -->
+        <!-- Expand Mode button (desktop) — Atmosphere Phase 4 -->
+        <button id="expand-mode-btn-desktop"
           class="w-7 h-7 flex items-center justify-center rounded-full bg-white/5 hover:bg-cyan-500/20 text-gray-500 hover:text-cyan-400 transition-all active:scale-90"
-          title="Pop Out Player">
-          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          title="Expand View — immersive player">
+          <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
         </button>
       </div>
     </div>
@@ -1383,7 +1979,7 @@
   </div>
   <div class="flex items-center gap-2 flex-shrink-0">
     <button id="pwa-install-btn"
-      class="px-4 py-1.5 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white text-xs font-semibold hover:from-cyan-400 hover:to-blue-400 transition-all active:scale-95">
+      class="px-4 py-1.5 rounded-full text-white text-xs font-semibold transition-all active:scale-95" style="background:linear-gradient(to right,var(--theme-accent),var(--theme-accent2))">
       Install
     </button>
     <button id="pwa-install-dismiss"
@@ -1408,297 +2004,82 @@
   </svg>
 </button>
 
-<!-- ════════════════════════════════════════════════════════
-     MINI PLAYER (Floating detachable controller)
-     ═══════════════════════════════════════════════════════ -->
-<div id="mini-player"
-  class="hidden fixed z-[65] select-none"
-  style="width:min(340px,calc(100vw - 1.5rem));bottom:6rem;right:1rem;
-         filter:drop-shadow(0 8px 32px rgba(0,0,0,0.5));">
+<!-- Mini Player removed -->
 
-  <!-- Glass card -->
-  <div class="mini-player-card rounded-2xl overflow-hidden"
-    style="background:rgba(9,17,30,0.94);border:1px solid rgba(6,182,212,0.28);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);">
+<!-- Mini player CSS removed -->
 
-    <!-- ── Drag zone: thumbnail + info + controls ── -->
-    <div id="mini-player-drag"
-      class="flex items-center gap-2.5 px-3 py-2.5 cursor-grab"
-      style="touch-action:none;">
-
-      <!-- Thumbnail -->
-      <div class="relative flex-shrink-0">
-        <img id="mini-thumb"
-          src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='40' height='40' fill='%23374151' rx='8'/><text x='20' y='26' text-anchor='middle' font-size='16'>🎵</text></svg>"
-          alt="Now playing"
-          class="w-10 h-10 rounded-xl object-cover cursor-pointer"
-          style="box-shadow:0 2px 10px rgba(0,0,0,0.4);"
-          id="mini-thumb-click"
-        />
-        <!-- Playing indicator dot -->
-        <span id="mini-playing-dot"
-          class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-cyan-400 border-2 hidden"
-          style="border-color:rgba(9,17,30,0.94);"></span>
-      </div>
-
-      <!-- Song info -->
-      <div class="min-w-0 flex-1" style="pointer-events:none;">
-        <p id="mini-title"
-          class="text-xs font-semibold text-white leading-tight"
-          style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">No song</p>
-        <p id="mini-artist"
-          class="text-xs text-gray-400 leading-tight mt-0.5"
-          style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">–</p>
-      </div>
-
-      <!-- Playback controls -->
-      <div class="flex items-center gap-0.5 flex-shrink-0">
-        <!-- Prev -->
-        <button id="mini-prev-btn"
-          class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all active:scale-90">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="19,20 9,12 19,4"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <!-- Play/Pause -->
-        <button id="mini-play-btn"
-          class="w-8 h-8 flex items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-white transition-all active:scale-90"
-          style="box-shadow:0 0 14px rgba(6,182,212,0.35);">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>
-        </button>
-        <!-- Next -->
-        <button id="mini-next-btn"
-          class="w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-300 hover:text-white transition-all active:scale-90">
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,4 15,12 5,20"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"/></svg>
-        </button>
-        <!-- Mode -->
-        <button id="mini-mode-btn"
-          class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-cyan-400 transition-all active:scale-90">
-        </button>
-      </div>
-
-      <!-- Action buttons: reattach + close -->
-      <div class="flex items-center gap-0.5 flex-shrink-0 pl-1 border-l border-white/10">
-        <!-- Reattach (collapse back to main player) -->
-        <button id="mini-attach-btn"
-          class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-500 hover:text-cyan-400 transition-all active:scale-90"
-          title="Return to main player">
-          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 15L3 21M3 15h6v6M15 9l6-6M21 9V3h-6"/></svg>
-        </button>
-        <!-- Close -->
-        <button id="mini-close-btn"
-          class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-500 hover:text-white transition-all active:scale-90"
-          title="Close mini player">
-          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- ── Clickable progress bar ── -->
-    <div id="mini-progress-bar-wrap"
-      class="relative cursor-pointer group"
-      style="height:3px;background:rgba(255,255,255,0.08);">
-      <div id="mini-progress-filled"
-        class="h-full"
-        style="width:0%;background:linear-gradient(90deg,#06b6d4,#3b82f6);transition:width 0.1s linear;pointer-events:none;"></div>
-      <!-- Hover thumb -->
-      <div id="mini-progress-thumb"
-        class="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-        style="margin-left:-6px;box-shadow:0 1px 4px rgba(0,0,0,0.5);"></div>
-    </div>
-
-  </div><!-- .mini-player-card -->
-</div><!-- #mini-player -->
-
-<style>
-  /* ── Mini player light-mode adaptation ── */
-  body.light-mode #mini-player .mini-player-card {
-    background: rgba(230,240,255,0.95) !important;
-    border-color: rgba(8,145,178,0.3) !important;
-  }
-  body.light-mode #mini-title   { color: #0f172a !important; }
-  body.light-mode #mini-artist  { color: #475569 !important; }
-  body.light-mode #mini-prev-btn,
-  body.light-mode #mini-next-btn { color: #334155 !important; }
-  body.light-mode #mini-prev-btn:hover,
-  body.light-mode #mini-next-btn:hover { color: #0f172a !important; background: rgba(0,0,0,0.06) !important; }
-  body.light-mode #mini-progress-bar-wrap { background: rgba(0,0,0,0.08) !important; }
-
-  /* ── Mini player appear / disappear animation ── */
-  @keyframes miniPlayerIn {
-    from { opacity:0; transform:scale(0.9) translateY(12px); }
-    to   { opacity:1; transform:scale(1) translateY(0); }
-  }
-  @keyframes miniPlayerOut {
-    from { opacity:1; transform:scale(1) translateY(0); }
-    to   { opacity:0; transform:scale(0.9) translateY(12px); }
-  }
-  #mini-player.mp-entering { animation: miniPlayerIn 0.22s cubic-bezier(0.34,1.56,0.64,1) both; }
-  #mini-player.mp-leaving  { animation: miniPlayerOut 0.18s ease both; }
-
-  /* Prevent text selection during drag */
-  #mini-player-drag * { user-select: none; -webkit-user-select: none; }
-
-  /* Mini thumbnail — static, no rotation */
-  #mini-thumb { border-radius: 10px; }
-
-  /* Glow pulse on mini play button when playing */
-  #mini-play-btn.playing {
-    box-shadow: 0 0 0 0 rgba(6,182,212,0.4);
-    animation: miniPlayGlow 2s ease-in-out infinite;
-  }
-  @keyframes miniPlayGlow {
-    0%,100% { box-shadow: 0 0 10px rgba(6,182,212,0.3); }
-    50%      { box-shadow: 0 0 22px rgba(6,182,212,0.6); }
-  }
-
-  /* ══════════════════════════════════════════════════════════
-     COMPACT MODE — hides sidebar + song list, shows centered
-     now-playing display above the fixed player bar.
-     ════════════════════════════════════════════════════════ */
-  body.compact-mode #layout-wrapper  { display: none !important; }
-  body.compact-mode .navbar          { display: none !important; }
-  body.compact-mode #compact-overlay { display: flex !important; }
-
-  /* The overlay fills all space between top and player bar */
-  #compact-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    bottom: var(--player-h);
-    z-index: 30;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 1.25rem;
-    background: var(--bg-primary);
-    /* Subtle radial glow matching app aesthetic */
-    background-image:
-      radial-gradient(ellipse 70% 50% at 50% 30%, rgba(6,182,212,0.07) 0%, transparent 70%),
-      radial-gradient(ellipse 50% 40% at 50% 80%, rgba(59,130,246,0.05) 0%, transparent 70%);
-    user-select: none;
-  }
-
-  /* Album art in compact mode — static, no rotation */
-  #compact-art {
-    width: clamp(120px, 30vw, 200px);
-    height: clamp(120px, 30vw, 200px);
-    border-radius: 1.25rem;
-    object-fit: cover;
-    box-shadow: 0 12px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06);
-  }
-
-  /* Compact text */
-  #compact-title {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-weight: 700;
-    font-size: clamp(1rem, 3vw, 1.4rem);
-    color: var(--text-primary);
-    max-width: 80vw;
-    text-align: center;
-    overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-  }
-  #compact-artist {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    text-align: center;
-  }
-
-  /* Expand button */
-  #compact-expand-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1.25rem;
-    border-radius: 999px;
-    background: rgba(6,182,212,0.12);
-    border: 1px solid rgba(6,182,212,0.3);
-    color: #06b6d4;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s, transform 0.1s;
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-  }
-  #compact-expand-btn:hover  { background: rgba(6,182,212,0.22); border-color: rgba(6,182,212,0.55); }
-  #compact-expand-btn:active { transform: scale(0.95); }
-
-  /* Light mode overrides for compact */
-  body.light-mode #compact-overlay { background: var(--bg-primary); }
-  body.light-mode #compact-title   { color: #0f172a; }
-  body.light-mode #compact-artist  { color: #475569; }
-  body.light-mode #compact-expand-btn {
-    background: rgba(8,145,178,0.08);
-    border-color: rgba(8,145,178,0.3);
-    color: #0891b2;
-  }
-
-  @keyframes diceRoll {
-  0%   { transform: rotate(0deg)   scale(1);    }
-  20%  { transform: rotate(-22deg) scale(1.18); }
-  45%  { transform: rotate(16deg)  scale(0.88); }
-  65%  { transform: rotate(-12deg) scale(1.1);  }
-  82%  { transform: rotate(6deg)   scale(0.96); }
-  100% { transform: rotate(0deg)   scale(1);    }
-}
-
-#dice-btn.dice-rolling {
-  animation: diceRoll 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
-  /* Prevent layout shifts during animation */
-  transform-origin: center;
-  will-change: transform;
-}
-
-/* Ensure the button is never active (pressed) state during animation */
-#dice-btn.dice-rolling:active {
-  transform: none; /* let keyframe drive it */
-}
-
-/* ── [FIX: Song List Scroll-to-Top on Search] ────────────────
-   This CSS rule is a belt-and-suspenders complement to the JS
-   scroll reset.  Setting scroll-behavior on #song-list ensures
-   programmatic scrollTop = 0 assignments are instant (no smooth
-   scroll delay that would make results feel sluggish).
-
-   We only want smooth-scroll on the up/down buttons (handled via
-   JS .scrollTo({ behavior: 'smooth' })), NOT on search resets.
-   ─────────────────────────────────────────────────────────── */
-#song-list {
-  /* Explicit: always use instant scrolling.
-     The scroll-to-top/bottom buttons pass behavior:'smooth'
-     explicitly, which overrides this at call time. */
-  scroll-behavior: auto;
-}
-
-</style>
+<!-- Compact overlay removed (duplicate of #compact-screen) -->
 
 <!-- ════════════════════════════════════════════════════════
-     COMPACT MODE OVERLAY
-     Shown when body.compact-mode is active.
-     The player bar remains fixed at the bottom as normal.
+     SETTINGS MODAL
      ═══════════════════════════════════════════════════════ -->
-<div id="compact-overlay">
-  <!-- Expand button — top-right -->
-  <button id="compact-expand-btn" title="Exit Compact Mode">
-    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
-    </svg>
-    Expand
-  </button>
+<div id="settings-modal" class="hidden fixed inset-0 z-[85] items-center justify-center modal-backdrop bg-black/70 p-4">
+  <div class="settings-modal-card relative w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden"
+       style="background:#0d1a2d;border:1px solid rgba(255,255,255,0.1);">
 
-  <!-- Album art -->
-  <img id="compact-art"
-    src="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><rect width='200' height='200' fill='%23374151' rx='20'/><text x='100' y='120' text-anchor='middle' font-size='72'>🎵</text></svg>"
-    alt="Now playing"
-  />
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-4 border-b border-white/5">
+      <h2 class="font-display font-700 text-white text-base tracking-wide">⚙️ Settings</h2>
+      <button id="close-settings"
+        class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
 
-  <!-- Song info -->
-  <div style="text-align:center;">
-    <div id="compact-title">No song playing</div>
-    <div id="compact-artist" style="margin-top:0.25rem;">–</div>
+    <!-- Scrollable content -->
+    <div class="overflow-y-auto max-h-[75vh]">
+
+      <!-- Appearance -->
+      <div class="px-5 py-4 border-b border-white/5">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Appearance</p>
+        <div class="flex gap-2">
+          <button id="settings-dark-btn"
+            class="settings-mode-btn settings-btn-inactive flex-1 py-2.5 px-3 rounded-xl text-sm font-medium border transition-all">
+            🌙 Dark Mode
+          </button>
+          <button id="settings-light-btn"
+            class="settings-mode-btn settings-btn-inactive flex-1 py-2.5 px-3 rounded-xl text-sm font-medium border transition-all">
+            ☀️ Light Mode
+          </button>
+        </div>
+      </div>
+
+      <!-- Particles -->
+      <div class="px-5 py-4 border-b border-white/5">
+        <div class="flex items-start justify-between mb-3">
+          <div>
+            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Particles</p>
+            <p class="text-xs text-gray-600 mt-0.5">Visual atmosphere effect</p>
+          </div>
+          <span class="text-xs text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">Active</span>
+        </div>
+        <div class="flex gap-2">
+          <button id="settings-particles-on"
+            class="settings-particle-btn settings-btn-inactive flex-1 py-2.5 px-3 rounded-xl text-sm font-medium border transition-all">
+            ✨ On
+          </button>
+          <button id="settings-particles-off"
+            class="settings-particle-btn settings-btn-inactive flex-1 py-2.5 px-3 rounded-xl text-sm font-medium border transition-all">
+            Off
+          </button>
+        </div>
+      </div>
+
+      <!-- Theme -->
+      <div class="px-5 py-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Accent Theme</p>
+        <div class="grid grid-cols-2 gap-2" id="theme-options-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </div><!-- end scrollable -->
   </div>
 </div>
+
+<!-- Atmosphere Engine (Phase 4) — must load before script.js -->
+<script src="atmosphere-engine.js"></script>
 
 <!-- Main Script -->
 <script src="script.js"></script>

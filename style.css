@@ -1,25 +1,15 @@
 /*
  * ════════════════════════════════════════════════════════════
- *  SoundAura — index.html <style> additions
+ *  SoundAura — Atmosphere v2 Style Additions
  *
  *  Add these rules inside the existing <style> block in
- *  index.html (e.g. just before the closing </style> tag).
+ *  index.html (replace or append after the existing style.css).
  *
- *  They are additive-only — nothing existing is changed.
+ *  These are additive / override-safe.
  * ════════════════════════════════════════════════════════════
  */
 
-/* ── [FIX: Dice Roll Animation] ──────────────────────────────
-   The dice button gets class 'dice-rolling' for ~450 ms when
-   clicked.  The animation plays through exactly once (controlled
-   by the JS animationend listener that removes the class).
-
-   Design intent:
-   - Scale-up on the first quarter gives instant tactile feedback
-   - The alternating rotation mimics a physical tumble
-   - Slight ease-out at 100% lands cleanly so there's no jank
-     when the animation class is removed
-   ─────────────────────────────────────────────────────────── */
+/* ── [FIX: Dice Roll Animation] ──────────────────────────── */
 @keyframes diceRoll {
   0%   { transform: rotate(0deg)   scale(1);    }
   20%  { transform: rotate(-22deg) scale(1.18); }
@@ -31,28 +21,498 @@
 
 #dice-btn.dice-rolling {
   animation: diceRoll 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
-  /* Prevent layout shifts during animation */
   transform-origin: center;
   will-change: transform;
 }
+#dice-btn.dice-rolling:active { transform: none; }
 
-/* Ensure the button is never active (pressed) state during animation */
-#dice-btn.dice-rolling:active {
-  transform: none; /* let keyframe drive it */
+/* ── [FIX: Song List Scroll] ─────────────────────────────── */
+#song-list { scroll-behavior: auto; }
+
+/* ── [ATMOSPHERE v2] Random-selected active state ────────────
+   The .random-selected class is for one-shot pulse (legacy).
+   .random-selected-active is the persistent state used by
+   RandomSongAnim — glows softly, stays until user acts.
+   ─────────────────────────────────────────────────────────── */
+
+/* Legacy one-shot pulse (kept for backward compat) */
+@keyframes randomPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--theme-accent-rgb),0);     border-color: transparent; }
+  15%  { box-shadow: 0 0 0 4px rgba(var(--theme-accent-rgb),0.55), 0 0 20px rgba(var(--theme-accent-rgb),0.3);  border-color: rgba(var(--theme-accent-rgb),0.8); }
+  35%  { box-shadow: 0 0 0 2px rgba(var(--theme-accent-rgb),0.35), 0 0 12px rgba(var(--theme-accent-rgb),0.2);  border-color: rgba(var(--theme-accent-rgb),0.5); }
+  55%  { box-shadow: 0 0 0 4px rgba(var(--theme-accent-rgb),0.5),  0 0 22px rgba(var(--theme-accent-rgb),0.28); border-color: rgba(var(--theme-accent-rgb),0.75); }
+  75%  { box-shadow: 0 0 0 2px rgba(var(--theme-accent-rgb),0.3),  0 0 10px rgba(var(--theme-accent-rgb),0.15); border-color: rgba(var(--theme-accent-rgb),0.45); }
+  100% { box-shadow: 0 0 0 0 rgba(var(--theme-accent-rgb),0);     border-color: transparent; }
+}
+.song-item.random-selected {
+  background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.12), rgba(var(--theme-accent-rgb),0.06)) !important;
+  border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+  will-change: box-shadow, border-color;
 }
 
-/* ── [FIX: Song List Scroll-to-Top on Search] ────────────────
-   This CSS rule is a belt-and-suspenders complement to the JS
-   scroll reset.  Setting scroll-behavior on #song-list ensures
-   programmatic scrollTop = 0 assignments are instant (no smooth
-   scroll delay that would make results feel sluggish).
+/* Persistent random-selected active — soft steady glow, no pulse spam */
+.song-item.random-selected-active {
+  position: relative;
+  background: linear-gradient(
+    to right,
+    rgba(var(--theme-accent-rgb), 0.14),
+    rgba(var(--theme-accent-rgb), 0.06)
+  ) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.45) !important;
+  box-shadow:
+    0 0 0 1px rgba(var(--theme-accent-rgb), 0.25),
+    0 0 22px rgba(var(--theme-accent-rgb), 0.12),
+    inset 0 0 12px rgba(var(--theme-accent-rgb), 0.04);
+  overflow: visible !important; /* allow SVG orbs to draw outside */
+  z-index: 2;
+}
 
-   We only want smooth-scroll on the up/down buttons (handled via
-   JS .scrollTo({ behavior: 'smooth' })), NOT on search resets.
-   ─────────────────────────────────────────────────────────── */
-#song-list {
-  /* Explicit: always use instant scrolling.
-     The scroll-to-top/bottom buttons pass behavior:'smooth'
-     explicitly, which overrides this at call time. */
-  scroll-behavior: auto;
+/* ── [ATMOSPHERE v2] Animated mesh background ─────────────── */
+@keyframes meshDrift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(18px, -12px) scale(1.04); }
+  66%       { transform: translate(-10px, 15px) scale(0.97); }
+}
+@keyframes meshDrift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  40%       { transform: translate(-14px, 10px) scale(1.03); }
+  70%       { transform: translate(20px, -8px) scale(0.98); }
+}
+@keyframes meshDrift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%       { transform: translate(8px, 18px) scale(1.02); }
+}
+
+/* Animated gradient blobs in the background */
+.atm-blob {
+  position: fixed;
+  pointer-events: none;
+  border-radius: 50%;
+  filter: blur(80px);
+  z-index: 0;
+  will-change: transform;
+}
+.atm-blob-1 {
+  width: 60vw; height: 50vw;
+  top: -15vw; left: -15vw;
+  background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb), 0.055) 0%, transparent 70%);
+  animation: meshDrift1 22s ease-in-out infinite;
+}
+.atm-blob-2 {
+  width: 55vw; height: 55vw;
+  bottom: -20vw; right: -10vw;
+  background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb), 0.045) 0%, transparent 70%);
+  animation: meshDrift2 28s ease-in-out infinite;
+}
+.atm-blob-3 {
+  width: 40vw; height: 40vw;
+  top: 30%; left: 25%;
+  background: radial-gradient(ellipse, rgba(var(--theme-accent-rgb), 0.025) 0%, transparent 70%);
+  animation: meshDrift3 34s ease-in-out infinite;
+}
+body.light-mode .atm-blob-1 { opacity: 0.5; }
+body.light-mode .atm-blob-2 { opacity: 0.4; }
+body.light-mode .atm-blob-3 { opacity: 0.3; }
+
+/* ── [ATMOSPHERE v2] Home canvas — smooth fade in ─────────── */
+#atm-home-canvas {
+  transition: opacity 0.8s ease;
+}
+
+/* ── [ATMOSPHERE v2] Expand player improvements ───────────── */
+#expand-player-modal {
+  /* Ensure a slightly deeper dark for atmosphere */
+  --ep-bg: rgba(4, 10, 22, 0.97);
+}
+
+/* Art wrap: the outer container that also holds visualizer */
+#ep-art-wrap {
+  /* No border-radius clip here — clip is on #ep-art-inner */
+  overflow: visible !important;
+}
+
+/* Art inner: actual clip container */
+#ep-art-inner {
+  transition: box-shadow 0.5s ease, background 0.3s ease;
+}
+
+/* Visualizer canvas around album art */
+#atm-visualizer-canvas {
+  opacity: 0.85;
+  transition: opacity 0.4s ease;
+}
+
+/* Art mode toggle button */
+#ep-art-mode-btn {
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+#ep-art-mode-btn:hover {
+  opacity: 1;
+  background: rgba(var(--theme-accent-rgb), 0.25) !important;
+  color: var(--theme-accent) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.4) !important;
+}
+
+/* Expand player play button — theme-matched shadow */
+#ep-play {
+  box-shadow:
+    0 0 32px rgba(var(--theme-accent-rgb), 0.35),
+    0 6px 20px rgba(0,0,0,0.4) !important;
+}
+#ep-play:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 0 44px rgba(var(--theme-accent-rgb), 0.5),
+    0 8px 26px rgba(0,0,0,0.45) !important;
+}
+#ep-play:active { transform: scale(0.96); }
+
+/* Expand player close btn hover */
+#ep-close:hover {
+  background: rgba(var(--theme-accent-rgb), 0.15) !important;
+  color: var(--theme-accent) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.35) !important;
+}
+
+/* Progress fill — always theme-colored */
+#ep-prog-fill {
+  background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent2)) !important;
+}
+
+/* ── [ATMOSPHERE v2] Breathing album art glow ─────────────── */
+@keyframes artGlowBreathe {
+  0%, 100% { opacity: 0.85; }
+  50%       { opacity: 1; }
+}
+#ep-art-inner {
+  animation: artGlowBreathe 4s ease-in-out infinite;
+}
+
+/* ── [ATMOSPHERE v2] Song list item polish ────────────────── */
+.song-item {
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.12s ease;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+}
+.song-item:hover:not(.active-song):not(.random-selected-active) {
+  box-shadow: 0 2px 16px rgba(var(--theme-accent-rgb), 0.08);
+}
+
+/* ── [ATMOSPHERE v2] Player bar glow ─────────────────────── */
+#player-bar {
+  box-shadow: 0 -4px 40px rgba(var(--theme-accent-rgb), 0.06);
+}
+
+/* ── [ATMOSPHERE v2] Navbar ambient glow ─────────────────── */
+.navbar {
+  box-shadow: 0 2px 30px rgba(var(--theme-accent-rgb), 0.05);
+}
+
+/* ── [ATMOSPHERE v2] Scrollbar — theme colored ───────────── */
+::-webkit-scrollbar-thumb {
+  background: rgba(var(--theme-accent-rgb), 0.28) !important;
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(var(--theme-accent-rgb), 0.45) !important;
+}
+
+/* ── [ATMOSPHERE v2] Soft ambient bg for content areas ────── */
+#main-content {
+  position: relative;
+}
+
+/* ── [ATMOSPHERE v2] Song playing animation — theme colors ── */
+.playing-bars .bar,
+.playing-bars-overlay .bar {
+  background: var(--theme-accent) !important;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.5);
+}
+
+/* ── [ATMOSPHERE v2] Active song item — richer glow ──────── */
+.song-item.active-song {
+  background: linear-gradient(
+    to right,
+    rgba(var(--theme-accent-rgb), 0.20),
+    rgba(var(--theme-accent-rgb), 0.07)
+  ) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.32) !important;
+  box-shadow:
+    0 0 20px rgba(var(--theme-accent-rgb), 0.10),
+    inset 0 0 8px rgba(var(--theme-accent-rgb), 0.04);
+}
+
+/* ── [ATMOSPHERE v2] Explore modal tabs ──────────────────── */
+.explore-tab.active {
+  background: linear-gradient(135deg, rgba(var(--theme-accent-rgb),0.2), rgba(var(--theme-accent-rgb),0.12)) !important;
+  border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+  color: var(--theme-accent) !important;
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.15);
+}
+
+/* ── [ATMOSPHERE v2] Settings theme buttons ──────────────── */
+.settings-btn-active {
+  background: linear-gradient(135deg, rgba(var(--theme-accent-rgb),0.28), rgba(var(--theme-accent-rgb),0.16)) !important;
+  border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+  color: var(--theme-accent) !important;
+  box-shadow: 0 0 18px rgba(var(--theme-accent-rgb), 0.22) !important;
+}
+
+/* ── [ATMOSPHERE v2] Glow button — theme-adaptive ────────── */
+.glow-btn {
+  box-shadow: 0 0 18px rgba(var(--theme-accent-rgb), 0.28) !important;
+  transition: box-shadow 0.25s ease, transform 0.15s ease;
+}
+.glow-btn:hover {
+  box-shadow: 0 0 32px rgba(var(--theme-accent-rgb), 0.48) !important;
+}
+
+/* ── [ATMOSPHERE v2] Compact expand button ───────────────── */
+#compact-expand-btn {
+  background: rgba(var(--theme-accent-rgb), 0.14) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.32) !important;
+  color: var(--theme-accent) !important;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+#compact-expand-btn:hover {
+  background: rgba(var(--theme-accent-rgb), 0.26) !important;
+  box-shadow: 0 0 20px rgba(var(--theme-accent-rgb), 0.22) !important;
+}
+
+/* ── [ATMOSPHERE v2] Scroll buttons ─────────────────────── */
+#scroll-top-btn, #scroll-bottom-btn {
+  background: rgba(var(--theme-accent-rgb), 0.16) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.32) !important;
+  color: var(--theme-accent) !important;
+  backdrop-filter: blur(10px);
+  transition: opacity 0.25s ease, transform 0.2s ease, background 0.15s, box-shadow 0.15s;
+}
+#scroll-top-btn:hover, #scroll-bottom-btn:hover {
+  background: rgba(var(--theme-accent-rgb), 0.30) !important;
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.2) !important;
+}
+
+/* ── [ATMOSPHERE v2] Progress bars — theme gradient ────────  */
+#progress-filled, #progress-filled-desktop, #ep-prog-fill {
+  background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent2)) !important;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.4);
+}
+
+/* ── [ATMOSPHERE v2] PWA install button ─────────────────── */
+#pwa-install-btn {
+  background: linear-gradient(to right, var(--theme-accent), var(--theme-accent2)) !important;
+  box-shadow: 0 4px 16px rgba(var(--theme-accent-rgb), 0.35) !important;
+}
+
+/* ── [ATMOSPHERE v2] Focus states ──────────────────────────  */
+input:focus, select:focus {
+  border-color: rgba(var(--theme-accent-rgb),0.5) !important;
+  box-shadow: 0 0 0 3px rgba(var(--theme-accent-rgb),0.1) !important;
+  outline: none;
+}
+
+/* ── [ATMOSPHERE v2] Dice button ────────────────────────── */
+#dice-btn:hover {
+  color: var(--theme-accent) !important;
+  text-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.5);
+}
+
+/* ── [ATMOSPHERE v2] New playlist button ─────────────────── */
+#new-playlist-btn {
+  background: rgba(var(--theme-accent-rgb), 0.18) !important;
+  color: var(--theme-accent) !important;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+#new-playlist-btn:hover {
+  background: rgba(var(--theme-accent-rgb), 0.32) !important;
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.18) !important;
+}
+
+/* ── [ATMOSPHERE v2] Active playlist item ─────────────────── */
+.playlist-item.active-pl {
+  background: rgba(var(--theme-accent-rgb), 0.1) !important;
+  color: var(--theme-accent) !important;
+  box-shadow: inset 2px 0 0 var(--theme-accent);
+}
+
+/* ── [ATMOSPHERE v2] Speed slider fill ─────────────────────  */
+.speed-slider, .speed-modal-range {
+  background: linear-gradient(to right, var(--theme-accent) 42.9%, rgba(255,255,255,0.12) 42.9%) !important;
+}
+
+/* ── [ATMOSPHERE v2] Volume slider ─────────────────────────  */
+#volume-slider::-webkit-slider-thumb { background: var(--theme-accent); }
+#volume-slider::-moz-range-thumb     { background: var(--theme-accent); }
+#volume-icon:hover { color: var(--theme-accent); }
+
+/* ── [ATMOSPHERE v2] EQ slider accent ──────────────────────  */
+.eq-slider { accent-color: var(--theme-accent) !important; }
+
+/* ── [ATMOSPHERE v2] Explore button ────────────────────────  */
+#explore-btn {
+  background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.18), rgba(var(--theme-accent-rgb),0.12)) !important;
+  border-color: rgba(var(--theme-accent-rgb),0.28) !important;
+  color: var(--theme-accent) !important;
+  transition: background 0.18s ease, box-shadow 0.18s ease;
+}
+#explore-btn:hover {
+  background: linear-gradient(to right, rgba(var(--theme-accent-rgb),0.28), rgba(var(--theme-accent-rgb),0.20)) !important;
+  box-shadow: 0 0 16px rgba(var(--theme-accent-rgb), 0.18) !important;
+}
+
+/* ── [ATMOSPHERE v2] Navbar button hover ───────────────────  */
+.navbar button:hover {
+  box-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.15);
+}
+#player-bar button:hover {
+  box-shadow: 0 0 14px rgba(var(--theme-accent-rgb), 0.18);
+}
+
+/* ── [ATMOSPHERE v2] Song fade-in animation ─────────────────  */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.song-item { animation: fadeSlideIn 0.2s ease both; }
+#song-list > .song-item:nth-child(1)   { animation-delay: 0.00s; }
+#song-list > .song-item:nth-child(2)   { animation-delay: 0.02s; }
+#song-list > .song-item:nth-child(3)   { animation-delay: 0.04s; }
+#song-list > .song-item:nth-child(4)   { animation-delay: 0.06s; }
+#song-list > .song-item:nth-child(5)   { animation-delay: 0.08s; }
+#song-list > .song-item:nth-child(n+6) { animation-delay: 0.10s; }
+
+/* ── [ATMOSPHERE v2] Loading skeleton shimmer ──────────────  */
+@keyframes skeletonShimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.04) 25%,
+    rgba(var(--theme-accent-rgb), 0.08) 50%,
+    rgba(255,255,255,0.04) 75%
+  );
+  background-size: 800px 100%;
+  animation: skeletonShimmer 1.4s ease-in-out infinite;
+}
+
+/* ── [ATMOSPHERE v2] Drag handle ───────────────────────────  */
+.drag-handle:hover {
+  color: var(--theme-accent);
+  background: rgba(var(--theme-accent-rgb), 0.1);
+}
+
+/* ── [ATMOSPHERE v2] Playing bars ──────────────────────────  */
+@keyframes playBar {
+  0%, 100% { transform: scaleY(0.3); }
+  50%       { transform: scaleY(1); }
+}
+.playing-bars .bar { transform-origin: bottom; animation: playBar 0.6s ease-in-out infinite; }
+.playing-bars .bar:nth-child(2) { animation-delay: 0.2s; }
+.playing-bars .bar:nth-child(3) { animation-delay: 0.4s; }
+
+/* ══════════════════════════════════════════════════════════
+   FIX: Main library opacity — restore full readability
+   ════════════════════════════════════════════════════════ */
+#song-list .song-item {
+  opacity: 1 !important;
+}
+#song-list,
+#main-content,
+#song-list-section {
+  opacity: 1 !important;
+}
+/* Ensure song text is always readable */
+.song-item .song-title {
+  opacity: 1 !important;
+  color: var(--text-primary, #f0f6ff);
+}
+.song-item .text-gray-400,
+.song-item .text-xs {
+  opacity: 1 !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   EP Bar Visualizer — inverted downward bars
+   ════════════════════════════════════════════════════════ */
+#ep-viz-wrap {
+  position: relative;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  /* Subtle top border as separator */
+  border-top: 1px solid rgba(var(--theme-accent-rgb), 0.12);
+}
+#ep-bar-viz-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* ══════════════════════════════════════════════════════════
+   THEME: Play buttons use CSS vars (not hardcoded cyan)
+   ════════════════════════════════════════════════════════ */
+#play-btn, #play-btn-desktop {
+  background: linear-gradient(135deg, var(--theme-accent), var(--theme-accent2)) !important;
+  box-shadow: 0 0 18px rgba(var(--theme-accent-rgb), 0.3) !important;
+  transition: box-shadow 0.25s ease, transform 0.15s ease !important;
+}
+#play-btn:hover, #play-btn-desktop:hover {
+  box-shadow: 0 0 28px rgba(var(--theme-accent-rgb), 0.5) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   THEME: Mode buttons use theme accent
+   ════════════════════════════════════════════════════════ */
+#mode-btn, #mode-btn-desktop {
+  color: var(--theme-accent) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   THEME: Prev/Next buttons subtle hover glow
+   ════════════════════════════════════════════════════════ */
+#prev-btn:hover, #next-btn:hover,
+#prev-btn-desktop:hover, #next-btn-desktop:hover {
+  color: var(--theme-accent) !important;
+  box-shadow: 0 0 12px rgba(var(--theme-accent-rgb), 0.18) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   THEME: expand-mode and compact-toggle buttons
+   ════════════════════════════════════════════════════════ */
+#expand-mode-btn:hover, #expand-mode-btn-desktop:hover,
+#compact-toggle-mobile:hover, #compact-toggle-desktop:hover {
+  background: rgba(var(--theme-accent-rgb), 0.18) !important;
+  color: var(--theme-accent) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   THEME: EP prev/next buttons hover
+   ════════════════════════════════════════════════════════ */
+#ep-prev:hover, #ep-next:hover {
+  color: var(--theme-accent) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.4) !important;
+  box-shadow: 0 0 16px rgba(var(--theme-accent-rgb), 0.2) !important;
+}
+
+/* ══════════════════════════════════════════════════════════
+   NAVBAR TITLE: theme-driven gradient
+   ════════════════════════════════════════════════════════ */
+#navbar-title {
+  background: linear-gradient(
+    110deg,
+    var(--theme-accent) 0%,
+    white 50%,
+    var(--theme-accent2) 100%
+  ) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  filter: drop-shadow(0 0 8px rgba(var(--theme-accent-rgb), 0.25));
 }
