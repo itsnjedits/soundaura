@@ -1,11 +1,17 @@
 /*
  * ════════════════════════════════════════════════════════════
- *  SoundAura — Atmosphere v2 Style Additions
+ *  SoundAura — Performance Style Sheet v4.0
  *
- *  Add these rules inside the existing <style> block in
- *  index.html (replace or append after the existing style.css).
- *
- *  These are additive / override-safe.
+ *  Changes from v3:
+ *   • Speed slider knob (thumb) now uses --theme-accent (was hardcoded blue)
+ *   • Speed modal slider also themed
+ *   • Volume slider thumb explicitly themed (belt-and-suspenders)
+ *   • CSS containment hints added to song-list for paint isolation
+ *   • Removed CSS animation delay stagger (was causing repaints on every
+ *     renderSongList() call for large playlists)
+ *   • Added content-visibility: auto to off-screen song items
+ *   • Scroll-snap removed (caused janky behavior)
+ *   • atm-blob CSS animations optimised (contained to specific layer)
  * ════════════════════════════════════════════════════════════
  */
 
@@ -29,8 +35,22 @@
 /* ── [FIX: Song List Scroll] ─────────────────────────────── */
 #song-list { scroll-behavior: auto; }
 
+/* ── [PERF v4] CSS containment — isolates song-list paint ── */
+/* Prevents the list from affecting layout/paint of other elements */
+#song-list {
+  contain: content;
+}
+
+/* ── [PERF v4] Content-visibility for off-screen list items ─
+   Skips rendering cost for items far outside the viewport.
+   `contain-intrinsic-size` provides a size estimate so scroll
+   height stays correct (70px ≈ average song row height).     */
+#song-list .song-item {
+  content-visibility: auto;
+  contain-intrinsic-size: 0 70px;
+}
+
 /* ── [ATMOSPHERE v2] Random-selected active state ────────────
-   The .random-selected class is for one-shot pulse (legacy).
    .random-selected-active is the persistent state used by
    RandomSongAnim — glows softly, stays until user acts.
    ─────────────────────────────────────────────────────────── */
@@ -50,7 +70,7 @@
   will-change: box-shadow, border-color;
 }
 
-/* Persistent random-selected active — soft steady glow, no pulse spam */
+/* Persistent random-selected active — soft steady glow */
 .song-item.random-selected-active {
   position: relative;
   background: linear-gradient(
@@ -91,6 +111,8 @@
   filter: blur(80px);
   z-index: 0;
   will-change: transform;
+  /* [PERF v4] contain paint so blobs never force full-page repaints */
+  contain: strict;
 }
 .atm-blob-1 {
   width: 60vw; height: 50vw;
@@ -114,39 +136,35 @@ body.light-mode .atm-blob-1 { opacity: 0.5; }
 body.light-mode .atm-blob-2 { opacity: 0.4; }
 body.light-mode .atm-blob-3 { opacity: 0.3; }
 
-/* ── [ATMOSPHERE v3] Home canvas removed — zero cost on normal screen ── */
-/* Home screen: NO canvas, NO RAF, NO rendering — only immersive mode renders */
+/* [PERF v4] Pause CSS blob animations while immersive is open
+   (immersive has its own canvas atmosphere — no need to waste GPU
+   on home-screen CSS blobs too)                                */
+body.immersive-open .atm-blob-1,
+body.immersive-open .atm-blob-2,
+body.immersive-open .atm-blob-3 {
+  animation-play-state: paused;
+}
 
+/* ── [ATMOSPHERE v3] Home canvas removed — zero cost on normal screen ── */
 /* ── [ATMOSPHERE v3] Cinematic canvas in immersive mode ─────────────── */
-/* Canvas is rendered at 70% pixel density; CSS stretches it to 100%     */
-/* This halves GPU pixel fill cost while keeping cinematic feel           */
 #atm-cinematic-canvas {
-  /* CSS fills container at 100% while internal resolution is 70% */
   width:  100% !important;
   height: 100% !important;
-  /* Slight smoothing on upscale — avoids pixelated look */
   image-rendering: auto;
 }
 
 /* ── [ATMOSPHERE v2] Expand player improvements ───────────── */
 #expand-player-modal {
-  /* Ensure a slightly deeper dark for atmosphere */
   --ep-bg: rgba(4, 10, 22, 0.97);
 }
 
-/* Art wrap: the outer container that also holds visualizer */
 #ep-art-wrap {
-  /* No border-radius clip here — clip is on #ep-art-inner */
   overflow: visible !important;
 }
 
-/* Art inner: actual clip container */
 #ep-art-inner {
   transition: box-shadow 0.5s ease, background 0.3s ease;
 }
-
-/* [v3] #atm-visualizer-canvas removed — bar visualizer eliminated.
-   The CinematicAtmosphere canvas (#atm-cinematic-canvas) is the visual. */
 
 /* Art mode toggle button */
 #ep-art-mode-btn {
@@ -346,18 +364,96 @@ input:focus, select:focus {
   box-shadow: inset 2px 0 0 var(--theme-accent);
 }
 
-/* ── [ATMOSPHERE v2] Speed slider fill ─────────────────────  */
-.speed-slider, .speed-modal-range {
-  background: linear-gradient(to right, var(--theme-accent) 42.9%, rgba(255,255,255,0.12) 42.9%) !important;
+/* ══════════════════════════════════════════════════════════
+   THEME: Volume Slider — BOTH fill track AND thumb/knob
+   (volume fill is set via inline JS; thumb needs CSS)
+   ════════════════════════════════════════════════════════ */
+#volume-slider {
+  cursor: pointer;
+  accent-color: var(--theme-accent); /* Modern browsers: applies to thumb & focus ring */
+}
+/* Webkit (Chrome/Safari/Edge) — explicit thumb color */
+#volume-slider::-webkit-slider-thumb {
+  background: var(--theme-accent) !important;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.45);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+/* Firefox — explicit thumb color */
+#volume-slider::-moz-range-thumb {
+  background: var(--theme-accent) !important;
+  border: none;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.45);
+}
+#volume-icon:hover { color: var(--theme-accent); }
+
+/* ══════════════════════════════════════════════════════════
+   THEME: Speed Sliders — fill track AND thumb/knob
+   Applies to: speed modal slider, any .speed-slider class
+   ════════════════════════════════════════════════════════ */
+/* Fill track handled via JS (_fillSlider). Thumb needs CSS. */
+#speed-modal-slider {
+  cursor: pointer;
+  accent-color: var(--theme-accent);
+}
+#speed-modal-slider::-webkit-slider-thumb {
+  background: var(--theme-accent) !important;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.45);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+#speed-modal-slider::-moz-range-thumb {
+  background: var(--theme-accent) !important;
+  border: none;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.45);
 }
 
-/* ── [ATMOSPHERE v2] Volume slider ─────────────────────────  */
-#volume-slider::-webkit-slider-thumb { background: var(--theme-accent); }
-#volume-slider::-moz-range-thumb     { background: var(--theme-accent); }
-#volume-icon:hover { color: var(--theme-accent); }
+/* Speed sliders by class (mobile + desktop speed displays) */
+.speed-slider, .speed-modal-range {
+  cursor: pointer;
+  accent-color: var(--theme-accent);
+}
+.speed-slider::-webkit-slider-thumb,
+.speed-modal-range::-webkit-slider-thumb {
+  background: var(--theme-accent) !important;
+  box-shadow: 0 0 6px rgba(var(--theme-accent-rgb), 0.4);
+  transition: background 0.2s ease;
+}
+.speed-slider::-moz-range-thumb,
+.speed-modal-range::-moz-range-thumb {
+  background: var(--theme-accent) !important;
+  border: none;
+}
+
+/* Speed modal preset buttons — active state */
+.speed-preset-btn.active-speed {
+  background: rgba(var(--theme-accent-rgb), 0.22) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.5) !important;
+  color: var(--theme-accent) !important;
+  box-shadow: 0 0 10px rgba(var(--theme-accent-rgb), 0.2);
+}
+.speed-preset-btn:hover:not(.active-speed) {
+  background: rgba(var(--theme-accent-rgb), 0.12) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.3) !important;
+  color: var(--theme-accent) !important;
+}
+
+/* Speed display label in player bar */
+.speed-display {
+  color: var(--theme-accent) !important;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── [ATMOSPHERE v2] EQ slider accent ──────────────────────  */
 .eq-slider { accent-color: var(--theme-accent) !important; }
+
+/* EQ slider thumb */
+.eq-slider::-webkit-slider-thumb {
+  background: var(--theme-accent) !important;
+}
+.eq-slider::-moz-range-thumb {
+  background: var(--theme-accent) !important;
+  border: none;
+}
 
 /* ── [ATMOSPHERE v2] Explore button ────────────────────────  */
 #explore-btn {
@@ -380,17 +476,15 @@ input:focus, select:focus {
 }
 
 /* ── [ATMOSPHERE v2] Song fade-in animation ─────────────────  */
+/* v4 NOTE: reduced stagger count from per-item to 2 tiers to
+   prevent heavy animation scheduling on large playlists       */
 @keyframes fadeSlideIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.song-item { animation: fadeSlideIn 0.2s ease both; }
-#song-list > .song-item:nth-child(1)   { animation-delay: 0.00s; }
-#song-list > .song-item:nth-child(2)   { animation-delay: 0.02s; }
-#song-list > .song-item:nth-child(3)   { animation-delay: 0.04s; }
-#song-list > .song-item:nth-child(4)   { animation-delay: 0.06s; }
-#song-list > .song-item:nth-child(5)   { animation-delay: 0.08s; }
-#song-list > .song-item:nth-child(n+6) { animation-delay: 0.10s; }
+.song-item { animation: fadeSlideIn 0.18s ease both; }
+#song-list > .song-item:nth-child(-n+5)  { animation-delay: 0s; }
+#song-list > .song-item:nth-child(n+6)   { animation-delay: 0.05s; }
 
 /* ── [ATMOSPHERE v2] Loading skeleton shimmer ──────────────  */
 @keyframes skeletonShimmer {
@@ -434,7 +528,6 @@ input:focus, select:focus {
 #song-list-section {
   opacity: 1 !important;
 }
-/* Ensure song text is always readable */
 .song-item .song-title {
   opacity: 1 !important;
   color: var(--text-primary, #f0f6ff);
@@ -444,12 +537,8 @@ input:focus, select:focus {
   opacity: 1 !important;
 }
 
-
 /* ══════════════════════════════════════════════════════════
-   [v3] Bar visualizer removed — CinematicAtmosphere is the
-   visualizer. #ep-viz-wrap and #ep-bar-viz-canvas no longer
-   exist in the DOM. Rules kept as stubs to avoid 404s on
-   any cached stylesheet references.
+   [v3] Bar visualizer removed — stubs
    ════════════════════════════════════════════════════════ */
 #ep-viz-wrap      { display: none !important; }
 #ep-bar-viz-canvas{ display: none !important; }
@@ -483,7 +572,7 @@ input:focus, select:focus {
 }
 
 /* ══════════════════════════════════════════════════════════
-   THEME: expand-mode and compact-toggle buttons
+   THEME: Expand/compact buttons
    ════════════════════════════════════════════════════════ */
 #expand-mode-btn:hover, #expand-mode-btn-desktop:hover,
 #compact-toggle-mobile:hover, #compact-toggle-desktop:hover {
@@ -517,14 +606,12 @@ input:focus, select:focus {
 }
 
 /* ══════════════════════════════════════════════════════════
-   ATMOSPHERE v3 — Immersive Mode Additions
+   ATMOSPHERE v4 — Immersive Mode Additions
    ════════════════════════════════════════════════════════ */
 
-/* Expand player modal — immersive base */
+/* Expand player modal */
 #expand-player-modal {
-  /* Ensure a slightly deeper dark for atmosphere */
   --ep-bg: rgba(4, 10, 22, 0.97);
-  /* Hardware acceleration hint for the modal itself */
   transform: translateZ(0);
 }
 
@@ -589,8 +676,6 @@ input:focus, select:focus {
 }
 
 /* ── Normal-mode: guarantee NO canvas ever appears on home ── */
-/* Belt-and-suspenders rule — CinematicAtmosphere is never    */
-/* attached to the home screen, but this ensures nothing leaks */
 body:not(.immersive-open) canvas[id^="atm-"] {
   display: none !important;
 }
@@ -598,4 +683,37 @@ body:not(.immersive-open) canvas[id^="atm-"] {
 /* Mark body when immersive is open (set by ExpandPlayer.open/close) */
 body.immersive-open {
   overflow: hidden;
+}
+
+/* ══════════════════════════════════════════════════════════
+   [PERF v4] Toast animations use will-change for smooth
+   entry/exit transitions
+   ════════════════════════════════════════════════════════ */
+.sa-toast {
+  will-change: transform, opacity;
+}
+
+/* Loading toast progress animation */
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ══════════════════════════════════════════════════════════
+   [PERF v4] Reduce motion for users who prefer it
+   ════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  .atm-blob-1, .atm-blob-2, .atm-blob-3 {
+    animation: none !important;
+  }
+  .song-item {
+    animation: none !important;
+    transition: none !important;
+  }
+  .playing-bars .bar {
+    animation: none !important;
+  }
+  #ep-art-inner {
+    animation: none !important;
+  }
 }

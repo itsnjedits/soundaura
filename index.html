@@ -1274,6 +1274,10 @@
       box-shadow: 0 0 20px rgba(var(--theme-accent-rgb),0.22) !important;
     }
   </style>
+
+  <!-- SoundAura Atmosphere Styles — loaded after base styles so they override correctly -->
+  <!-- Contains: theme accents, slider theming, immersive mode, random song anim, perf hints -->
+  <link rel="stylesheet" href="style.css" />
 </head>
 
 <body class="mesh-bg">
@@ -2078,7 +2082,7 @@
   </div>
 </div>
 
-<!-- Atmosphere Engine v3 — event-driven, immersive-only, zero home-screen cost -->
+<!-- Atmosphere Engine v4 — single master RAF loop, event-driven, immersive-only, zero home-screen cost -->
 <!-- Must load before script.js -->
 <script src="atmosphere-engine.js"></script>
 

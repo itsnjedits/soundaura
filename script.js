@@ -321,24 +321,26 @@ const Storage = {
     if (state.eqFilters.length) {
       Storage.save('eqSettings', state.eqFilters.map(f => f.gain.value));
     }
-    if (state.currentSongIndex >= 0) {
-      const song = state.currentPlaylist[state.currentSongIndex];
-      if (song) {
-        // Persist last song + seek position + context (mood/singer/playlist)
-        Storage.save('lastSong', {
-          file: song.file,
-          store: song.store,
-          timestamp: audioEl.currentTime,
-        });
-        Storage.save('lastContext', {
-          type: state.activePlaylistName
-            ? 'playlist'
-            : state.currentFilter
-              ? state.currentFilter.type
-              : 'all',
-          value: state.activePlaylistName || state.currentFilter?.value || null,
-        });
-      }
+    // [FIX v4] Use stable currentSongId for song lookup (not index, which
+    // may be stale if the playlist was reordered or filtered).
+    const song = state.currentSongId
+      ? state.allSongs.find(s => songId(s) === state.currentSongId)
+      : (state.currentSongIndex >= 0 ? state.currentPlaylist[state.currentSongIndex] : null);
+
+    if (song) {
+      Storage.save('lastSong', {
+        file:      song.file,
+        store:     song.store,
+        timestamp: audioEl.currentTime,
+      });
+      Storage.save('lastContext', {
+        type: state.activePlaylistName
+          ? 'playlist'
+          : state.currentFilter
+            ? state.currentFilter.type
+            : 'all',
+        value: state.activePlaylistName || state.currentFilter?.value || null,
+      });
     }
   },
 
@@ -637,11 +639,16 @@ const AudioEngine = {
   },
 
   /** Draw visualizer bars on mobile drawer canvas (#visualizer-canvas-mobile).
-   *  Uses the same analyser node — just a second draw target. */
+   *  Uses the same analyser node — just a second draw target.
+   *
+   *  [PERF v4] Theme colors cached outside the per-bar loop — was calling
+   *  getComputedStyle() and createLinearGradient() once per bar per frame,
+   *  causing severe layout thrashing. Now cached before the loop and
+   *  refreshed only when a new draw cycle starts (not per-bar). */
   startMobileVisualizer() {
     const canvas = document.getElementById('visualizer-canvas-mobile');
     if (!canvas || !state.analyser) return;
-    const ctx   = canvas.getContext('2d');
+    const ctx    = canvas.getContext('2d');
     const bufLen = state.analyser.frequencyBinCount;
     const data   = new Uint8Array(bufLen);
 
@@ -659,18 +666,25 @@ const AudioEngine = {
       state._mobileVisFrame = requestAnimationFrame(draw);
       state.analyser.getByteFrequencyData(data);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // [PERF v4] Read CSS vars ONCE per frame (was once per bar — ~128x fewer reads)
+      const cs = getComputedStyle(document.documentElement);
+      const c1 = cs.getPropertyValue('--theme-accent').trim()  || '#06b6d4';
+      const c2 = cs.getPropertyValue('--theme-accent2').trim() || '#3b82f6';
+
       const barW = (canvas.width / bufLen) * 2.5;
+      const H    = canvas.height;
       let x = 0;
       for (let i = 0; i < bufLen; i++) {
-        const barH = (data[i] / 255) * canvas.height;
-        const cs = getComputedStyle(document.documentElement);
-        const c1 = cs.getPropertyValue('--theme-accent').trim() || '#06b6d4';
-        const c2 = cs.getPropertyValue('--theme-accent2').trim() || '#3b82f6';
-        const grad = ctx.createLinearGradient(0, canvas.height - barH, 0, canvas.height);
+        const barH = (data[i] / 255) * H;
+        if (barH < 0.5) { x += barW + 1; continue; } // skip silent bars
+        // [PERF v4] Create gradient once per bar (still needed for per-bar height),
+        // but reuse the already-read c1/c2 values from above.
+        const grad = ctx.createLinearGradient(0, H - barH, 0, H);
         grad.addColorStop(0, c1);
         grad.addColorStop(1, c2);
         ctx.fillStyle = grad;
-        ctx.fillRect(x, canvas.height - barH, barW - 1, barH);
+        ctx.fillRect(x, H - barH, barW - 1, barH);
         x += barW + 1;
       }
     };
@@ -931,19 +945,23 @@ const Player = {
           AudioEngine.resume();
           if (!state.audioContext) AudioEngine.init();
           AudioEngine.startVisualizer();
-          // [Atmosphere v3] Analyser handoff — handled inside engine on immersive open
-          // AudioReactive only activates when immersive mode opens; safe to call here
-          if (typeof AtmosphereEngine !== 'undefined' && state.analyser) {
-            AtmosphereEngine.AudioReactive.init(state.analyser);
-          }
+          // [Atmosphere v4] AudioReactive is managed internally by AtmosphereEngine.
+          // The analyser handoff now happens inside ExpandPlayer._initAtmosphere()
+          // and onSongChange(). Do NOT call AudioReactive.init() here — it would
+          // activate the analyser read loop in normal mode, costing unnecessary CPU.
           Player.preloadNext();
           MediaSession.update(song);
           LoadingToast.complete();
           setTimeout(() => UI.scrollToSong(state.currentSongIndex), 150);
-          // [Atmosphere] Notify song change → extract palette, update effects
+          // [Atmosphere] Notify song change — only does work if immersive is open.
+          // In normal mode this is a near-zero-cost no-op.
           if (typeof AtmosphereEngine !== 'undefined') {
-            const playingSong = state.currentPlaylist[state.currentSongIndex];
-            if (playingSong) AtmosphereEngine.onSongChange(playingSong);
+            // Use stable ID lookup so we always pass the correct song object,
+            // even if currentSongIndex drifted during a rapid switch.
+            const playingSong = state.currentSongId
+              ? (state.allSongs.find(s => songId(s) === state.currentSongId) || song)
+              : song;
+            AtmosphereEngine.onSongChange(playingSong);
           }
         })
         .catch(e => {
@@ -1102,10 +1120,14 @@ const Volume = {
     const vol    = state.isMuted ? 0 : state.volume;
     if (slider) {
       slider.value = vol;
-      // Dynamic filled-track: left side cyan, right side gray
-      const pct = vol * 100;
+      // [FIX v4] Use resolved accent color for fill track.
+      // var(--theme-accent) inside a linear-gradient on range inputs fails in
+      // some WebKit versions — resolve it from the computed style first.
+      const pct    = vol * 100;
+      const accent = getComputedStyle(document.documentElement)
+                       .getPropertyValue('--theme-accent').trim() || '#06b6d4';
       slider.style.background =
-        `linear-gradient(to right, var(--theme-accent) ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
+        `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
     }
     if (icon) icon.innerHTML = Volume.iconSVG(vol);
   },
@@ -1190,12 +1212,17 @@ const SpeedControl = {
     Storage.save('playbackSpeed', rate);
   },
 
-  /** Fill the modal slider track cyan on the left, gray on the right */
+  /** Fill the modal slider track with theme accent on the left, gray on the right.
+   *  [FIX v4] Resolve --theme-accent via getComputedStyle for cross-browser
+   *  compatibility — some WebKit builds do not resolve CSS vars inside
+   *  inline gradient strings on range inputs. */
   _fillSlider(slider) {
-    const min = parseFloat(slider.min), max = parseFloat(slider.max);
-    const pct = ((parseFloat(slider.value) - min) / (max - min)) * 100;
+    const min    = parseFloat(slider.min), max = parseFloat(slider.max);
+    const pct    = ((parseFloat(slider.value) - min) / (max - min)) * 100;
+    const accent = getComputedStyle(document.documentElement)
+                     .getPropertyValue('--theme-accent').trim() || '#06b6d4';
     slider.style.background =
-      `linear-gradient(to right, var(--theme-accent) ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
+      `linear-gradient(to right, ${accent} ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
   },
 
   restore() {
@@ -1280,29 +1307,46 @@ const PWAInstall = {
 // ─── Audio Event Listeners ───────────────────────────────
 let _savePositionTimer = null;
 
+// [PERF v4] Cache progress bar DOM refs — looked up once at listener setup,
+// not on every timeupdate tick (which fires ~4× per second during playback).
+// Using a lazy accessor pattern so elements missed before DOMContentLoaded
+// are still found on first actual use.
+const _progressEls = {
+  _filled:  null, _cur:     null, _tot:     null,
+  _filledD: null, _curD:    null, _totD:    null,
+  _thumbM:  null, _thumbD:  null,
+  _resolve() {
+    if (!this._filled)  this._filled  = document.getElementById('progress-filled');
+    if (!this._cur)     this._cur     = document.getElementById('time-current');
+    if (!this._tot)     this._tot     = document.getElementById('time-total');
+    if (!this._filledD) this._filledD = document.getElementById('progress-filled-desktop');
+    if (!this._curD)    this._curD    = document.getElementById('time-current-desktop');
+    if (!this._totD)    this._totD    = document.getElementById('time-total-desktop');
+    if (!this._thumbM)  this._thumbM  = document.getElementById('progress-thumb');
+    if (!this._thumbD)  this._thumbD  = document.getElementById('progress-thumb-desktop');
+  }
+};
+
 audioEl.addEventListener('timeupdate', () => {
   const { currentTime, duration } = audioEl;
   if (!duration) return;
   const pct = (currentTime / duration) * 100;
+  const pctStr = `${pct}%`;
 
-  // Update both mobile and desktop progress bars
-  [['progress-filled','time-current','time-total'],
-   ['progress-filled-desktop','time-current-desktop','time-total-desktop']].forEach(([fillId, curId, totId]) => {
-    const filled = document.getElementById(fillId);
-    const cur    = document.getElementById(curId);
-    const tot    = document.getElementById(totId);
-    if (filled) filled.style.width = `${pct}%`;
-    if (cur)    cur.textContent = formatTime(currentTime);
-    if (tot)    tot.textContent = formatTime(duration);
-  });
+  // Resolve element refs (no-op after first call)
+  _progressEls._resolve();
 
-  // Mobile progress thumb
-  const mThumb = document.getElementById('progress-thumb');
-  if (mThumb) mThumb.style.left = `${pct}%`;
-  const dThumb = document.getElementById('progress-thumb-desktop');
-  if (dThumb) dThumb.style.left = `${pct}%`;
-
-  // [Performance] Mini/Popup player removed
+  // Mobile progress bar
+  if (_progressEls._filled)  _progressEls._filled.style.width   = pctStr;
+  if (_progressEls._cur)     _progressEls._cur.textContent       = formatTime(currentTime);
+  if (_progressEls._tot)     _progressEls._tot.textContent       = formatTime(duration);
+  // Desktop progress bar
+  if (_progressEls._filledD) _progressEls._filledD.style.width  = pctStr;
+  if (_progressEls._curD)    _progressEls._curD.textContent      = formatTime(currentTime);
+  if (_progressEls._totD)    _progressEls._totD.textContent      = formatTime(duration);
+  // Progress thumbs
+  if (_progressEls._thumbM)  _progressEls._thumbM.style.left    = pctStr;
+  if (_progressEls._thumbD)  _progressEls._thumbD.style.left    = pctStr;
 
   // Throttle-save position every 5 s
   if (!_savePositionTimer) {
@@ -1550,25 +1594,30 @@ const UI = {
 
   /**
    * Instantly update the visual highlight of the active song row WITHOUT a full re-render.
-   * Used on click for immediate feedback. Falls back to full re-render if DOM isn't in sync.
+   * Used on click for immediate feedback.
+   *
+   * [FIX v4] Uses data-song-id matching (stable ID) instead of array index
+   * comparison — this is correct even when search/filter is active and the
+   * DOM item count ≠ currentPlaylist.length. Falls back to full re-render only
+   * when the active item can't be found in the DOM at all.
    */
   _instantHighlight(activeIndex) {
     const container = document.getElementById('song-list');
     if (!container) return;
     const items = container.querySelectorAll('.song-item');
-    // If item count doesn't match, fall back to full re-render
-    if (items.length !== state.currentPlaylist.length) {
-      UI.renderSongList();
-      return;
-    }
-    items.forEach((el, i) => {
-      const isActive = i === activeIndex;
-      // Apply/remove active styling without a full re-render
+    if (!items.length) { UI.renderSongList(); return; }
+
+    // Determine the stable ID we're activating
+    const activeSongId = state.currentSongId;
+
+    let foundActiveEl = null;
+    items.forEach(el => {
+      const isActive = activeSongId && el.dataset.songId === activeSongId;
       el.classList.toggle('bg-gradient-to-r', isActive);
-      // Active state background applied via CSS .active-song class (theme-driven)
       el.classList.toggle('active-song', isActive);
       el.classList.toggle('hover:bg-white/5', !isActive);
       el.classList.toggle('border-transparent', !isActive);
+
       // Update title colour
       const titleEl = el.querySelector('.song-title');
       if (titleEl) {
@@ -1579,6 +1628,7 @@ const UI = {
         }
         titleEl.classList.toggle('text-white', !isActive);
       }
+
       // Show/hide playing bars overlay
       const imgWrap = el.querySelector('.relative.flex-shrink-0');
       if (imgWrap) {
@@ -1598,10 +1648,16 @@ const UI = {
           existingBars?.remove();
         }
       }
+
+      if (isActive) foundActiveEl = el;
     });
-    // Scroll into view
-    if (items[activeIndex]) {
-      setTimeout(() => items[activeIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+
+    // Scroll the active item into view
+    if (foundActiveEl) {
+      setTimeout(() => foundActiveEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+    } else if (items.length === state.currentPlaylist.length) {
+      // Active item not in DOM and list is unfiltered — item count mismatch, re-render
+      UI.renderSongList();
     }
   },
 
@@ -1753,6 +1809,9 @@ const UI = {
     UI.updateFavicon();
     // Sync settings panel appearance buttons
     Settings._updateModeUI(state.isDarkMode);
+    // [FIX v4] Re-sync slider fills after color-scheme switch
+    Settings._refreshVolumeSlider();
+    Settings._refreshSpeedSliders();
     console.log('[Theme] Switched to', state.isDarkMode ? 'dark' : 'light');
     // [Atmosphere] Re-sync theme palette
     if (typeof AtmosphereEngine !== 'undefined') { AtmosphereEngine.ThemeSync?.refresh(); AtmosphereEngine.onThemeChange(); }
@@ -2781,7 +2840,6 @@ const Settings = {
   applyTheme(themeId) {
     if (!THEMES[themeId]) themeId = 'ocean-blue';
     console.log('[Settings] Theme changed:', themeId);
-    console.log('[Theme] Applied:', themeId);
     state.currentTheme = themeId;
     document.documentElement.setAttribute('data-theme', themeId);
     const t = THEMES[themeId];
@@ -2794,6 +2852,9 @@ const Settings = {
     Settings._save('theme', themeId);
     Settings._updateThemeUI(themeId);
     Settings._refreshSpeedSliders();
+    // [FIX v4] Refresh volume slider fill with new accent color.
+    // Without this, the fill track stays the old color until next volume change.
+    Settings._refreshVolumeSlider();
     // [Atmosphere] Sync theme accent colors
     if (typeof AtmosphereEngine !== 'undefined') { AtmosphereEngine.ThemeSync?.refresh(); AtmosphereEngine.onThemeChange(); }
   },
@@ -2808,6 +2869,23 @@ const Settings = {
         el.style.background = `linear-gradient(to right, ${t.accent} ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
       }
     });
+  },
+
+  /**
+   * Refresh volume slider fill track to match current theme accent.
+   * Called on theme change and on init, since the fill is set via inline
+   * style (CSS variable resolution for background gradients is unreliable
+   * inside range input tracks on some browsers).
+   */
+  _refreshVolumeSlider() {
+    const slider = document.getElementById('volume-slider');
+    if (!slider) return;
+    const vol = state.isMuted ? 0 : (state.volume || 0);
+    const pct = vol * 100;
+    const t   = THEMES[state.currentTheme];
+    if (!t) return;
+    slider.style.background =
+      `linear-gradient(to right, ${t.accent} ${pct}%, rgba(255,255,255,0.15) ${pct}%)`;
   },
 
   applyParticles(enabled) {
@@ -4277,8 +4355,8 @@ function bindEvents() {
   wireBtn('mode-btn',           () => { console.log('[Player] Playback mode cycled'); PlaybackMode.cycle(); });
   wireBtn('mode-btn-desktop',   () => { console.log('[Player] Playback mode cycled (desktop)'); PlaybackMode.cycle(); });
 
-  // ── Expand Mode — Atmosphere Phase 4 ──────────────────────────────
-  // Helper: get currently playing song object
+  // ── Expand Mode — Atmosphere v4 ────────────────────────────────
+  // Helper: get currently playing song object using stable ID lookup.
   const _expandGetSong = () =>
     state.currentSongId
       ? (state.allSongs.find(s => songId(s) === state.currentSongId) || null)
@@ -4286,9 +4364,11 @@ function bindEvents() {
 
   const _openExpand = () => {
     if (typeof AtmosphereEngine === 'undefined') return;
-    // [Atmosphere v3] Analyser reference stored here so engine can pick it up on open
-    // Heavy systems (AudioReactive, CinematicAtmosphere) only start inside ExpandPlayer.open()
-    if (state.analyser) AtmosphereEngine.AudioReactive.init(state.analyser);
+    // [FIX v4] Do NOT manually call AudioReactive.init() here.
+    // ExpandPlayer._initAtmosphere() handles the full analyser handoff
+    // one frame after the modal opens (deferred init pattern).
+    // Calling it here would activate audio analysis before the modal
+    // even renders, wasting CPU for nothing.
     AtmosphereEngine.openExpand(_expandGetSong());
   };
 
@@ -4736,6 +4816,12 @@ async function init() {
   Volume.restore();
   SpeedControl.restore();  // applies rate + updates all speed labels
 
+  // [FIX v4] Refresh volume slider fill with correct theme color after restore.
+  // Volume.restore() calls updateUI() which reads getComputedStyle — but
+  // applyTheme() ran before DOM was fully ready on first load in some browsers,
+  // so we call this one more time here to guarantee correct fill color.
+  Settings._refreshVolumeSlider();
+
   // PWA install prompt listener
   PWAInstall.init();
 
@@ -4749,14 +4835,14 @@ async function init() {
   // Initialize Compact Mode
   CompactMode.init();
 
-  // [Atmosphere v3] Init — lightweight, no canvas, no RAF in normal mode
+  // [Atmosphere v4] Init — lightweight, no canvas, no RAF in normal mode
   if (typeof AtmosphereEngine !== 'undefined') {
     AtmosphereEngine.init();
     // Sync atmosphere enabled/disabled from persisted setting
     AtmosphereEngine.toggleParticles(state.particlesOn);
     // Sync theme palette references
     AtmosphereEngine.onThemeChange();
-    console.log('[Atmosphere v3] Post-init sync complete');
+    console.log('[Atmosphere v4] Post-init sync complete');
   }
 
   // Restore EQ slider display values

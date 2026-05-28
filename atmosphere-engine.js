@@ -1,6 +1,6 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
- * ║       SoundAura — Atmosphere Engine v3.0 (Performance)      ║
+ * ║    SoundAura — Atmosphere Engine v4.0 (Performance)         ║
  * ║                                                              ║
  * ║  ARCHITECTURE:                                               ║
  * ║   Two clearly separated worlds:                              ║
@@ -8,12 +8,20 @@
  * ║   NORMAL MODE   — Zero canvas. Zero RAF. Zero cost.         ║
  * ║   IMMERSIVE MODE — Full cinematic atmosphere, on demand.     ║
  * ║                                                              ║
+ * ║  v4.0 Key Changes (Performance):                             ║
+ * ║   • ONE master RAF loop (was 3 separate loops in v3)         ║
+ * ║   • Progress sync uses timeupdate event (was 60fps RAF)      ║
+ * ║   • AudioReactive integrated into master loop (no own RAF)   ║
+ * ║   • Deferred bg-blur update prevents stale-image flash       ║
+ * ║   • Robust destroy() — no leaks after repeated open/close    ║
+ * ║                                                              ║
  * ║  Systems:                                                    ║
  * ║   ThemeSync          — Centralized theme color bridge        ║
  * ║   PaletteExtractor   — Web Worker k-means, permanent cache   ║
- * ║   AudioReactive      — Web Audio analyser, immersive-only    ║
+ * ║   AudioReactive      — Web Audio analyser (master-loop only) ║
  * ║   PerformanceMonitor — FPS tracking + adaptive quality       ║
- * ║   CinematicAtmosphere— Large blobs + rays, single RAF loop   ║
+ * ║   MasterLoop         — Single RAF coordinator (NEW)          ║
+ * ║   CinematicAtmosphere— Large blobs + rays, via master loop   ║
  * ║   ExpandPlayer       — Full-screen modal, deferred init      ║
  * ║   RandomSongAnim     — Lightweight SVG orbs (home screen)    ║
  * ╚══════════════════════════════════════════════════════════════╝
@@ -26,12 +34,12 @@ const AtmosphereEngine = (() => {
   //  SHARED STATE
   // ─────────────────────────────────────────────────────────────
   const _s = {
-    initialized:      false,
-    atmosphereEnabled: true,    // user preference toggle (was particlesOn)
-    isMobile:         /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
-    themeAccent:      '#06b6d4',
-    themeAccent2:     '#3b82f6',
-    themeRgb:         '6,182,212',
+    initialized:       false,
+    atmosphereEnabled: true,    // user preference toggle
+    isMobile:          /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent),
+    themeAccent:       '#06b6d4',
+    themeAccent2:      '#3b82f6',
+    themeRgb:          '6,182,212',
   };
 
   // ─────────────────────────────────────────────────────────────
@@ -174,7 +182,6 @@ const AtmosphereEngine = (() => {
         };
         this._worker.onerror = (err) => {
           console.warn('[Atmosphere] Worker error:', err);
-          // On error, resolve all pending with theme palette
           this._callbacks.forEach((cbs, key) => {
             const fallback = ThemeSync.getPalette();
             if (!this._cache.has(key)) this._cache.set(key, fallback);
@@ -183,7 +190,7 @@ const AtmosphereEngine = (() => {
           this._callbacks.clear();
         };
       } catch (e) {
-        this._worker = null; // Will fall back to sync extraction
+        this._worker = null; // Will fall back to theme palette
       }
     },
 
@@ -233,7 +240,6 @@ const AtmosphereEngine = (() => {
           }
 
           if (pixels.length < 24 || !this._worker) {
-            // Too few pixels or no worker — use theme palette
             const fallback = ThemeSync.getPalette();
             this._cache.set(imageUrl, fallback);
             const cbs = this._callbacks.get(imageUrl) || [];
@@ -263,7 +269,7 @@ const AtmosphereEngine = (() => {
       img.src = imageUrl;
     },
 
-    /** Terminate worker and free resources (call on app unload if needed) */
+    /** Terminate worker and free resources */
     destroy() {
       if (this._worker) { this._worker.terminate(); this._worker = null; }
       if (this._workerUrl) { URL.revokeObjectURL(this._workerUrl); this._workerUrl = null; }
@@ -274,13 +280,14 @@ const AtmosphereEngine = (() => {
   // ─────────────────────────────────────────────────────────────
   //  AUDIO REACTIVE — Immersive mode only
   //
-  //  Lifecycle: init() → start() → [pause()] → destroy()
-  //  Never active during normal mode.
+  //  v4.0: No own RAF loop. Reads data on demand via _readFrame().
+  //  MasterLoop calls _readFrame() once per animation frame.
+  //
+  //  Lifecycle: init(analyser) → activate() → [deactivate()] → destroy()
   // ─────────────────────────────────────────────────────────────
   const AudioReactive = {
     _analyser: null,
     _buf:      null,
-    _raf:      null,
     active:    false,
 
     // Smoothed outputs (0–1)
@@ -290,36 +297,33 @@ const AtmosphereEngine = (() => {
 
     init(analyser) {
       if (!analyser) return;
-      // Avoid reinit if same analyser
-      if (this._analyser === analyser) return;
+      if (this._analyser === analyser) return; // Already initialized with same analyser
       this.destroy();
       this._analyser = analyser;
       this._buf = new Uint8Array(analyser.frequencyBinCount);
     },
 
-    start() {
-      if (this.active || !this._analyser) return;
+    /** Activate data reading — called by MasterLoop */
+    activate() {
+      if (!this._analyser) return;
       this.active = true;
-      this._tick();
     },
 
-    pause() {
+    /** Deactivate — stop reading data next frame */
+    deactivate() {
       this.active = false;
-      if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
-    },
-
-    destroy() {
-      this.pause();
-      this._analyser = null;
-      this._buf      = null;
       this.bass = this.mid = this.high = this.energy = 0;
       this.onBeat = false;
       this._beatCooldown = 0;
     },
 
-    _tick() {
-      if (!this.active) return;
-      this._raf = requestAnimationFrame(() => this._tick());
+    /**
+     * Read one frame of audio data.
+     * Called by MasterLoop._loop() — never has its own RAF.
+     * Safe to call even when inactive (returns immediately).
+     */
+    _readFrame() {
+      if (!this.active || !this._analyser || !this._buf) return;
       this._analyser.getByteFrequencyData(this._buf);
 
       const n    = this._buf.length;
@@ -349,17 +353,21 @@ const AtmosphereEngine = (() => {
         this.onBeat = false;
       }
     },
+
+    destroy() {
+      this.deactivate();
+      this._analyser = null;
+      this._buf      = null;
+    },
   };
 
   // ─────────────────────────────────────────────────────────────
   //  PERFORMANCE MONITOR — Immersive mode only
-  //
   //  Measures FPS every 2s and drives adaptive quality.
-  //  Only runs while immersive mode is open.
   // ─────────────────────────────────────────────────────────────
   const PerformanceMonitor = {
     fps:      60,
-    quality:  'high',     // 'high' | 'medium' | 'low' | 'minimal'
+    quality:  'high',
     _frames:  0,
     _lastTs:  0,
     _timer:   null,
@@ -375,6 +383,7 @@ const AtmosphereEngine = (() => {
       if (this._timer) { clearInterval(this._timer); this._timer = null; }
     },
 
+    /** Called by MasterLoop once per frame */
     tick() { this._frames++; },
 
     _measure() {
@@ -414,6 +423,52 @@ const AtmosphereEngine = (() => {
   };
 
   // ─────────────────────────────────────────────────────────────
+  //  MASTER LOOP — v4.0 NEW
+  //
+  //  Single requestAnimationFrame coordinator for ALL immersive
+  //  systems. Replaces the 3 separate RAF loops from v3:
+  //    1. AudioReactive._tick()         → AudioReactive._readFrame()
+  //    2. CinematicAtmosphere._loop()   → CinematicAtmosphere._renderFrame()
+  //    3. ExpandPlayer progress RAF     → replaced with timeupdate event
+  //
+  //  Order per frame:
+  //    1. PerformanceMonitor.tick()       (count frames)
+  //    2. AudioReactive._readFrame()      (read audio data)
+  //    3. CinematicAtmosphere._renderFrame() (render atmosphere)
+  // ─────────────────────────────────────────────────────────────
+  const MasterLoop = {
+    _raf:    null,
+    _active: false,
+
+    start() {
+      if (this._active) return;
+      this._active = true;
+      this._loop();
+      console.log('[Atmosphere] MasterLoop started');
+    },
+
+    stop() {
+      this._active = false;
+      if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+      console.log('[Atmosphere] MasterLoop stopped');
+    },
+
+    _loop() {
+      if (!this._active) return;
+      this._raf = requestAnimationFrame(() => this._loop());
+
+      // 1. Track frame count for FPS measurement
+      PerformanceMonitor.tick();
+
+      // 2. Read audio data into AudioReactive (no DOM, no layout)
+      AudioReactive._readFrame();
+
+      // 3. Render atmosphere (canvas ops only, no DOM reads)
+      CinematicAtmosphere._renderFrame();
+    },
+  };
+
+  // ─────────────────────────────────────────────────────────────
   //  CINEMATIC ATMOSPHERE
   //
   //  Premium, Apple Music-style atmosphere engine.
@@ -421,16 +476,15 @@ const AtmosphereEngine = (() => {
   //  Strategy:
   //   • A FEW large cinematic blobs — not many tiny particles.
   //   • A FEW premium rays — slow, elegant, barely visible.
-  //   • ONE master render loop — no parallel RAFs.
   //   • Canvas at 70% resolution upscaled via CSS.
+  //   • Rendering via MasterLoop (no own RAF).
   //   • Full destroy() — no leaks after repeated open/close cycles.
   //
-  //  Lifecycle: attachTo(container) → start(colors) → [destroy()]
+  //  Lifecycle: attachTo(container) → start(colors) → destroy()
   // ─────────────────────────────────────────────────────────────
   const CinematicAtmosphere = {
     _cv:     null,
     _cx:     null,
-    _raf:    null,
     _on:     false,
     _t:      0,
     _colors: ['#06b6d4', '#3b82f6'],
@@ -450,7 +504,6 @@ const AtmosphereEngine = (() => {
         const cv = document.createElement('canvas');
         cv.id = 'atm-cinematic-canvas';
         cv.setAttribute('aria-hidden', 'true');
-        // CSS makes it fill the container; actual pixel dimensions are 70%
         cv.style.cssText = [
           'position:absolute', 'inset:0',
           'width:100%', 'height:100%',
@@ -467,6 +520,7 @@ const AtmosphereEngine = (() => {
     /**
      * Start the atmosphere.
      * colors — optional palette from album art.
+     * Starts MasterLoop (which also drives AudioReactive + PerformanceMonitor).
      */
     start(colors) {
       if (!this._cv || !_s.atmosphereEnabled) return;
@@ -483,22 +537,28 @@ const AtmosphereEngine = (() => {
         window.addEventListener('resize', this._resizeHandler, { passive: true });
       }
 
-      this._loop();
+      // Start master loop — drives this._renderFrame() each tick
+      MasterLoop.start();
       console.log('[Atmosphere] CinematicAtmosphere ON');
     },
 
     pause() {
       this._on = false;
-      if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+      // Do NOT stop MasterLoop here — AudioReactive may still want ticking.
+      // MasterLoop.stop() is called by destroy().
     },
 
     /**
-     * Fully destroy — cancel RAF, remove listeners, clear all arrays, free canvas.
+     * Fully destroy — stop master loop, cancel RAF, remove listeners,
+     * clear all arrays, free canvas.
      * Call this when immersive mode closes.
      */
     destroy() {
       this._on = false;
-      if (this._raf) { cancelAnimationFrame(this._raf); this._raf = null; }
+
+      // Stop the master RAF loop
+      MasterLoop.stop();
+
       if (this._resizeHandler) {
         window.removeEventListener('resize', this._resizeHandler);
         this._resizeHandler = null;
@@ -506,7 +566,6 @@ const AtmosphereEngine = (() => {
       if (this._cx && this._cv) {
         this._cx.clearRect(0, 0, this._cv.width, this._cv.height);
       }
-      // Remove canvas from DOM — container may be hidden but we clean up properly
       if (this._cv && this._cv.parentNode) {
         this._cv.parentNode.removeChild(this._cv);
       }
@@ -526,13 +585,11 @@ const AtmosphereEngine = (() => {
 
     _onQualityChange(q) {
       if (!this._on) return;
-      // Rebuild blobs/rays to match new quality level
       this._spawnAll();
     },
 
     _resize() {
       if (!this._cv) return;
-      // Render at 70% — CSS upscales to 100%
       const W = Math.round((this._cv.offsetWidth  || window.innerWidth)  * 0.7);
       const H = Math.round((this._cv.offsetHeight || window.innerHeight) * 0.7);
       if (this._cv.width !== W || this._cv.height !== H) {
@@ -549,48 +606,34 @@ const AtmosphereEngine = (() => {
       this._spawnRays(W, H);
     },
 
-    /**
-     * Spawn large cinematic blobs — the atmosphere's "heartbeat".
-     * Few in number, generous in size, very slow in movement.
-     */
     _spawnBlobs(W, H) {
       const count  = PerformanceMonitor.maxBlobs();
       const colors = this._colors;
       this._blobs  = Array.from({ length: count }, (_, i) => ({
-        // Position: spread around center
         x:    W * (0.2 + Math.random() * 0.6),
         y:    H * (0.15 + Math.random() * 0.7),
-        // Very slow drift — cinematic, not frantic
         vx:   (Math.random() - 0.5) * 0.18,
         vy:   (Math.random() - 0.5) * 0.18,
-        // Large radii — Apple Music style
-        baseR: Math.random() * 80 + 90,   // 90–170px at full res
+        baseR: Math.random() * 80 + 90,
         r:     0,
-        // Breathing phase
         φ:    Math.random() * Math.PI * 2,
         φs:   Math.random() * 0.006 + 0.003,
-        // Low alpha — subtle, cinematic
         baseA: Math.random() * 0.055 + 0.03,
         a:     0,
         color: colors[i % colors.length],
-        // Born-in fade
         born:  0,
       }));
     },
 
-    /**
-     * Spawn premium rays — slow rotating light shafts.
-     * Reduced to a few elegant beams, never a spotlight show.
-     */
     _spawnRays(W, H) {
       const count  = PerformanceMonitor.maxRays();
       const colors = this._colors;
       this._rays   = Array.from({ length: count }, (_, i) => ({
         angle: (i / Math.max(count, 1)) * Math.PI * 2 + Math.random() * 0.5,
-        rotV:  (Math.random() - 0.5) * 0.0004,   // glacially slow rotation
-        len:   Math.random() * 0.3 + 0.4,         // fraction of screen diagonal
-        width: Math.random() * 0.10 + 0.05,       // arc width in radians
-        a:     Math.random() * 0.018 + 0.006,     // very subtle
+        rotV:  (Math.random() - 0.5) * 0.0004,
+        len:   Math.random() * 0.3 + 0.4,
+        width: Math.random() * 0.10 + 0.05,
+        a:     Math.random() * 0.018 + 0.006,
         φ:     Math.random() * Math.PI * 2,
         φs:    Math.random() * 0.003 + 0.001,
         color: colors[i % colors.length],
@@ -598,21 +641,15 @@ const AtmosphereEngine = (() => {
     },
 
     /**
-     * Single master render loop — no parallel RAFs.
-     *  1. Clear
-     *  2. Blobs (large, few)
-     *  3. Rays (premium, few)
+     * Render one frame.
+     * Called by MasterLoop._loop() — NOT by requestAnimationFrame directly.
      */
-    _loop() {
-      if (!this._on) return;
-      this._raf = requestAnimationFrame(() => this._loop());
-      PerformanceMonitor.tick();
+    _renderFrame() {
+      if (!this._on || !this._cx || !this._cv) return;
 
       const cx = this._cx;
-      if (!cx || !this._cv) return;
-
-      const W = this._cv.width;
-      const H = this._cv.height;
+      const W  = this._cv.width;
+      const H  = this._cv.height;
       this._t += 0.008;
 
       // Clear with slight motion-blur trail — cinematic feel
@@ -625,15 +662,13 @@ const AtmosphereEngine = (() => {
       const isBeat = AudioReactive.onBeat;
 
       this._renderBlobs(cx, W, H, bass, isBeat);
-      this._renderRays (cx, W, H, bass, high, isBeat);
+      this._renderRays(cx, W, H, bass, high, isBeat);
     },
 
     _renderBlobs(cx, W, H, bass, isBeat) {
       for (const b of this._blobs) {
-        // Born-in fade
         b.born = Math.min(1, b.born + 0.008);
 
-        // Slow drift with screen wrapping
         b.x += b.vx;
         b.y += b.vy;
         if (b.x < -b.baseR * 2) b.x = W + b.baseR;
@@ -641,17 +676,14 @@ const AtmosphereEngine = (() => {
         if (b.y < -b.baseR * 2) b.y = H + b.baseR;
         if (b.y > H + b.baseR * 2) b.y = -b.baseR;
 
-        // Breathing size
         b.φ += b.φs;
         const breathe = 1 + Math.sin(b.φ) * 0.14;
         const beatSz  = isBeat ? (1 + bass * 0.4) : 1;
         b.r = b.baseR * breathe * beatSz * (1 + bass * 0.25);
 
-        // Breathing alpha
         const targetA = (b.baseA + Math.sin(b.φ * 0.7) * 0.015 + bass * 0.02) * b.born;
         b.a = lerp(b.a, targetA, 0.04);
 
-        // Layered radial gradient — soft, large, cinematic
         const grad = cx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r * 2.2);
         grad.addColorStop(0,    _rgba(b.color, b.a * 2.2));
         grad.addColorStop(0.35, _rgba(b.color, b.a * 0.9));
@@ -667,7 +699,6 @@ const AtmosphereEngine = (() => {
     _renderRays(cx, W, H, bass, high, isBeat) {
       if (!this._rays.length) return;
 
-      // Rays emit from the album art center point
       const rCx = W * 0.5;
       const rCy = H * 0.42;
       const diag = Math.sqrt(W * W + H * H);
@@ -724,18 +755,21 @@ const AtmosphereEngine = (() => {
   // ─────────────────────────────────────────────────────────────
   //  EXPAND PLAYER MODAL
   //
-  //  Changes from v2:
-  //   1. Bar visualizer REMOVED — atmosphere IS the visualizer.
-  //   2. Atmosphere init DEFERRED — modal opens instantly first.
-  //   3. Full destroy on close — no cost after modal closes.
-  //   4. Palette extraction only happens inside immersive mode.
+  //  v4.0 Changes:
+  //   1. Progress sync uses timeupdate event (not 60fps RAF).
+  //   2. Scrubbing uses mousemove/touchmove RAF only while dragging.
+  //   3. Artwork sync fixed — bg-blur updates only AFTER new image loads.
+  //   4. AudioReactive uses activate/deactivate (not start/stop with RAF).
+  //   5. Full destroy on close — no leaks.
   // ─────────────────────────────────────────────────────────────
   const ExpandPlayer = {
-    _modal:      null,
-    _open:       false,
-    _song:       null,
-    _progRaf:    null,
-    _artContain: false,
+    _modal:        null,
+    _open:         false,
+    _song:         null,
+    _artContain:   false,
+    _progHandler:  null,   // timeupdate listener ref
+    _scrubRaf:     null,   // RAF ref only during active scrub drag
+    _scrubbing:    false,  // true while user is dragging progress
 
     _build() {
       const m = document.createElement('div');
@@ -942,21 +976,38 @@ const AtmosphereEngine = (() => {
         if (wrap) wrap.style.background = this._artContain ? 'rgba(4,10,22,0.7)' : 'transparent';
       });
 
-      // Progress scrub
+      // ── Progress scrub ──────────────────────────────────────────
+      // v4.0: No 60fps RAF for progress — uses timeupdate event.
+      // RAF only runs during active mouse/touch drag.
       const bar   = m.querySelector('#ep-prog-bar');
       const thumb = m.querySelector('#ep-prog-thumb');
       if (bar) {
-        const scrub = (clientX) => {
+        const scrubTo = (clientX) => {
           const rect = bar.getBoundingClientRect();
           const pct  = clamp((clientX - rect.left) / rect.width, 0, 1);
           const el   = window._soundAuraAudio;
           if (el && el.duration) el.currentTime = pct * el.duration;
+          // Immediately update fill during drag for instant feedback
+          this._updateProgressDOM();
         };
-        bar.addEventListener('click', e => scrub(e.clientX));
-        bar.addEventListener('touchstart', e => { e.preventDefault(); scrub(e.touches[0].clientX); }, { passive: false });
-        bar.addEventListener('touchmove',  e => { e.preventDefault(); scrub(e.touches[0].clientX); }, { passive: false });
-        bar.addEventListener('mouseenter', () => { bar.style.height = '5px'; if (thumb) thumb.style.opacity = '1'; });
-        bar.addEventListener('mouseleave', () => { bar.style.height = '3px'; if (thumb) thumb.style.opacity = '0'; });
+
+        bar.addEventListener('click', e => scrubTo(e.clientX));
+        bar.addEventListener('touchstart', e => {
+          e.preventDefault();
+          scrubTo(e.touches[0].clientX);
+        }, { passive: false });
+        bar.addEventListener('touchmove', e => {
+          e.preventDefault();
+          scrubTo(e.touches[0].clientX);
+        }, { passive: false });
+        bar.addEventListener('mouseenter', () => {
+          bar.style.height = '5px';
+          if (thumb) thumb.style.opacity = '1';
+        });
+        bar.addEventListener('mouseleave', () => {
+          bar.style.height = '3px';
+          if (thumb) thumb.style.opacity = '0';
+        });
         bar.addEventListener('mousemove', e => {
           if (!thumb) return;
           const rect = bar.getBoundingClientRect();
@@ -991,15 +1042,15 @@ const AtmosphereEngine = (() => {
       document.body.style.overflow = 'hidden';
       document.body.classList.add('immersive-open');
 
-      // Modal appears instantly
+      // ── Modal appears instantly ──
       requestAnimationFrame(() => { this._modal.style.opacity = '1'; });
 
-      // UI updates immediately
+      // ── UI updates immediately (before atmosphere initializes) ──
       if (song) this._updateUI(song);
-      this._startProgSync();
+      this._startProgSync();   // Attach timeupdate listener
       this._syncPlayBtn();
 
-      // Heavy systems initialize on next frame — UI is already responsive
+      // ── Heavy systems initialize on next frame — UI is already responsive ──
       requestAnimationFrame(() => this._initAtmosphere(song));
     },
 
@@ -1010,13 +1061,13 @@ const AtmosphereEngine = (() => {
     _initAtmosphere(song) {
       if (!this._open) return;
 
-      // Audio reactive
+      // Audio reactive — activate (no RAF, reads inside MasterLoop)
       if (typeof state !== 'undefined' && state.analyser) {
         AudioReactive.init(state.analyser);
-        AudioReactive.start();
+        AudioReactive.activate();
       }
 
-      // Attach canvas now (fresh attach each open since destroy() removed it)
+      // Attach canvas
       CinematicAtmosphere.attachTo(this._modal);
 
       // Extract palette (cache hit → instant; cache miss → worker async)
@@ -1033,6 +1084,7 @@ const AtmosphereEngine = (() => {
     close() {
       if (!this._open) return;
       this._open = false;
+
       if (this._modal) {
         this._modal.style.opacity = '0';
         setTimeout(() => {
@@ -1042,11 +1094,11 @@ const AtmosphereEngine = (() => {
       document.body.style.overflow = '';
       document.body.classList.remove('immersive-open');
 
-      // Destroy ALL heavy systems — no leaks
-      CinematicAtmosphere.destroy();
-      AudioReactive.destroy();
+      // ── Destroy ALL heavy systems — no leaks ──────────────────
+      CinematicAtmosphere.destroy();  // also stops MasterLoop
+      AudioReactive.deactivate();
       PerformanceMonitor.stop();
-      this._stopProgSync();
+      this._stopProgSync();           // remove timeupdate listener
     },
 
     _updateUI(song) {
@@ -1064,20 +1116,31 @@ const AtmosphereEngine = (() => {
         if (a) a.textContent = artists;
 
         if (img) {
-          img.style.opacity = '0.85';
-          img.onerror = () => { img.src = ''; };
-          img.onload  = () => { img.style.opacity = '1'; };
+          // ── FIX: Prevent stale-image flash ──────────────────────
+          // Only update src after setting opacity to 0 first.
+          // bg-blur updates only after the new image has loaded.
+          img.style.opacity = '0.75';
+          img.onerror = () => {
+            img.src = '';
+            img.style.opacity = '1';
+          };
+          img.onload = () => {
+            img.style.opacity = '1';
+            // Update blurred background ONLY when new image is loaded
+            if (bg) {
+              bg.style.backgroundImage = song.image ? `url('${song.image}')` : 'none';
+              bg.style.opacity = '0.18';
+            }
+          };
+          // Set src one frame later to allow opacity transition
           requestAnimationFrame(() => {
             img.src = song.image || '';
             img.style.objectFit = this._artContain ? 'contain' : 'cover';
           });
-        }
-        if (bg) {
-          bg.style.opacity = '0';
-          setTimeout(() => {
-            bg.style.backgroundImage = song.image ? `url('${song.image}')` : 'none';
-            bg.style.opacity = '0.18';
-          }, 80);
+        } else if (bg && song.image) {
+          // Fallback if img is missing
+          bg.style.backgroundImage = `url('${song.image}')`;
+          bg.style.opacity = '0.18';
         }
       });
     },
@@ -1099,26 +1162,45 @@ const AtmosphereEngine = (() => {
       }
     },
 
+    // ── Progress sync — v4.0: EVENT-DRIVEN, not 60fps RAF ──────
+    // timeupdate fires ~4×/sec which is perfectly smooth for a
+    // progress bar. Only scrub interactions use RAF (when dragging).
     _startProgSync() {
-      const tick = () => {
-        if (!this._open) return;
-        this._progRaf = requestAnimationFrame(tick);
-        const el = window._soundAuraAudio;
-        const m  = this._modal;
-        if (!el || !m) return;
-        const pct  = el.duration ? (el.currentTime / el.duration) * 100 : 0;
-        const fill = m.querySelector('#ep-prog-fill');
-        const cur  = m.querySelector('#ep-cur');
-        const tot  = m.querySelector('#ep-tot');
-        if (fill) fill.style.width  = `${pct}%`;
-        if (cur)  cur.textContent   = _fmtTime(el.currentTime);
-        if (tot)  tot.textContent   = _fmtTime(el.duration || 0);
-      };
-      tick();
+      const el = window._soundAuraAudio;
+      if (!el) return;
+
+      // Remove any stale listener first
+      this._stopProgSync();
+
+      this._progHandler = () => this._updateProgressDOM();
+      el.addEventListener('timeupdate', this._progHandler);
+
+      // Sync immediately (in case audio is already playing)
+      this._updateProgressDOM();
     },
 
     _stopProgSync() {
-      if (this._progRaf) { cancelAnimationFrame(this._progRaf); this._progRaf = null; }
+      const el = window._soundAuraAudio;
+      if (el && this._progHandler) {
+        el.removeEventListener('timeupdate', this._progHandler);
+        this._progHandler = null;
+      }
+    },
+
+    /** Update progress bar DOM — called on timeupdate event */
+    _updateProgressDOM() {
+      if (!this._open || !this._modal) return;
+      const el = window._soundAuraAudio;
+      if (!el) return;
+
+      const pct  = el.duration ? (el.currentTime / el.duration) * 100 : 0;
+      const fill = this._modal.querySelector('#ep-prog-fill');
+      const cur  = this._modal.querySelector('#ep-cur');
+      const tot  = this._modal.querySelector('#ep-tot');
+
+      if (fill) fill.style.width  = `${pct}%`;
+      if (cur)  cur.textContent   = _fmtTime(el.currentTime);
+      if (tot)  tot.textContent   = _fmtTime(el.duration || 0);
     },
 
     _syncPlayBtn() {
@@ -1131,14 +1213,19 @@ const AtmosphereEngine = (() => {
         : '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><polygon points="5,3 19,12 5,21"/></svg>';
     },
 
+    /**
+     * Called when song changes while immersive is open.
+     * Syncs: artwork, title, artist, bg-blur, palette, glow.
+     */
     onSongChange(song) {
       this._song = song;
       if (!this._open || !song) return;
 
+      // Update UI immediately (with stale-flash prevention in _updateUI)
       this._updateUI(song);
       setTimeout(() => this._syncPlayBtn(), 120);
 
-      // Update atmosphere with new album art
+      // Extract new palette and update atmosphere colors
       const imgUrl = song.image || '';
       PaletteExtractor.extractImmersive(imgUrl, palette => {
         if (!this._open) return;
@@ -1148,10 +1235,8 @@ const AtmosphereEngine = (() => {
 
       // Re-init audio reactive if needed
       if (typeof state !== 'undefined' && state.analyser) {
-        if (!AudioReactive.active) {
-          AudioReactive.init(state.analyser);
-          AudioReactive.start();
-        }
+        AudioReactive.init(state.analyser);
+        if (!AudioReactive.active) AudioReactive.activate();
       }
     },
 
@@ -1162,7 +1247,7 @@ const AtmosphereEngine = (() => {
   //  RANDOM SONG HIGHLIGHT ANIMATION
   //  Lightweight SVG orb animation on home screen for randomly
   //  selected songs. Two soft orbs orbit the highlighted item.
-  //  No canvas. No RAF on normal song items.
+  //  No canvas. Pure SVG + one RAF loop (minimal cost).
   // ─────────────────────────────────────────────────────────────
   const RandomSongAnim = {
     _el:    null,
@@ -1259,15 +1344,14 @@ const AtmosphereEngine = (() => {
         this._el.querySelector('#random-orb-svg')?.remove();
       }
       if (this._svg?.parentNode) this._svg.remove();
-      this._el = null;
+      this._el  = null;
       this._svg = null;
     },
   };
 
   // ─────────────────────────────────────────────────────────────
   //  BACKWARD-COMPATIBILITY STUBS
-  //
-  //  HomeParticles and MusicVisualizer are removed in v3.
+  //  HomeParticles and MusicVisualizer are removed in v3+.
   //  Stubs prevent errors in any legacy call sites.
   // ─────────────────────────────────────────────────────────────
   const HomeParticles = {
@@ -1281,7 +1365,7 @@ const AtmosphereEngine = (() => {
     _on: false,
   };
 
-  // ExpandAtmosphere alias → CinematicAtmosphere (used in script.js)
+  // ExpandAtmosphere alias → CinematicAtmosphere (legacy compat)
   const ExpandAtmosphere = {
     attachTo   (c) { CinematicAtmosphere.attachTo(c); },
     start (colors) { CinematicAtmosphere.start(colors); },
@@ -1312,7 +1396,7 @@ const AtmosphereEngine = (() => {
       if (_s.initialized) return;
       _s.initialized = true;
       ThemeSync.refresh();
-      console.log('[Atmosphere] Engine v3 ready (normal mode — zero cost)');
+      console.log('[Atmosphere] Engine v4 ready (normal mode — zero cost)');
     },
 
     /**
@@ -1322,11 +1406,11 @@ const AtmosphereEngine = (() => {
      */
     onSongChange(song) {
       if (!song) return;
-      // Only pass through to expand player if immersive is open
+      // Only update immersive UI if it's open
       if (ExpandPlayer.isOpen()) {
         ExpandPlayer.onSongChange(song);
       }
-      // AudioReactive analyser handoff (non-blocking, only if already active)
+      // AudioReactive analyser handoff (only if already active, no new RAF)
       if (typeof state !== 'undefined' && state.analyser && AudioReactive.active) {
         AudioReactive.init(state.analyser);
       }
@@ -1334,8 +1418,13 @@ const AtmosphereEngine = (() => {
 
     /** Called when play/pause state changes */
     onPlayStateChange(isPlaying) {
-      if (isPlaying && AudioReactive._analyser && !AudioReactive.active) {
-        AudioReactive.start();
+      // If atmosphere is open, sync AudioReactive activation
+      if (ExpandPlayer.isOpen()) {
+        if (isPlaying && AudioReactive._analyser) {
+          AudioReactive.activate();
+        } else if (!isPlaying) {
+          AudioReactive.deactivate();
+        }
       }
       ExpandPlayer._syncPlayBtn?.();
     },
@@ -1351,7 +1440,7 @@ const AtmosphereEngine = (() => {
 
     /**
      * Toggle atmosphere visuals (user setting).
-     * In v3 this controls whether CinematicAtmosphere shows in immersive mode.
+     * Controls whether CinematicAtmosphere shows in immersive mode.
      */
     toggleParticles(enabled) {
       _s.atmosphereEnabled = !!enabled;
@@ -1360,8 +1449,8 @@ const AtmosphereEngine = (() => {
       }
     },
 
-    openExpand (song) { ExpandPlayer.open(song);   },
-    closeExpand()     { ExpandPlayer.close();       },
+    openExpand (song) { ExpandPlayer.open(song);    },
+    closeExpand()     { ExpandPlayer.close();        },
     isExpandOpen()    { return ExpandPlayer.isOpen(); },
 
     attachRandomAnim(el) { RandomSongAnim.attach(el); },
