@@ -931,8 +931,9 @@ const Player = {
           AudioEngine.resume();
           if (!state.audioContext) AudioEngine.init();
           AudioEngine.startVisualizer();
-          // [Atmosphere] Hook analyser now that AudioEngine is live
-          if (typeof AtmosphereEngine !== 'undefined' && state.analyser && !AtmosphereEngine.AudioReactive._analyser) {
+          // [Atmosphere v3] Analyser handoff — handled inside engine on immersive open
+          // AudioReactive only activates when immersive mode opens; safe to call here
+          if (typeof AtmosphereEngine !== 'undefined' && state.analyser) {
             AtmosphereEngine.AudioReactive.init(state.analyser);
           }
           Player.preloadNext();
@@ -2810,12 +2811,12 @@ const Settings = {
   },
 
   applyParticles(enabled) {
-    console.log('[Settings] Particles:', enabled ? 'ON' : 'OFF');
+    console.log('[Settings] Atmosphere visuals:', enabled ? 'ON' : 'OFF');
     state.particlesOn = enabled;
     document.body.classList.toggle('particles-enabled', enabled);
     Settings._save('particles', enabled);
     Settings._updateParticlesUI(enabled);
-    // [Atmosphere] Toggle home particle system
+    // [Atmosphere v3] Controls immersive atmosphere — home screen has zero canvas regardless
     if (typeof AtmosphereEngine !== 'undefined') AtmosphereEngine.toggleParticles(enabled);
   },
 
@@ -2871,6 +2872,14 @@ const Settings = {
     offBtn.classList.add(!enabled ? 'settings-btn-active' : 'settings-btn-inactive');
     onBtn.style.border  = enabled  ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
     offBtn.style.border = !enabled ? `1.5px solid rgba(var(--theme-accent-rgb),0.5)` : '';
+    // [v3] Sync atmosphere badge in settings modal
+    const badge = document.getElementById('settings-atm-badge');
+    if (badge) {
+      badge.textContent = enabled ? 'On' : 'Off';
+      badge.className   = enabled
+        ? 'text-xs text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full'
+        : 'text-xs text-gray-500 bg-gray-500/10 px-2 py-0.5 rounded-full';
+    }
   },
 
   _updateThemeUI(themeId) {
@@ -4277,11 +4286,9 @@ function bindEvents() {
 
   const _openExpand = () => {
     if (typeof AtmosphereEngine === 'undefined') return;
-    console.log('[Expand] Expand player opened');
-    // Ensure analyser is hooked before opening
-    if (state.analyser && !AtmosphereEngine.AudioReactive._analyser) {
-      AtmosphereEngine.AudioReactive.init(state.analyser);
-    }
+    // [Atmosphere v3] Analyser reference stored here so engine can pick it up on open
+    // Heavy systems (AudioReactive, CinematicAtmosphere) only start inside ExpandPlayer.open()
+    if (state.analyser) AtmosphereEngine.AudioReactive.init(state.analyser);
     AtmosphereEngine.openExpand(_expandGetSong());
   };
 
@@ -4742,14 +4749,14 @@ async function init() {
   // Initialize Compact Mode
   CompactMode.init();
 
-  // [Atmosphere] Ensure engine is initialised and synced with saved theme/particles
+  // [Atmosphere v3] Init — lightweight, no canvas, no RAF in normal mode
   if (typeof AtmosphereEngine !== 'undefined') {
     AtmosphereEngine.init();
-    // Sync particles toggle from persisted setting
+    // Sync atmosphere enabled/disabled from persisted setting
     AtmosphereEngine.toggleParticles(state.particlesOn);
-    // Sync theme palette
+    // Sync theme palette references
     AtmosphereEngine.onThemeChange();
-    console.log('[Atmosphere] Post-init sync complete');
+    console.log('[Atmosphere v3] Post-init sync complete');
   }
 
   // Restore EQ slider display values

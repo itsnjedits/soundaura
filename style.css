@@ -114,9 +114,18 @@ body.light-mode .atm-blob-1 { opacity: 0.5; }
 body.light-mode .atm-blob-2 { opacity: 0.4; }
 body.light-mode .atm-blob-3 { opacity: 0.3; }
 
-/* ── [ATMOSPHERE v2] Home canvas — smooth fade in ─────────── */
-#atm-home-canvas {
-  transition: opacity 0.8s ease;
+/* ── [ATMOSPHERE v3] Home canvas removed — zero cost on normal screen ── */
+/* Home screen: NO canvas, NO RAF, NO rendering — only immersive mode renders */
+
+/* ── [ATMOSPHERE v3] Cinematic canvas in immersive mode ─────────────── */
+/* Canvas is rendered at 70% pixel density; CSS stretches it to 100%     */
+/* This halves GPU pixel fill cost while keeping cinematic feel           */
+#atm-cinematic-canvas {
+  /* CSS fills container at 100% while internal resolution is 70% */
+  width:  100% !important;
+  height: 100% !important;
+  /* Slight smoothing on upscale — avoids pixelated look */
+  image-rendering: auto;
 }
 
 /* ── [ATMOSPHERE v2] Expand player improvements ───────────── */
@@ -136,11 +145,8 @@ body.light-mode .atm-blob-3 { opacity: 0.3; }
   transition: box-shadow 0.5s ease, background 0.3s ease;
 }
 
-/* Visualizer canvas around album art */
-#atm-visualizer-canvas {
-  opacity: 0.85;
-  transition: opacity 0.4s ease;
-}
+/* [v3] #atm-visualizer-canvas removed — bar visualizer eliminated.
+   The CinematicAtmosphere canvas (#atm-cinematic-canvas) is the visual. */
 
 /* Art mode toggle button */
 #ep-art-mode-btn {
@@ -438,22 +444,15 @@ input:focus, select:focus {
   opacity: 1 !important;
 }
 
+
 /* ══════════════════════════════════════════════════════════
-   EP Bar Visualizer — inverted downward bars
+   [v3] Bar visualizer removed — CinematicAtmosphere is the
+   visualizer. #ep-viz-wrap and #ep-bar-viz-canvas no longer
+   exist in the DOM. Rules kept as stubs to avoid 404s on
+   any cached stylesheet references.
    ════════════════════════════════════════════════════════ */
-#ep-viz-wrap {
-  position: relative;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  /* Subtle top border as separator */
-  border-top: 1px solid rgba(var(--theme-accent-rgb), 0.12);
-}
-#ep-bar-viz-canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  image-rendering: pixelated;
-}
+#ep-viz-wrap      { display: none !important; }
+#ep-bar-viz-canvas{ display: none !important; }
 
 /* ══════════════════════════════════════════════════════════
    THEME: Play buttons use CSS vars (not hardcoded cyan)
@@ -515,4 +514,88 @@ input:focus, select:focus {
   -webkit-text-fill-color: transparent !important;
   background-clip: text !important;
   filter: drop-shadow(0 0 8px rgba(var(--theme-accent-rgb), 0.25));
+}
+
+/* ══════════════════════════════════════════════════════════
+   ATMOSPHERE v3 — Immersive Mode Additions
+   ════════════════════════════════════════════════════════ */
+
+/* Expand player modal — immersive base */
+#expand-player-modal {
+  /* Ensure a slightly deeper dark for atmosphere */
+  --ep-bg: rgba(4, 10, 22, 0.97);
+  /* Hardware acceleration hint for the modal itself */
+  transform: translateZ(0);
+}
+
+/* Cinematic canvas GPU hint — compositor promoted layer */
+#atm-cinematic-canvas {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Art inner: shadow transitions smoothly when palette updates */
+#ep-art-inner {
+  transition: box-shadow 0.5s ease, background 0.3s ease;
+}
+
+/* Art mode toggle button */
+#ep-art-mode-btn {
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+#ep-art-mode-btn:hover {
+  opacity: 1;
+  background: rgba(var(--theme-accent-rgb), 0.25) !important;
+  color: var(--theme-accent) !important;
+  border-color: rgba(var(--theme-accent-rgb), 0.4) !important;
+}
+
+/* Expand player play button — theme-matched glow */
+#ep-play {
+  box-shadow:
+    0 0 32px rgba(var(--theme-accent-rgb), 0.35),
+    0 6px 20px rgba(0, 0, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+#ep-play:hover {
+  transform: scale(1.07);
+  box-shadow:
+    0 0 44px rgba(var(--theme-accent-rgb), 0.5),
+    0 8px 24px rgba(0, 0, 0, 0.5);
+}
+#ep-play:active {
+  transform: scale(0.95);
+}
+
+/* Prev / Next nav buttons */
+#ep-prev:active,
+#ep-next:active {
+  transform: scale(0.9);
+}
+
+/* Progress bar — hover expands height for easier scrubbing */
+#ep-prog-bar {
+  cursor: pointer;
+  transition: height 0.14s ease;
+}
+
+/* Random-song animated item outline */
+.random-selected-active {
+  outline: 1px solid rgba(var(--theme-accent-rgb, 6,182,212), 0.3);
+  outline-offset: 2px;
+  border-radius: 0.75rem;
+  transition: outline-color 0.3s ease;
+}
+
+/* ── Normal-mode: guarantee NO canvas ever appears on home ── */
+/* Belt-and-suspenders rule — CinematicAtmosphere is never    */
+/* attached to the home screen, but this ensures nothing leaks */
+body:not(.immersive-open) canvas[id^="atm-"] {
+  display: none !important;
+}
+
+/* Mark body when immersive is open (set by ExpandPlayer.open/close) */
+body.immersive-open {
+  overflow: hidden;
 }

@@ -7753,5 +7753,313 @@
     "image": "thumbnails/who will dry your eyes when you fall apart？ (tiktok version) lyrics ｜ Beach House Space Song [I65nQr9SXG0]_thumbnail.jpg",
     "store": "store4",
     "mood": ["meditation"]
+  },
+  {
+    "title": "Gallan Goodiyaan",
+    "artist": [
+      "Yashita Sharma, Manish Kumar Tipu, Farhan Akhtar, Shankar Mahadevan, Sukhwinder Singh"
+    ],
+    "file": "audio/'Gallan Goodiyaan' Full VIDEO Song ｜ Dil Dhadakne Do ｜ T-Series.mp3",
+    "image": "thumbnails/'Gallan Goodiyaan' Full VIDEO Song ｜ Dil Dhadakne Do ｜ T-Series_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "440 Volt",
+    "artist": ["Mika Singh"],
+    "file": "audio/440 Volt ｜ Full Song ｜ Sultan ｜ Salman Khan, Anushka Sharma ｜ Mika Singh ｜ Vishal & Shekhar ｜ Irshad.mp3",
+    "image": "thumbnails/440 Volt ｜ Full Song ｜ Sultan ｜ Salman Khan, Anushka Sharma ｜ Mika Singh ｜ Vishal & Shekhar ｜ Irshad_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Allah Duhai Hai",
+    "artist": ["Atif Aslam, Sunidhi Chauhan, Pritam"],
+    "file": "audio/8K Remastered - Allah Duhai Hai ｜ Race Saanson Ki ｜ Katrina Kaif, Saif Ali, Bipasha ｜ Race Song.mp3",
+    "image": "thumbnails/8K Remastered - Allah Duhai Hai ｜ Race Saanson Ki ｜ Katrina Kaif, Saif Ali, Bipasha ｜ Race Song_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "motivational"]
+  },
+  {
+    "title": "Aaj Dil Shayrana",
+    "artist": ["Arijit Singh"],
+    "file": "audio/Aaj dil Shaayraana - Arijit Singh ｜ Holiday ｜ Akshay Kumar & Sonakshi Sinha ｜ Pritam ｜ Irshad K.mp3",
+    "image": "thumbnails/Aaj dil Shaayraana - Arijit Singh ｜ Holiday ｜ Akshay Kumar & Sonakshi Sinha ｜ Pritam ｜ Irshad K_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["romantic", "happy"]
+  },
+  {
+    "title": "Allah Duhai Hai",
+    "artist": ["Amit Mishra, Jonita Gandhi, Sreerama Chandra"],
+    "file": "audio/Allah Duhai Hai Full Video - Race 3 ｜ Salman Khan, Jacqueline, Anil, Bobby, Daisy ｜ JAM8 (TJ).mp3",
+    "image": "thumbnails/Allah Duhai Hai Full Video - Race 3 ｜ Salman Khan, Jacqueline, Anil, Bobby, Daisy ｜ JAM8 (TJ)_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "motivational"]
+  },
+  {
+    "title": "Angreji Beat",
+    "artist": ["Yo Yo Honey Singh, Gippy Grewal"],
+    "file": "audio/Angreji Beat (Original Video)： Yo Yo Honey Singh ｜ Gippy Grewal ｜ Rimpy Prince ｜ Veet Baljit.mp3",
+    "image": "thumbnails/Angreji Beat (Original Video)： Yo Yo Honey Singh ｜ Gippy Grewal ｜ Rimpy Prince ｜ Veet Baljit_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "punjabi"]
+  },
+  {
+    "title": "Aye Khuda",
+    "artist": ["Kshitij Tarey, Saim Bhat, Mithoon"],
+    "file": "audio/Aye Khuda Lyrics ｜ Murder 2 ｜ Kshitij Tarey, Saim, Mithoon ｜ Emraan Hashmi, Jacqueline Fernandez ｜.mp3",
+    "image": "thumbnails/Aye Khuda Lyrics ｜ Murder 2 ｜ Kshitij Tarey, Saim, Mithoon ｜ Emraan Hashmi, Jacqueline Fernandez ｜_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["sad", "spiritual", "nostalgia"]
+  },
+  {
+    "title": "Aye Khuda - Slowed Reverb",
+    "artist": ["Kshitij Tarey, Saim Bhat, Mithoon"],
+    "file": "audio/Aye Khuda [Slowed And Reverb] ｜ Murder 2 ｜ Emraan Hashmi ｜ sLow 🎵.mp3",
+    "image": "thumbnails/Aye Khuda [Slowed And Reverb] ｜ Murder 2 ｜ Emraan Hashmi ｜ sLow 🎵_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["sad", "slowedreverb", "nostalgia"]
+  },
+  {
+    "title": "Bachna Ae Haseeno",
+    "artist": ["Kishore Kumar, Sumit Kumar, Vishal Dadlani"],
+    "file": "audio/Bachna Ae Haseeno Title Song ｜ Ranbir, Deepika, Bipasha, Minissha ｜ Kishore Kumar ｜ Vishal & Shekhar.mp3",
+    "image": "thumbnails/Bachna Ae Haseeno Title Song ｜ Ranbir, Deepika, Bipasha, Minissha ｜ Kishore Kumar ｜ Vishal & Shekhar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "oldisgold", "happy"]
+  },
+  {
+    "title": "Bewajah - Lofi Version",
+    "artist": ["Himesh Reshammiya"],
+    "file": "audio/Bewajah Lofi ｜ Sanam Teri Kasam ｜ @DjAriNation X HARSH VERMA ｜ Lofi Remix.mp3",
+    "image": "thumbnails/Bewajah Lofi ｜ Sanam Teri Kasam ｜ @DjAriNation X HARSH VERMA ｜ Lofi Remix_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["slowedreverb", "sad", "romantic"]
+  },
+  {
+    "title": "Caller Tune",
+    "artist": ["Neeraj Shridhar, Neeti Mohan"],
+    "file": "audio/Caller Tune ｜ Humshakals ｜ Saif Ali Khan ,Tamannaah, Bipasha Basu, Riteish Deshmukh ,Neeraj Shridhar.mp3",
+    "image": "thumbnails/Caller Tune ｜ Humshakals ｜ Saif Ali Khan ,Tamannaah, Bipasha Basu, Riteish Deshmukh ,Neeraj Shridhar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Chor Bazari",
+    "artist": ["Neeraj Shridhar, Sunidhi Chauhan"],
+    "file": "audio/Chor Bazari ｜ Full Audio Song ｜ Love Aaj Kal ｜ Saif Ali Khan & Deepika Padukone.mp3",
+    "image": "thumbnails/Chor Bazari ｜ Full Audio Song ｜ Love Aaj Kal ｜ Saif Ali Khan & Deepika Padukone_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["happy", "romantic"]
+  },
+  {
+    "title": "Darkhaast - Lofi Version",
+    "artist": ["Arijit Singh, Sunidhi Chauhan"],
+    "file": "audio/DARKHAAST Lofi Mix ｜ DJ YOGII ｜ SHIVAAY ｜ Arijit S, Sunidhi C ｜ Ajay Devgn ｜ Lofi Bollywood Songs.mp3",
+    "image": "thumbnails/DARKHAAST Lofi Mix ｜ DJ YOGII ｜ SHIVAAY ｜ Arijit S, Sunidhi C ｜ Ajay Devgn ｜ Lofi Bollywood Songs_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["slowedreverb", "romantic", "sad"]
+  },
+  {
+    "title": "Dilbar",
+    "artist": ["Neha Kakkar, Dhvani Bhanushali, Ikka"],
+    "file": "audio/DILBAR Lyrical ｜ Satyameva Jayate ｜John Abraham, Nora Fatehi,Tanishk B, Neha Kakkar,Dhvani, Ikka.mp3",
+    "image": "thumbnails/DILBAR Lyrical ｜ Satyameva Jayate ｜John Abraham, Nora Fatehi,Tanishk B, Neha Kakkar,Dhvani, Ikka_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "Love Dose",
+    "artist": ["Yo Yo Honey Singh"],
+    "file": "audio/Exclusive： LOVE DOSE Full Video Song ｜ Yo Yo Honey Singh, Urvashi Rautela ｜ Desi Kalakaar.mp3",
+    "image": "thumbnails/Exclusive： LOVE DOSE Full Video Song ｜ Yo Yo Honey Singh, Urvashi Rautela ｜ Desi Kalakaar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "O Saki Saki",
+    "artist": ["Neha Kakkar, Tulsi Kumar, B Praak"],
+    "file": "audio/Full Song： O SAKI SAKI ｜ Batla House ｜ Nora Fatehi, Tanishk B,Neha K,Tulsi K, B Praak,Vishal-Shekhar.mp3",
+    "image": "thumbnails/Full Song： O SAKI SAKI ｜ Batla House ｜ Nora Fatehi, Tanishk B,Neha K,Tulsi K, B Praak,Vishal-Shekhar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party"]
+  },
+  {
+    "title": "Kamariya",
+    "artist": ["Aastha Gill, Divya Kumar"],
+    "file": "audio/Full Video： Kamariya ｜ STREE ｜ Nora Fatehi ｜ Rajkummar Rao ｜ Aastha Gill, Divya Kumar ｜Sachin- Jigar.mp3",
+    "image": "thumbnails/Full Video： Kamariya ｜ STREE ｜ Nora Fatehi ｜ Rajkummar Rao ｜ Aastha Gill, Divya Kumar ｜Sachin- Jigar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Galat Baat Hai",
+    "artist": ["Javed Ali, Neeti Mohan"],
+    "file": "audio/Galat Baat Hai 8K Full Song ｜ Varun Dhawan ｜ Ileana D'Cruz ｜ Nargis Fakhri ｜ Main Tera Hero.mp3",
+    "image": "thumbnails/Galat Baat Hai 8K Full Song ｜ Varun Dhawan ｜ Ileana D'Cruz ｜ Nargis Fakhri ｜ Main Tera Hero_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Ishq Ka Raja",
+    "artist": ["Addy Nagar, Hamsar Hayat"],
+    "file": "audio/Ishq Ka Raja - Addy Nagar (Official Video)- Hamsar Hayat - New Hindi Songs 2022.mp3",
+    "image": "thumbnails/Ishq Ka Raja - Addy Nagar (Official Video)- Hamsar Hayat - New Hindi Songs 2022_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "Jab Se Tere Naina",
+    "artist": ["Shaan"],
+    "file": "audio/Jab Se Tere Naina Lyrical Video - Saawariya ｜ Ranbir Kapoor ｜ Sonam Kapoor ｜ Shaan.mp3",
+    "image": "thumbnails/Jab Se Tere Naina Lyrical Video - Saawariya ｜ Ranbir Kapoor ｜ Sonam Kapoor ｜ Shaan_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["romantic", "nostalgia"]
+  },
+  {
+    "title": "Johnny Johnny",
+    "artist": ["Jigar Saraiya, Priya Panchal, Madhav Krishna"],
+    "file": "audio/Johnny Johnny with Lyrics - Entertainment ｜ Akshay Kumar, Tamannaah, Sachin Jigar.mp3",
+    "image": "thumbnails/Johnny Johnny with Lyrics - Entertainment ｜ Akshay Kumar, Tamannaah, Sachin Jigar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Judai",
+    "artist": ["Kamran Ahmed"],
+    "file": "audio/Judai - Lyrical Audio ｜ Emraan Hashmi ｜ Sonal Chauhan ｜ Pritam ｜ Kamran Ahmed ｜ Jannat.mp3",
+    "image": "thumbnails/Judai - Lyrical Audio ｜ Emraan Hashmi ｜ Sonal Chauhan ｜ Pritam ｜ Kamran Ahmed ｜ Jannat_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["sad", "nostalgia"]
+  },
+  {
+    "title": "Jumme Ki Raat",
+    "artist": ["Mika Singh, Palak Muchhal"],
+    "file": "audio/Jumme Ki Raat Full Video Song ｜ Salman Khan, Jacqueline Fernandez ｜ Mika Singh ｜ Himesh Reshammiya.mp3",
+    "image": "thumbnails/Jumme Ki Raat Full Video Song ｜ Salman Khan, Jacqueline Fernandez ｜ Mika Singh ｜ Himesh Reshammiya_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party"]
+  },
+  {
+    "title": "Lat Lag Gayee",
+    "artist": ["Benny Dayal, Shalmali Kholgade"],
+    "file": "audio/Lat Lag Gayee ｜ Race 2 ｜ Saif Ali Khan, Jacqueline ｜ Benny Dayal, Shalmali ｜ Pritam ｜ Party Song.mp3",
+    "image": "thumbnails/Lat Lag Gayee ｜ Race 2 ｜ Saif Ali Khan, Jacqueline ｜ Benny Dayal, Shalmali ｜ Pritam ｜ Party Song_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "Lutt Le Gaya",
+    "artist": ["Shashwat Sachdev"],
+    "file": "audio/Lutt Le Gaya - 8K Video ｜ Dhurandhar ｜ Ranveer Singh ｜ Akshaye Khanna ｜ Shashwat Sachdev.mp3",
+    "image": "thumbnails/Lutt Le Gaya - 8K Video ｜ Dhurandhar ｜ Ranveer Singh ｜ Akshaye Khanna ｜ Shashwat Sachdev_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "motivational"]
+  },
+  {
+    "title": "Deewangi Deewangi",
+    "artist": [
+      "Shaan, Udit Narayan, Shreya Ghoshal, Sunidhi Chauhan, Rahul Saxena"
+    ],
+    "file": "audio/Lyrical： Deewangi Deewangi ｜  Om Shanti Om ｜ Shahrukh Khan ｜ Deepika Padukone ｜ Vishal-Shekhar.mp3",
+    "image": "thumbnails/Lyrical： Deewangi Deewangi ｜  Om Shanti Om ｜ Shahrukh Khan ｜ Deepika Padukone ｜ Vishal-Shekhar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Mashallah",
+    "artist": ["Wajid, Shreya Ghoshal"],
+    "file": "audio/Mashallah Song ｜ Ek Tha Tiger ｜ Salman Khan, Katrina Kaif, Shreya Ghoshal, Sajid-Wajid, Kausar Munir.mp3",
+    "image": "thumbnails/Mashallah Song ｜ Ek Tha Tiger ｜ Salman Khan, Katrina Kaif, Shreya Ghoshal, Sajid-Wajid, Kausar Munir_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "Na Na Na Na",
+    "artist": ["J Star"],
+    "file": "audio/Na Na Na Na ｜ J Star ｜ Full Official Video ｜ Latest Punjabi Song 2015.mp3",
+    "image": "thumbnails/Na Na Na Na ｜ J Star ｜ Full Official Video ｜ Latest Punjabi Song 2015_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["punjabi", "party"]
+  },
+  {
+    "title": "Paniyon Sa - Lofi Version",
+    "artist": ["Atif Aslam, Tulsi Kumar"],
+    "file": "audio/PANIYON SA - LoFi Remix - Anik8 ｜ Tulsi Kumar ｜ Atif Aslam ｜ John Abraham ｜ Satyameva Jayate.mp3",
+    "image": "thumbnails/PANIYON SA - LoFi Remix - Anik8 ｜ Tulsi Kumar ｜ Atif Aslam ｜ John Abraham ｜ Satyameva Jayate_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["slowedreverb", "romantic", "rain"]
+  },
+  {
+    "title": "Party With The Bhoothnath",
+    "artist": ["Yo Yo Honey Singh, Amitabh Bachchan"],
+    "file": "audio/Party With The Bhoothnath Song (Official) ｜ Bhoothnath Returns ｜ Amitabh Bachchan, Yo Yo Honey Singh.mp3",
+    "image": "thumbnails/Party With The Bhoothnath Song (Official) ｜ Bhoothnath Returns ｜ Amitabh Bachchan, Yo Yo Honey Singh_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Prem Ki Naiya",
+    "artist": ["Neeraj Shridhar, Suzanne D'Mello"],
+    "file": "audio/Prem Ki Naiya Hai Ram Ke Bharose Full Video Song HD ｜ Ranbir, Katrina ｜ Ajab Prem Ki Ghazab Kahani.mp3",
+    "image": "thumbnails/Prem Ki Naiya Hai Ram Ke Bharose Full Video Song HD ｜ Ranbir, Katrina ｜ Ajab Prem Ki Ghazab Kahani_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["happy", "party"]
+  },
+  {
+    "title": "Saree Ke Fall Sa",
+    "artist": ["Antara Mitra, Nakash Aziz"],
+    "file": "audio/Saree Ke Fall Sa - Full Video ｜ Shahid, Sonakshi ｜ Antara Mitra, Nakash Aziz ｜ R...Rajkumar ｜ Pritam.mp3",
+    "image": "thumbnails/Saree Ke Fall Sa - Full Video ｜ Shahid, Sonakshi ｜ Antara Mitra, Nakash Aziz ｜ R...Rajkumar ｜ Pritam_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Slow Motion Angreza",
+    "artist": ["Sukhwinder Singh"],
+    "file": "audio/Slow Motion Angreza - Lyrical Song ｜ Farhan Akhtar ｜ Sukhwinder Singh ｜ Bhaag Milkha Bhaag.mp3",
+    "image": "thumbnails/Slow Motion Angreza - Lyrical Song ｜ Farhan Akhtar ｜ Sukhwinder Singh ｜ Bhaag Milkha Bhaag_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["happy", "party", "punjabi"]
+  },
+  {
+    "title": "Taras",
+    "artist": ["Jasmine Sandlas, Sachin-Jigar"],
+    "file": "audio/Taras - 8K Video ｜ Munjya ｜ Sharvari & Abhay ｜ Sachin-Jigar, Jasmine Sandlas ｜ Amitabh Bhattacharya.mp3",
+    "image": "thumbnails/Taras - 8K Video ｜ Munjya ｜ Sharvari & Abhay ｜ Sachin-Jigar, Jasmine Sandlas ｜ Amitabh Bhattacharya_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "romantic"]
+  },
+  {
+    "title": "Teri Mahima Aprampaar",
+    "artist": ["Udit Narayan, Anushka Manchanda"],
+    "file": "audio/Teri Mahima Aprampaar ｜ Akshay Kumar ｜ Tamannaah ｜ Anushka ｜ Udit Narayan ｜ Entertainment.mp3",
+    "image": "thumbnails/Teri Mahima Aprampaar ｜ Akshay Kumar ｜ Tamannaah ｜ Anushka ｜ Udit Narayan ｜ Entertainment_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["spiritual", "happy"]
+  },
+  {
+    "title": "Tumhi Ho Bandhu",
+    "artist": ["Neeraj Shridhar, Kavita Seth"],
+    "file": "audio/Tumhi Ho Bandhu - Full Video Song ｜ Cocktail ｜ Saif Ai Khan, Deepika Padukone & Diana Penty ｜ Pritam.mp3",
+    "image": "thumbnails/Tumhi Ho Bandhu - Full Video Song ｜ Cocktail ｜ Saif Ai Khan, Deepika Padukone & Diana Penty ｜ Pritam_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["happy", "party", "friendship"]
+  },
+  {
+    "title": "Veerey Di Wedding",
+    "artist": ["Mika Singh"],
+    "file": "audio/Veerey Di Wedding Full Video - Entertainment ｜ Akshay Kumar, Tamannaah ｜ Mika.mp3",
+    "image": "thumbnails/Veerey Di Wedding Full Video - Entertainment ｜ Akshay Kumar, Tamannaah ｜ Mika_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
+  },
+  {
+    "title": "Subha Hone Na De",
+    "artist": ["Mika Singh, Shefali Alvares"],
+    "file": "audio/＂Subha Hone Na De Full Song＂｜ Desi Boyz ｜ Akshay Kumar ,John Abraham ｜ Pritam ｜  Mika Singh, Kumaar.mp3",
+    "image": "thumbnails/＂Subha Hone Na De Full Song＂｜ Desi Boyz ｜ Akshay Kumar ,John Abraham ｜ Pritam ｜  Mika Singh, Kumaar_thumbnail.jpg",
+    "store": "store3",
+    "mood": ["party", "happy"]
   }
 ]
