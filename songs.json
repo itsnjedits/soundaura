@@ -8061,5 +8061,125 @@
     "image": "thumbnails/＂Subha Hone Na De Full Song＂｜ Desi Boyz ｜ Akshay Kumar ,John Abraham ｜ Pritam ｜  Mika Singh, Kumaar_thumbnail.jpg",
     "store": "store3",
     "mood": ["party", "happy"]
+  },
+  {
+    "title": "Ek Mulaqat - Slowed & Reverb",
+    "artist": ["Jubin Nautiyal"],
+    "file": "audio/Ek Mulaqat - Lofi Mix _ Slowed   Reverb _ Jubin Nautiyal _ Sonali Cable _ SSR Lofi.mp3",
+    "image": "thumbnails/Ek Mulaqat - Lofi Mix _ Slowed   Reverb _ Jubin Nautiyal _ Sonali Cable _ SSR Lofi_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "romantic", "sad"]
+  },
+  {
+    "title": "Hale Dil (Slowed & Reverb)",
+    "artist": ["Mohit Chauhan"],
+    "file": "audio/Hale Dil [ Slowed & Reverb ] Mohit Chauhan !! iamaadityamishra.mp3",
+    "image": "thumbnails/Hale Dil [ Slowed & Reverb ] Mohit Chauhan !! iamaadityamishra_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "sad", "romantic"]
+  },
+  {
+    "title": "Haqeeqat Ka Agar Afsana (Remix - Noctune)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/HAQEEQAT KA AGAR AFSANA (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE.mp3",
+    "image": "thumbnails/HAQEEQAT KA AGAR AFSANA (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["spiritual", "ghazal", "nostalgia"]
+  },
+  {
+    "title": "Haqeeqat Ka Agar Afsana (Remix)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/HAQEEQAT KA AGAR AFSANA (REMIX) - NUSRAT FATEH ALI KHAN.mp3",
+    "image": "thumbnails/HAQEEQAT KA AGAR AFSANA (REMIX) - NUSRAT FATEH ALI KHAN_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["spiritual", "ghazal", "nostalgia"]
+  },
+  {
+    "title": "Har Kisi Ko Nahi Milta (Slowed & Reverb)",
+    "artist": ["Nikhil D'Souza, Arijit Singh"],
+    "file": "audio/Har Kisi Ko Nahin Milta Yahan Pyar Hind Sad Lofi song,{[slowed  reverb] } @SB_hero_official.mp3",
+    "image": "thumbnails/Har Kisi Ko Nahin Milta Yahan Pyar Hind Sad Lofi song,{[slowed  reverb] } @SB_hero_official_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "sad", "romantic"]
+  },
+  {
+    "title": "Judai (Slowed & Reverb)",
+    "artist": ["Kamran Ahmed"],
+    "file": "audio/Judai - Jannat {Slowed Reverb} Imran Hashmi _ Kamran ahmed _ Pritam.mp3",
+    "image": "thumbnails/Judai - Jannat {Slowed Reverb} Imran Hashmi _ Kamran ahmed _ Pritam_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "sad", "nostalgia"]
+  },
+  {
+    "title": "Kaho Na Kaho (Slowed & Reverb)",
+    "artist": ["Amir Jamal"],
+    "file": "audio/kaho na kaho _ Slowed & Reverb _ Imran hashmi _ Murder _ Use headphones 🎧 _ DreamDust LoFi.mp3",
+    "image": "thumbnails/kaho na kaho _ Slowed & Reverb _ Imran hashmi _ Murder _ Use headphones 🎧 _ DreamDust LoFi_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "romantic", "nostalgia"]
+  },
+  {
+    "title": "Koi Fariyaad (Slowed & Reverb)",
+    "artist": ["Jagjit Singh"],
+    "file": "audio/Koi Fariyaad - Jagjit Singh (Slowed & Reverb).mp3",
+    "image": "thumbnails/Koi Fariyaad - Jagjit Singh (Slowed & Reverb)_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["ghazal", "sad", "slowedreverb"]
+  },
+  {
+    "title": "Mere Rashke Qamar (Lofi Version)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/Mere rashk e qamar lofi version relaxing 😌🤗 #lofi #nusratfatehalikhan.mp3",
+    "image": "thumbnails/Mere rashk e qamar lofi version relaxing 😌🤗 #lofi #nusratfatehalikhan_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["romantic", "ghazal", "slowedreverb"]
+  },
+  {
+    "title": "Meri Zindagi Hai Tu (Remix - Noctune)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/MERI ZINDAGI HAI TU (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE.mp3",
+    "image": "thumbnails/MERI ZINDAGI HAI TU (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["spiritual", "ghazal", "romantic"]
+  },
+  {
+    "title": "Tumhe Dillagi (Remix - Noctune)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/TUMHE DILLAGI (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE.mp3",
+    "image": "thumbnails/TUMHE DILLAGI (REMIX) - NUSRAT FATEH ALI KHAN X NOCTUNE_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["ghazal", "romantic", "nostalgia"]
+  },
+  {
+    "title": "Unke Andaz-e-Karam (NFAK Remix)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/Woh Bhi Apne Na Hue (NFAK Remix) _ Unke Andaz-e-Karam.mp3",
+    "image": "thumbnails/Woh Bhi Apne Na Hue (NFAK Remix) _ Unke Andaz-e-Karam_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["spiritual", "ghazal", "sad"]
+  },
+  {
+    "title": "Yeh Jo Halka Halka Suroor Hai (Lofi Mix)",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/Yeh Jo Halka Halka Suroor Hai (Lofi Mix).mp3",
+    "image": "thumbnails/Yeh Jo Halka Halka Suroor Hai (Lofi Mix)_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["ghazal", "spiritual", "slowedreverb"]
+  },
+  {
+    "title": "Yeh Jo Halka Halka Suroor Hai",
+    "artist": ["Nusrat Fateh Ali Khan"],
+    "file": "audio/Yeh Jo Halka Halka Suroor Hai (Lyric Video) _ Nusrat Fateh Ali Khan - OSA.mp3",
+    "image": "thumbnails/Yeh Jo Halka Halka Suroor Hai (Lyric Video) _ Nusrat Fateh Ali Khan - OSA_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["ghazal", "spiritual", "nostalgia"]
+  },
+  {
+    "title": "Zaroori Tha (Slowed & Reverb)",
+    "artist": ["Rahat Fateh Ali Khan"],
+    "file": "audio/Zaroori Tha ~ [Slowed   Reverb] ~ Rahat Fatey Ali Khan ............『IGNORE』 『BOY 』.mp3",
+    "image": "thumbnails/Zaroori Tha ~ [Slowed   Reverb] ~ Rahat Fatey Ali Khan ............『IGNORE』 『BOY 』_thumbnail.jpg",
+    "store": "store1",
+    "mood": ["slowedreverb", "sad", "romantic"]
   }
 ]
